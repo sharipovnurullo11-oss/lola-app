@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    build: https://github.com/sharipovnurullo11-oss/lola-app.git#main
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://lola:${POSTGRES_PASSWORD}@db:5432/lola
