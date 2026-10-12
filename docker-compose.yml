@@ -23,7 +23,7 @@ services:
       POSTGRES_USER: lola
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: lola
-    volumes: [dbdata:/var/lib/postgresql/data]
+    volumes: [dbdata2:/var/lib/postgresql/data]
 volumes:
-  dbdata:
+  dbdata2:
   appdata:
