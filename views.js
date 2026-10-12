@@ -48,14 +48,39 @@ ${field(t.password, 'password', 'password', 'autocomplete="current-password"')}
 <p>${esc(t.noAcc)} <a href="/register">${esc(t.register)}</a></p>`);
 }
 
-export function cabinetPage(lang, user, csrf) {
+export function cabinetPage(lang, user, csrf, opts = {}) {
   const t = T[lang];
+  const st = user.status;
+  let block = '';
+  if (st === 'awaiting_payment' || st === 'rejected') {
+    block = `<section class="card"><h2>${esc(t.payTitle)}</h2>
+${st === 'rejected' ? `<p class="err">${esc(t.rejectedNote)}</p>` : ''}
+<p>${esc(t.payAmount)} ${esc(t.payHow)}</p>
+${opts.payDetails ? `<p><b>${esc(t.payDetailsLabel)}:</b><br>${esc(opts.payDetails).replace(/\n/g, '<br>')}</p>` : ''}
+<form id="receipt-form" data-csrf="${esc(csrf)}" data-uploading="${esc(t.uploading)}" data-sent="${esc(t.receiptSent)}" data-err="${esc(t.errFile)}">
+<label>${esc(t.receiptHint)}<input id="receipt-file" type="file" accept="image/jpeg,image/png,application/pdf" required></label>
+<button class="btn">${esc(t.sendReceipt)}</button> <span id="receipt-msg" class="hint"></span></form></section>`;
+  } else if (st === 'receipt_sent') {
+    block = `<p>${esc(t.waitNote)}</p>`;
+  } else if (st === 'paid') {
+    block = `<p>${esc(t.paidNote)}</p>`;
+  }
   return layout(lang, t.cabinet, `<h1>${esc(t.hello)}, ${esc(user.name)}!</h1>
-<section class="card"><div>${esc(t.statusLabel)}</div><b>${esc(t['status_' + user.status] || user.status)}</b></section>
-<p>${esc(t.nextStep)}</p>
+<section class="card"><div>${esc(t.statusLabel)}</div><b>${esc(t['status_' + st] || st)}</b></section>
+${block}
+${user.is_owner ? `<p><a class="btn alt" href="/admin">${esc(t.toAdmin)}</a></p>` : ''}
 <p><button id="install" class="btn" hidden>${esc(t.install)}</button>
 <span id="ios-hint" class="hint" hidden>${esc(t.iosHint)}</span></p>
 <form method="post" action="/logout"><input type="hidden" name="csrf" value="${esc(csrf)}"><button class="btn alt">${esc(t.logout)}</button></form>`);
+}
+
+export function adminPage(lang, items, csrf) {
+  const t = T[lang];
+  const rows = items.map((r) => `<section class="card"><b>${esc(r.name)}</b> · ${esc(r.email)}<br><span class="hint">${esc(new Date(r.created_at).toISOString().slice(0, 16).replace('T', ' '))} UTC</span>
+<p><a href="/admin/receipt/${Number(r.id)}" target="_blank" rel="noopener">${esc(t.openReceipt)}</a></p>
+<form method="post" action="/admin/decide" class="row"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="id" value="${Number(r.id)}">
+<button class="btn" name="decision" value="confirm">${esc(t.confirm)}</button> <button class="btn alt" name="decision" value="reject">${esc(t.reject)}</button></form></section>`).join('');
+  return layout(lang, t.admin, `<h1>${esc(t.admin)}</h1>${rows || `<p>${esc(t.adminEmpty)}</p>`}<p><a href="/cabinet">${esc(t.toCabinet)}</a></p>`);
 }
 
 export function notFound(lang) {

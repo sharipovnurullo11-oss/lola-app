@@ -5,6 +5,9 @@ services:
     environment:
       DATABASE_URL: postgres://lola:${POSTGRES_PASSWORD}@db:5432/lola
       OWNER_EMAIL: ${OWNER_EMAIL}
+      PAYMENT_DETAILS: ${PAYMENT_DETAILS:-}
+      DATA_DIR: /data
+    volumes: [appdata:/data]
     depends_on: [db]
     labels:
       - traefik.enable=true
@@ -23,3 +26,4 @@ services:
     volumes: [dbdata:/var/lib/postgresql/data]
 volumes:
   dbdata:
+  appdata:

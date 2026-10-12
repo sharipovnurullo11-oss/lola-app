@@ -28,13 +28,20 @@ async function pgDb() {
       [key, String(windowSec)])).c),
     addFailure: (key) => pool.query('INSERT INTO login_attempts (key) VALUES ($1)', [key]),
     clearFailures: (key) => pool.query('DELETE FROM login_attempts WHERE key=$1', [key]),
+    addReceipt: (userId, file, mime) => one('INSERT INTO receipts (user_id,file,mime) VALUES ($1,$2,$3) RETURNING id', [userId, file, mime]),
+    receiptCount: async (userId) => Number((await one('SELECT count(*) c FROM receipts WHERE user_id=$1', [userId])).c),
+    receiptById: (id) => one('SELECT * FROM receipts WHERE id=$1', [id]),
+    pendingReceipts: async () => (await pool.query(
+      `SELECT r.id,r.created_at,u.id AS user_id,u.name,u.email FROM receipts r JOIN users u ON u.id=r.user_id WHERE r.status='pending' ORDER BY r.created_at`)).rows,
+    setReceiptStatus: (id, st) => pool.query('UPDATE receipts SET status=$2 WHERE id=$1', [id, st]),
+    setUserStatus: (id, st) => pool.query('UPDATE users SET status=$2 WHERE id=$1', [id, st]),
     cleanup: () => pool.query(`DELETE FROM sessions WHERE expires_at<now(); DELETE FROM login_attempts WHERE at<now()-interval '1 day'`),
   };
 }
 
 // In-memory adapter (только для тестов)
 function memoryDb() {
-  const users = []; const sessions = new Map(); const fails = new Map();
+  const users = []; const sessions = new Map(); const fails = new Map(); const receipts = [];
   return {
     async createUser(u) {
       if (users.some((x) => x.email.toLowerCase() === u.email.toLowerCase())) { const e = new Error('dup'); e.code = '23505'; throw e; }
@@ -53,6 +60,12 @@ function memoryDb() {
     async recentFailures(k, w) { return (fails.get(k) || []).filter((t) => t > Date.now() - w * 1000).length; },
     async addFailure(k) { fails.set(k, [...(fails.get(k) || []), Date.now()]); },
     async clearFailures(k) { fails.delete(k); },
+    async addReceipt(userId, file, mime) { const r = { id: receipts.length + 1, user_id: userId, file, mime, status: 'pending', created_at: new Date() }; receipts.push(r); return { id: r.id }; },
+    async receiptCount(userId) { return receipts.filter((r) => r.user_id === userId).length; },
+    async receiptById(id) { return receipts.find((r) => r.id === Number(id)) || null; },
+    async pendingReceipts() { return receipts.filter((r) => r.status === 'pending').map((r) => { const u = users.find((x) => x.id === r.user_id); return { id: r.id, created_at: r.created_at, user_id: u.id, name: u.name, email: u.email }; }); },
+    async setReceiptStatus(id, st) { const r = receipts.find((x) => x.id === Number(id)); if (r) r.status = st; },
+    async setUserStatus(id, st) { users.find((x) => x.id === Number(id)).status = st; },
     async cleanup() {},
   };
 }

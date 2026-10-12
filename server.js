@@ -9,6 +9,9 @@ import * as V from './views.js';
 const PORT = Number(process.env.PORT || 3000);
 const SECURE = process.env.COOKIE_SECURE !== '0';
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || '').toLowerCase();
+const DATA_DIR = process.env.DATA_DIR || '/data';
+const PAY_DETAILS = process.env.PAYMENT_DETAILS || '';
+const MAX_RECEIPT = 5 * 1024 * 1024, MAX_RECEIPTS_PER_USER = 10;
 const SESSION_TTL = 30 * 24 * 3600;
 const MAX_FAILS = 5, FAIL_WINDOW = 15 * 60;
 const PUBLIC = path.join(path.dirname(new URL(import.meta.url).pathname), 'public');
@@ -42,6 +45,17 @@ function parseCookies(req) {
 const cookie = (name, val, maxAge) =>
   `${name}=${encodeURIComponent(val)}; Path=/; HttpOnly; SameSite=Lax${SECURE ? '; Secure' : ''}${maxAge != null ? `; Max-Age=${maxAge}` : ''}`;
 
+function sniff(buf) {
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return ['image/jpeg', 'jpg'];
+  if (buf.length > 8 && buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return ['image/png', 'png'];
+  if (buf.length > 5 && buf.slice(0, 5).toString('latin1') === '%PDF-') return ['application/pdf', 'pdf'];
+  return null;
+}
+async function readRaw(req, max) {
+  const chunks = []; let n = 0;
+  for await (const c of req) { n += c.length; if (n > max) throw Object.assign(new Error('big'), { status: 413 }); chunks.push(c); }
+  return Buffer.concat(chunks);
+}
 async function readForm(req) {
   const chunks = []; let n = 0;
   for await (const c of req) { n += c.length; if (n > 20_000) throw Object.assign(new Error('big'), { status: 413 }); chunks.push(c); }
@@ -91,7 +105,16 @@ export const server = http.createServer(async (req, res) => {
       if (p === '/') return user ? redirect('/cabinet') : html(200, V.landing(lang));
       if (p === '/register') return user ? redirect('/cabinet') : html(200, V.registerPage(lang, csrf));
       if (p === '/login') return user ? redirect('/cabinet') : html(200, V.loginPage(lang, csrf));
-      if (p === '/cabinet') return user ? html(200, V.cabinetPage(lang, user, csrf)) : redirect('/login');
+      if (p === '/cabinet') return user ? html(200, V.cabinetPage(lang, user, csrf, { payDetails: PAY_DETAILS })) : redirect('/login');
+      if (p === '/admin') return user && user.is_owner ? html(200, V.adminPage(lang, await db.pendingReceipts(), csrf)) : html(404, V.notFound(lang));
+      const rm = p.match(/^\/admin\/receipt\/(\d+)$/);
+      if (rm) {
+        if (!user || !user.is_owner) return html(404, V.notFound(lang));
+        const r = await db.receiptById(rm[1]);
+        if (!r || !/^[\w.-]+$/.test(r.file)) return html(404, V.notFound(lang));
+        res.writeHead(200, { 'Content-Type': r.mime, 'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" });
+        return res.end(fs.readFileSync(path.join(DATA_DIR, 'receipts', r.file)));
+      }
       const m = p.match(/^\/lang\/(ru|tg|uz)$/);
       if (m) {
         setCookies.push(cookie('lang', m[1], 365 * 24 * 3600));
@@ -100,6 +123,22 @@ export const server = http.createServer(async (req, res) => {
         return redirect(back.startsWith('/') && !back.startsWith('//') && !back.startsWith('/lang') ? back : '/');
       }
       return html(404, V.notFound(lang));
+    }
+
+    if (req.method === 'POST' && p === '/receipt') {
+      if (!user) return html(401, 'login');
+      if (req.headers['x-csrf'] !== cookies.csrf) return html(403, 'csrf');
+      if (!['awaiting_payment', 'rejected'].includes(user.status)) return html(409, 'status');
+      if ((await db.receiptCount(user.id)) >= MAX_RECEIPTS_PER_USER) return html(429, 'limit');
+      const buf = await readRaw(req, MAX_RECEIPT);
+      const kind = sniff(buf);
+      if (!kind) return html(415, 'type');
+      const name = `${user.id}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${kind[1]}`;
+      fs.mkdirSync(path.join(DATA_DIR, 'receipts'), { recursive: true });
+      fs.writeFileSync(path.join(DATA_DIR, 'receipts', name), buf, { mode: 0o600 });
+      await db.addReceipt(user.id, name, kind[0]);
+      await db.setUserStatus(user.id, 'receipt_sent');
+      return html(200, 'ok');
     }
 
     if (req.method === 'POST') {
@@ -137,6 +176,17 @@ export const server = http.createServer(async (req, res) => {
         const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
         setCookies.push(cookie('sid', tok, SESSION_TTL));
         return redirect('/cabinet');
+      }
+
+      if (p === '/admin/decide') {
+        if (!user || !user.is_owner) return html(404, V.notFound(lang));
+        const r = await db.receiptById(form.id);
+        if (r && r.status === 'pending' && (form.decision === 'confirm' || form.decision === 'reject')) {
+          const ok = form.decision === 'confirm';
+          await db.setReceiptStatus(r.id, ok ? 'confirmed' : 'rejected');
+          await db.setUserStatus(r.user_id, ok ? 'paid' : 'rejected');
+        }
+        return redirect('/admin');
       }
 
       if (p === '/logout') {

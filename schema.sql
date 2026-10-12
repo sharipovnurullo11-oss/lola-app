@@ -20,3 +20,12 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS login_attempts_key ON login_attempts (key, at);
+CREATE TABLE IF NOT EXISTS receipts (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  file TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS receipts_user ON receipts (user_id);
