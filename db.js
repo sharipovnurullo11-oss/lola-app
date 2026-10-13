@@ -35,13 +35,23 @@ async function pgDb() {
       `SELECT r.id,r.created_at,u.id AS user_id,u.name,u.email FROM receipts r JOIN users u ON u.id=r.user_id WHERE r.status='pending' ORDER BY r.created_at`)).rows,
     setReceiptStatus: (id, st) => pool.query('UPDATE receipts SET status=$2 WHERE id=$1', [id, st]),
     setUserStatus: (id, st) => pool.query('UPDATE users SET status=$2 WHERE id=$1', [id, st]),
+    setOwner: (id, v) => pool.query('UPDATE users SET is_owner=$2 WHERE id=$1', [id, !!v]),
+    saveProfile: (uid, p) => pool.query(
+      `INSERT INTO profiles (user_id,business_name,about,services,hours,tone,channels,extra) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (user_id) DO UPDATE SET business_name=EXCLUDED.business_name, about=EXCLUDED.about, services=EXCLUDED.services,
+       hours=EXCLUDED.hours, tone=EXCLUDED.tone, channels=EXCLUDED.channels, extra=EXCLUDED.extra, updated_at=now()`,
+      [uid, p.business_name, p.about, p.services, p.hours, p.tone, p.channels, p.extra]),
+    profileByUser: (uid) => one('SELECT * FROM profiles WHERE user_id=$1', [uid]),
+    clientById: (id) => one('SELECT id,name,email,status FROM users WHERE id=$1 AND NOT is_owner', [id]),
+    clients: async () => (await pool.query(
+      `SELECT u.id,u.name,u.email,u.status,u.created_at FROM users u WHERE NOT u.is_owner ORDER BY u.created_at DESC LIMIT 500`)).rows,
     cleanup: () => pool.query(`DELETE FROM sessions WHERE expires_at<now(); DELETE FROM login_attempts WHERE at<now()-interval '1 day'`),
   };
 }
 
 // In-memory adapter (только для тестов)
 function memoryDb() {
-  const users = []; const sessions = new Map(); const fails = new Map(); const receipts = [];
+  const users = []; const sessions = new Map(); const fails = new Map(); const receipts = []; const profiles = new Map();
   return {
     async createUser(u) {
       if (users.some((x) => x.email.toLowerCase() === u.email.toLowerCase())) { const e = new Error('dup'); e.code = '23505'; throw e; }
@@ -66,6 +76,11 @@ function memoryDb() {
     async pendingReceipts() { return receipts.filter((r) => r.status === 'pending').map((r) => { const u = users.find((x) => x.id === r.user_id); return { id: r.id, created_at: r.created_at, user_id: u.id, name: u.name, email: u.email }; }); },
     async setReceiptStatus(id, st) { const r = receipts.find((x) => x.id === Number(id)); if (r) r.status = st; },
     async setUserStatus(id, st) { users.find((x) => x.id === Number(id)).status = st; },
+    async setOwner(id, v) { users.find((x) => x.id === Number(id)).is_owner = !!v; },
+    async saveProfile(uid, p) { profiles.set(Number(uid), { user_id: Number(uid), ...p }); },
+    async profileByUser(uid) { return profiles.get(Number(uid)) || null; },
+    async clientById(id) { const u = users.find((x) => x.id === Number(id) && !x.is_owner); return u ? { id: u.id, name: u.name, email: u.email, status: u.status } : null; },
+    async clients() { return users.filter((u) => !u.is_owner).map((u) => ({ id: u.id, name: u.name, email: u.email, status: u.status, created_at: new Date() })).reverse(); },
     async cleanup() {},
   };
 }

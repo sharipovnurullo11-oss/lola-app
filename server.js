@@ -8,7 +8,7 @@ import * as V from './views.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const SECURE = process.env.COOKIE_SECURE !== '0';
-const OWNER_EMAIL = (process.env.OWNER_EMAIL || '').toLowerCase();
+const ownerEmail = () => (process.env.OWNER_EMAIL || '').toLowerCase();
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const PAY_DETAILS = process.env.PAYMENT_DETAILS || '';
 const MAX_RECEIPT = 5 * 1024 * 1024, MAX_RECEIPTS_PER_USER = 10;
@@ -95,6 +95,10 @@ export const server = http.createServer(async (req, res) => {
     }
 
     const user = cookies.sid ? await db.userBySession(sha(cookies.sid)) : null;
+    if (user) { // права владельца всегда совпадают с OWNER_EMAIL, а не только при регистрации
+      const shouldOwn = !!ownerEmail() && String(user.email).toLowerCase() === ownerEmail();
+      if (!!user.is_owner !== shouldOwn) { await db.setOwner(user.id, shouldOwn); user.is_owner = shouldOwn; }
+    }
     const lang = pickLang(user ? user.lang : cookies.lang);
     let csrf = cookies.csrf;
     if (!csrf) { csrf = rand(); setCookies.push(cookie('csrf', csrf)); }
@@ -105,7 +109,19 @@ export const server = http.createServer(async (req, res) => {
       if (p === '/') return user ? redirect('/cabinet') : html(200, V.landing(lang));
       if (p === '/register') return user ? redirect('/cabinet') : html(200, V.registerPage(lang, csrf));
       if (p === '/login') return user ? redirect('/cabinet') : html(200, V.loginPage(lang, csrf));
-      if (p === '/cabinet') return user ? html(200, V.cabinetPage(lang, user, csrf, { payDetails: PAY_DETAILS })) : redirect('/login');
+      if (p === '/cabinet') return user ? html(200, V.cabinetPage(lang, user, csrf, { payDetails: PAY_DETAILS, profile: await db.profileByUser(user.id) })) : redirect('/login');
+      if (p === '/profile') {
+        if (!user) return redirect('/login');
+        if (!['paid', 'profile_done'].includes(user.status)) return redirect('/cabinet');
+        return html(200, V.profilePage(lang, csrf, '', await db.profileByUser(user.id) || {}));
+      }
+      if (p === '/admin/clients') return user && user.is_owner ? html(200, V.clientsPage(lang, await db.clients())) : html(404, V.notFound(lang));
+      const cm = p.match(/^\/admin\/client\/(\d+)$/);
+      if (cm) {
+        if (!user || !user.is_owner) return html(404, V.notFound(lang));
+        const c = await db.clientById(cm[1]);
+        return c ? html(200, V.clientPage(lang, c, await db.profileByUser(c.id))) : html(404, V.notFound(lang));
+      }
       if (p === '/admin') return user && user.is_owner ? html(200, V.adminPage(lang, await db.pendingReceipts(), csrf)) : html(404, V.notFound(lang));
       const rm = p.match(/^\/admin\/receipt\/(\d+)$/);
       if (rm) {
@@ -155,7 +171,7 @@ export const server = http.createServer(async (req, res) => {
         else if (form.terms !== '1') err = t.errTerms;
         if (err) return html(400, V.registerPage(lang, csrf, err, v));
         try {
-          const u = await db.createUser({ email: v.email, name: v.name, passwordHash: hashPassword(form.password), lang, isOwner: !!OWNER_EMAIL && v.email === OWNER_EMAIL });
+          const u = await db.createUser({ email: v.email, name: v.name, passwordHash: hashPassword(form.password), lang, isOwner: !!ownerEmail() && v.email === ownerEmail() });
           const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
           setCookies.push(cookie('sid', tok, SESSION_TTL));
           return redirect('/cabinet');
@@ -175,6 +191,26 @@ export const server = http.createServer(async (req, res) => {
         await db.clearFailures(key);
         const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
         setCookies.push(cookie('sid', tok, SESSION_TTL));
+        return redirect('/cabinet');
+      }
+
+      if (p === '/profile') {
+        if (!user) return redirect('/login');
+        if (!['paid', 'profile_done'].includes(user.status)) return redirect('/cabinet');
+        const cut = (v, n) => String(v || '').trim().slice(0, n);
+        const v = {
+          business_name: cut(form.business_name, 100), about: cut(form.about, 2000), services: cut(form.services, 3000),
+          hours: cut(form.hours, 300), extra: cut(form.extra, 3000),
+          tone: ['friendly', 'formal', 'brief'].includes(form.tone) ? form.tone : 'friendly',
+          channels: ['instagram', 'telegram', 'whatsapp'].filter((c) => form['ch_' + c] === '1').join(','),
+        };
+        let err = '';
+        if (!v.business_name) err = t.errBizName;
+        else if (v.about.length < 10) err = t.errAbout;
+        else if (!v.channels) err = t.errChannels;
+        if (err) return html(400, V.profilePage(lang, csrf, err, v));
+        await db.saveProfile(user.id, v);
+        if (user.status === 'paid') await db.setUserStatus(user.id, 'profile_done');
         return redirect('/cabinet');
       }
 

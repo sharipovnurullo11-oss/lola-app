@@ -17,6 +17,7 @@ function layout(lang, title, body) {
 <script src="/app.js" defer></script></body></html>`;
 }
 
+const CHANNEL_NAMES = { instagram: 'Instagram', telegram: 'Telegram', whatsapp: 'WhatsApp' };
 const field = (label, name, type, extra = '') =>
   `<label>${esc(label)}<input name="${name}" type="${type}" required ${extra}></label>`;
 
@@ -63,7 +64,10 @@ ${opts.payDetails ? `<p><b>${esc(t.payDetailsLabel)}:</b><br>${esc(opts.payDetai
   } else if (st === 'receipt_sent') {
     block = `<p>${esc(t.waitNote)}</p>`;
   } else if (st === 'paid') {
-    block = `<p>${esc(t.paidNote)}</p>`;
+    block = `<p>${esc(t.paidNote)}</p><p><a class="btn" href="/profile">${esc(t.fillProfile)}</a></p>`;
+  } else if (st === 'profile_done') {
+    const chs = String((opts.profile && opts.profile.channels) || '').split(',').filter(Boolean).map((c) => CHANNEL_NAMES[c] || c).join(', ');
+    block = `<p>${esc(t.profileDoneNote)}</p>${chs ? `<p class="hint">${esc(t.yourChannels)}: ${esc(chs)}</p>` : ''}<p><a class="btn alt" href="/profile">${esc(t.editProfile)}</a></p>`;
   }
   return layout(lang, t.cabinet, `<h1>${esc(t.hello)}, ${esc(user.name)}!</h1>
 <section class="card"><div>${esc(t.statusLabel)}</div><b>${esc(t['status_' + st] || st)}</b></section>
@@ -80,7 +84,42 @@ export function adminPage(lang, items, csrf) {
 <p><a href="/admin/receipt/${Number(r.id)}" target="_blank" rel="noopener">${esc(t.openReceipt)}</a></p>
 <form method="post" action="/admin/decide" class="row"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="id" value="${Number(r.id)}">
 <button class="btn" name="decision" value="confirm">${esc(t.confirm)}</button> <button class="btn alt" name="decision" value="reject">${esc(t.reject)}</button></form></section>`).join('');
-  return layout(lang, t.admin, `<h1>${esc(t.admin)}</h1>${rows || `<p>${esc(t.adminEmpty)}</p>`}<p><a href="/cabinet">${esc(t.toCabinet)}</a></p>`);
+  return layout(lang, t.admin, `<h1>${esc(t.admin)}</h1>${rows || `<p>${esc(t.adminEmpty)}</p>`}<p><a href="/admin/clients">${esc(t.clients)}</a> · <a href="/cabinet">${esc(t.toCabinet)}</a></p>`);
+}
+
+const area = (label, name, val, max, req = false) =>
+  `<label>${esc(label)}<textarea name="${name}" rows="3" maxlength="${max}" ${req ? 'required' : ''}>${esc(val)}</textarea></label>`;
+
+export function profilePage(lang, csrf, err = '', v = {}) {
+  const t = T[lang];
+  const chosen = String(v.channels || 'instagram,telegram').split(',');
+  const tones = ['friendly', 'formal', 'brief'].map((k) => `<option value="${k}" ${(v.tone || 'friendly') === k ? 'selected' : ''}>${esc(t['tone_' + k])}</option>`).join('');
+  const chs = Object.entries(CHANNEL_NAMES).map(([k, n]) => `<label class="chk"><input type="checkbox" name="ch_${k}" value="1" ${chosen.includes(k) ? 'checked' : ''}> ${esc(n)}</label>`).join('');
+  return layout(lang, t.profileTitle, `<h1>${esc(t.profileTitle)}</h1><p>${esc(t.profileIntro)}</p>${err ? `<p class="err">${esc(err)}</p>` : ''}
+<form method="post" action="/profile"><input type="hidden" name="csrf" value="${esc(csrf)}">
+${field(t.bizName, 'business_name', 'text', `maxlength="100" value="${esc(v.business_name)}"`)}
+${area(t.bizAbout, 'about', v.about, 2000, true)}
+${area(t.bizServices, 'services', v.services, 3000)}
+${area(t.bizHours, 'hours', v.hours, 300)}
+<label>${esc(t.bizTone)}<select name="tone">${tones}</select></label>
+<fieldset><legend>${esc(t.channelsLabel)}</legend>${chs}</fieldset>
+${area(t.bizExtra, 'extra', v.extra, 3000)}
+<button class="btn">${esc(t.saveProfile)}</button></form>
+<p><a href="/cabinet">${esc(t.toCabinet)}</a></p>`);
+}
+
+export function clientsPage(lang, items) {
+  const t = T[lang];
+  const rows = items.map((c) => `<section class="card"><a href="/admin/client/${Number(c.id)}"><b>${esc(c.name)}</b></a> · ${esc(c.email)}<br><span class="hint">${esc(t['status_' + c.status] || c.status)}</span></section>`).join('');
+  return layout(lang, t.clients, `<h1>${esc(t.clients)}</h1>${rows || `<p>${esc(t.clientsEmpty)}</p>`}<p><a href="/admin">${esc(t.admin)}</a></p>`);
+}
+
+export function clientPage(lang, c, p) {
+  const t = T[lang];
+  const row = (k, val) => val ? `<p><b>${esc(k)}:</b><br>${esc(val).replace(/\n/g, '<br>')}</p>` : '';
+  const chs = p ? String(p.channels).split(',').filter(Boolean).map((x) => CHANNEL_NAMES[x] || x).join(', ') : '';
+  const body = p ? `<section class="card">${row(t.bizName, p.business_name)}${row(t.bizAbout, p.about)}${row(t.bizServices, p.services)}${row(t.bizHours, p.hours)}${row(t.field_tone, t['tone_' + p.tone] || p.tone)}${row(t.field_channels, chs)}${row(t.field_extra, p.extra)}</section>` : `<p>${esc(t.noProfile)}</p>`;
+  return layout(lang, c.name, `<h1>${esc(c.name)}</h1><p>${esc(c.email)} · ${esc(t['status_' + c.status] || c.status)}</p>${body}<p><a href="/admin/clients">${esc(t.toClients)}</a></p>`);
 }
 
 export function notFound(lang) {

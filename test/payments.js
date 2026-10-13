@@ -47,4 +47,27 @@ r = await owner('GET', '/admin'); const id2 = r.text.match(/\/admin\/receipt\/(\
 r = await user('POST', '/admin/decide', { csrf: tok, id: id2, decision: 'confirm' }); assert.equal(r.status, 404); ok('client cannot decide');
 r = await owner('POST', '/admin/decide', { csrf: otok, id: id2, decision: 'confirm' }); assert.equal(r.status, 303);
 r = await user('GET', '/cabinet'); assert.match(r.text, /Оплата подтверждена/); ok('confirm -> paid');
+
+// --- этап 3: анкета и список клиентов
+r = await user('GET', '/cabinet'); assert.match(r.text, /Заполнить анкету/); ok('paid client sees profile button');
+r = await user('GET', '/profile'); assert.equal(r.status, 200); assert.match(r.text, /Анкета о вашем бизнесе/); ok('profile form opens');
+r = await user('POST', '/profile', { csrf: 'bad', business_name: 'X' }); assert.equal(r.status, 403); ok('profile needs csrf');
+r = await user('POST', '/profile', { csrf: tok, business_name: '', about: 'Психолог, помогаю людям', ch_telegram: '1' }); assert.equal(r.status, 400); assert.match(r.text, /Введите название/); ok('profile validates name');
+r = await user('POST', '/profile', { csrf: tok, business_name: 'Кабинет', about: 'коротко' }); assert.equal(r.status, 400); ok('profile validates about');
+r = await user('POST', '/profile', { csrf: tok, business_name: 'Кабинет', about: 'Психолог, помогаю людям', tone: 'brief' }); assert.equal(r.status, 400); assert.match(r.text, /хотя бы один канал/); ok('profile needs channel');
+r = await user('POST', '/profile', { csrf: tok, business_name: '<b>Кабинет</b>', about: 'Психолог, помогаю людям', services: 'Консультация 200', tone: 'brief', ch_instagram: '1', ch_telegram: '1' }); assert.equal(r.status, 303); ok('profile saved');
+r = await user('GET', '/cabinet'); assert.match(r.text, /Анкета заполнена/); assert.match(r.text, /Instagram, Telegram/); ok('status profile_done');
+r = await user('GET', '/admin/clients'); assert.equal(r.status, 404); ok('client cannot list clients');
+r = await owner('GET', '/admin/clients'); assert.equal(r.status, 200); assert.match(r.text, /u@test.com/); ok('owner lists clients');
+const cid = r.text.match(/\/admin\/client\/(\d+)/)[1];
+r = await owner('GET', `/admin/client/${cid}`); assert.match(r.text, /&lt;b&gt;Кабинет&lt;\/b&gt;/); assert.match(r.text, /Консультация 200/); ok('owner sees escaped profile');
+r = await user('GET', `/admin/client/${cid}`); assert.equal(r.status, 404); ok('client cannot view profiles');
+
+// --- права владельца определяются при каждом входе
+const late = client();
+await register(late, 'late@test.com', 'Поздний');
+r = await late('GET', '/admin'); assert.equal(r.status, 404);
+process.env.OWNER_EMAIL = 'late@test.com';
+r = await late('GET', '/admin'); assert.equal(r.status, 200); ok('owner rights granted at login after OWNER_EMAIL changed');
+r = await owner('GET', '/admin'); assert.equal(r.status, 404); ok('old owner loses rights');
 console.log('PAYMENTS PASSED'); server.close(); process.exit(0);

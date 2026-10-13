@@ -12,3 +12,6 @@ input[type=text],input[type=email],input[type=password]{display:block;width:100%
 .err{background:#fde8e8;color:#8a1c1c;padding:10px 12px;border-radius:8px}
 .card{background:#fff;border:1px solid #dde5e1;border-radius:12px;padding:14px 16px;margin:12px 0}
 .hint{color:#58706a;font-size:.9rem}
+textarea,select{display:block;width:100%;margin-top:4px;padding:12px;font:inherit;border:1px solid #b9c7c1;border-radius:8px;background:#fff}
+fieldset{border:1px solid #dde5e1;border-radius:8px;margin:12px 0;padding:6px 12px}
+legend{font-size:.95rem;padding:0 4px}

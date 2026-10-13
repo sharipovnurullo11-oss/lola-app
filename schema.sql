@@ -29,3 +29,14 @@ CREATE TABLE IF NOT EXISTS receipts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS receipts_user ON receipts (user_id);
+CREATE TABLE IF NOT EXISTS profiles (
+  user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  business_name TEXT NOT NULL,
+  about TEXT NOT NULL,
+  services TEXT NOT NULL DEFAULT '',
+  hours TEXT NOT NULL DEFAULT '',
+  tone TEXT NOT NULL DEFAULT 'friendly',
+  channels TEXT NOT NULL DEFAULT '',
+  extra TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
