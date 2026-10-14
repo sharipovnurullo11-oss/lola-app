@@ -10,7 +10,17 @@ const PORT = Number(process.env.PORT || 3000);
 const SECURE = process.env.COOKIE_SECURE !== '0';
 const ownerEmail = () => (process.env.OWNER_EMAIL || '').toLowerCase();
 const DATA_DIR = process.env.DATA_DIR || '/data';
-const PAY_DETAILS = process.env.PAYMENT_DETAILS || '';
+const PAY_DETAILS = process.env.PAYMENT_DETAILS || '+992 907 52 19 86';
+const PUBLIC_URL = (process.env.PUBLIC_URL || 'https://app.nurullo-sharipov.tech').replace(/\/$/, '');
+const PWD_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'; // без похожих символов (0/o, 1/l/i)
+const genPassword = () => Array.from({ length: 8 }, () => PWD_ALPHABET[crypto.randomInt(PWD_ALPHABET.length)]).join('');
+// телефон Таджикистана -> 992XXXXXXXXX (9 цифр после кода) либо null
+function normPhone(s) {
+  let d = String(s || '').replace(/\D/g, '');
+  if (d.startsWith('992') && d.length === 12) d = d.slice(3);
+  if (d.length === 10 && d.startsWith('0')) d = d.slice(1);
+  return d.length === 9 ? '992' + d : null;
+}
 const MAX_RECEIPT = 5 * 1024 * 1024, MAX_RECEIPTS_PER_USER = 10;
 const SESSION_TTL = 30 * 24 * 3600;
 const MAX_FAILS = 5, FAIL_WINDOW = 15 * 60;
@@ -71,7 +81,7 @@ export const server = http.createServer(async (req, res) => {
     res.writeHead(status, {
       'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'same-origin', 'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; frame-ancestors 'none'",
       ...headers,
     });
     res.end(body);
@@ -107,6 +117,7 @@ export const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET') {
       if (p === '/') return user ? redirect('/cabinet') : html(200, V.landing(lang));
+      if (p === '/demo') return html(200, V.demoPage(lang));
       if (p === '/register') return user ? redirect('/cabinet') : html(200, V.registerPage(lang, csrf));
       if (p === '/login') return user ? redirect('/cabinet') : html(200, V.loginPage(lang, csrf));
       if (p === '/cabinet') return user ? html(200, V.cabinetPage(lang, user, csrf, { payDetails: PAY_DETAILS, profile: await db.profileByUser(user.id) })) : redirect('/login');
@@ -120,7 +131,7 @@ export const server = http.createServer(async (req, res) => {
       if (cm) {
         if (!user || !user.is_owner) return html(404, V.notFound(lang));
         const c = await db.clientById(cm[1]);
-        return c ? html(200, V.clientPage(lang, c, await db.profileByUser(c.id))) : html(404, V.notFound(lang));
+        return c ? html(200, V.clientPage(lang, c, await db.profileByUser(c.id), csrf)) : html(404, V.notFound(lang));
       }
       if (p === '/admin') return user && user.is_owner ? html(200, V.adminPage(lang, await db.pendingReceipts(), csrf)) : html(404, V.notFound(lang));
       const rm = p.match(/^\/admin\/receipt\/(\d+)$/);
@@ -162,6 +173,19 @@ export const server = http.createServer(async (req, res) => {
       if (!form.csrf || form.csrf !== cookies.csrf) return html(403, V.notFound(lang));
       const t = T[lang];
 
+      if (p === '/register' && form.phone !== undefined) {
+        // регистрация гостя только по номеру телефона; логин и пароль выдаёт владелец после подтверждения чека
+        const ph = normPhone(form.phone);
+        const err = !ph ? t.errPhone : form.terms !== '1' ? t.errTerms : '';
+        if (err) return html(400, V.registerPage(lang, csrf, err, { phone: form.phone }));
+        let u = await db.userByPhone(ph);
+        if (u && u.password_hash) return html(409, V.registerPage(lang, csrf, t.errExists, { phone: form.phone }));
+        if (!u) u = await db.createUser({ phone: ph, name: V.fmtPhone(ph), lang, isOwner: false });
+        const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
+        setCookies.push(cookie('sid', tok, SESSION_TTL));
+        return redirect('/cabinet');
+      }
+
       if (p === '/register') {
         const v = { name: (form.name || '').trim(), email: (form.email || '').trim().toLowerCase() };
         let err = '';
@@ -182,12 +206,13 @@ export const server = http.createServer(async (req, res) => {
       }
 
       if (p === '/login') {
-        const email = (form.email || '').trim().toLowerCase();
-        const key = `${clientIp(req)}|${email}`;
-        if ((await db.recentFailures(key, FAIL_WINDOW)) >= MAX_FAILS) return html(429, V.loginPage(lang, csrf, t.errLimit, { email }));
-        const u = await db.userByEmail(email);
-        const ok = checkPassword(form.password || '', u ? u.password_hash : DUMMY) && !!u;
-        if (!ok) { await db.addFailure(key); return html(401, V.loginPage(lang, csrf, t.errCreds, { email })); }
+        const login = String(form.login || form.email || '').trim().toLowerCase();
+        const ph = login.includes('@') ? null : normPhone(login);
+        const key = `${clientIp(req)}|${ph || login}`;
+        if ((await db.recentFailures(key, FAIL_WINDOW)) >= MAX_FAILS) return html(429, V.loginPage(lang, csrf, t.errLimit, { login }));
+        const u = login ? (ph ? await db.userByPhone(ph) : await db.userByEmail(login)) : null;
+        const ok = !!u && !!u.password_hash && checkPassword(form.password || '', u.password_hash);
+        if (!ok) { checkPassword(form.password || '', DUMMY); await db.addFailure(key); return html(401, V.loginPage(lang, csrf, t.errCreds, { login })); }
         await db.clearFailures(key);
         const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
         setCookies.push(cookie('sid', tok, SESSION_TTL));
@@ -221,8 +246,26 @@ export const server = http.createServer(async (req, res) => {
           const ok = form.decision === 'confirm';
           await db.setReceiptStatus(r.id, ok ? 'confirmed' : 'rejected');
           await db.setUserStatus(r.user_id, ok ? 'paid' : 'rejected');
+          if (ok) {
+            // клиент без пароля (зарегистрировался по телефону): выдаём логин и пароль для отправки в WhatsApp
+            const target = await db.userById(r.user_id);
+            if (target && target.phone && !target.password_hash) {
+              const pw = genPassword();
+              await db.setPassword(target.id, hashPassword(pw));
+              return html(200, V.credentialsPage(lang, target, pw, `${PUBLIC_URL}/login`));
+            }
+          }
         }
         return redirect('/admin');
+      }
+
+      if (p === '/admin/password') {
+        if (!user || !user.is_owner) return html(404, V.notFound(lang));
+        const c = await db.userById(form.id);
+        if (!c || c.is_owner || !c.phone) return html(404, V.notFound(lang));
+        const pw = genPassword();
+        await db.setPassword(c.id, hashPassword(pw));
+        return html(200, V.credentialsPage(lang, c, pw, `${PUBLIC_URL}/login`));
       }
 
       if (p === '/logout') {
