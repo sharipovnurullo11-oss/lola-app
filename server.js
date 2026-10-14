@@ -118,6 +118,7 @@ export const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       if (p === '/') return user ? redirect('/cabinet') : html(200, V.landing(lang));
       if (p === '/demo') return html(200, V.demoPage(lang));
+      if (p === '/owner-register') return user ? redirect('/cabinet') : html(200, V.ownerRegisterPage(lang, csrf));
       if (p === '/register') return user ? redirect('/cabinet') : html(200, V.registerPage(lang, csrf));
       if (p === '/login') return user ? redirect('/cabinet') : html(200, V.loginPage(lang, csrf));
       if (p === '/cabinet') return user ? html(200, V.cabinetPage(lang, user, csrf, { payDetails: PAY_DETAILS, profile: await db.profileByUser(user.id) })) : redirect('/login');

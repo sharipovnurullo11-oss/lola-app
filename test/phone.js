@@ -24,6 +24,8 @@ let r = await anon('GET', '/'); assert.equal(r.status, 200); assert.match(r.text
 r = await anon('GET', '/demo'); assert.equal(r.status, 200); assert.match(r.text, /Кабинет/); assert.match(r.text, /<button class="btn primary" disabled>/); assert.match(r.text, /Зарегистрироваться за 300 сомони/); ok('guest preview has locked buttons');
 assert.doesNotMatch(r.text, /<input[^>]*name="/); ok('preview has no working forms');
 
+r = await anon('GET', '/owner-register'); assert.equal(r.status, 200); assert.match(r.text, /name="email"/); ok('owner e-mail registration page exists');
+
 // регистрация по телефону
 r = await guest('GET', '/register'); assert.match(r.text, /name="phone"/); const csrf = r.jar.csrf;
 r = await guest('POST', '/register', { csrf: 'bad', phone: '900112233', terms: '1' }); assert.equal(r.status, 403); ok('register needs csrf');

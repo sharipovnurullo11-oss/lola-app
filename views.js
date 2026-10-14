@@ -105,6 +105,18 @@ export function registerPage(lang, csrf, err = '', v = {}) {
 <p class="hint">${esc(t.haveAcc)} <a href="/login">${esc(t.login)}</a></p></div></div>`);
 }
 
+// Служебная регистрация по почте и паролю: нужна владельцу (адрес из OWNER_EMAIL), ссылка нигде не показывается
+export function ownerRegisterPage(lang, csrf, err = '', v = {}) {
+  const t = T[lang];
+  return layout(lang, t.register, `<div class="narrow"><div class="panel"><h1 class="h2">${esc(t.register)}</h1>${err ? `<p class="err">${esc(err)}</p>` : ''}
+<form method="post" action="/register"><input type="hidden" name="csrf" value="${esc(csrf)}">
+${field(t.name, 'name', 'text', `autocomplete="name" value="${esc(v.name)}" maxlength="80"`)}
+${field(t.email, 'email', 'email', `autocomplete="email" value="${esc(v.email)}" maxlength="120"`)}
+${field(t.password, 'password', 'password', 'autocomplete="new-password" minlength="8" maxlength="200"')}
+<label class="chk"><input type="checkbox" name="terms" value="1" required> ${esc(t.terms)}</label>
+<button class="btn primary wide">${esc(t.create)}</button></form></div></div>`);
+}
+
 export function loginPage(lang, csrf, err = '', v = {}) {
   const t = T[lang];
   return layout(lang, t.login, `<div class="narrow"><div class="panel"><h1 class="h2">${esc(t.loginTitle)}</h1><p class="hint">${esc(t.loginLead)}</p>${err ? `<p class="err">${esc(err)}</p>` : ''}
