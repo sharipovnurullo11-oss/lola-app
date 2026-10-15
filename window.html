@@ -576,6 +576,7 @@ $('f-reg').addEventListener('submit', function(ev){
   fetch(API+'/registration',{method:'POST',body:fd}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); })
   .then(function(x){
     if (x.s===200 && x.j && x.j.ok) { lstore('ew_pending',ph); $('done-phone').textContent='+992 '+ph; $('done-app').textContent=deliver==='telegram'?'Telegram':'WhatsApp'; $('reg-form').hidden=true; $('reg-done').hidden=false; render_top(); }
+    else if (x.s===409 && x.j && x.j.error==='exists') showErr('r-err','Этот номер уже зарегистрирован. Закройте окно, нажмите «Войти» и введите код.');
     else showErr('r-err','Не удалось отправить чек. Проверьте номер и файл.');
   }).catch(function(){ showErr('r-err','Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'); })
   .then(function(){ btn.disabled=false; btn.textContent='Отправить чек'; });
