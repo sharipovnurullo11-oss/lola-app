@@ -25,7 +25,19 @@ const MAX_RECEIPT = 5 * 1024 * 1024, MAX_RECEIPTS_PER_USER = 10;
 const SESSION_TTL = 30 * 24 * 3600;
 const MAX_FAILS = 5, FAIL_WINDOW = 15 * 60;
 const PUBLIC = path.join(path.dirname(new URL(import.meta.url).pathname), 'public');
-const WINDOW_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'window.html'));
+let WINDOW_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'window.html'));
+// «Единое окно» обновляется само: раз в минуту забираем свежий window.html из GitHub (без пересборки сервера)
+const WINDOW_URL = process.env.WINDOW_URL || 'https://raw.githubusercontent.com/sharipovnurullo11-oss/lola-app/main/window.html';
+async function refreshWindow() {
+  try {
+    const r = await fetch(WINDOW_URL, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return;
+    const t = Buffer.from(await r.arrayBuffer());
+    if (t.length > 20000 && t.includes(Buffer.from('</html>'))) WINDOW_HTML = t;
+  } catch { /* остаёмся на прежней версии */ }
+}
+if (process.env.NODE_ENV !== 'test') { refreshWindow(); setInterval(refreshWindow, 60_000).unref(); }
+
 const MIME = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
