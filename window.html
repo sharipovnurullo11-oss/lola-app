@@ -22,6 +22,8 @@ button{font:inherit;color:inherit}
 .chip.wait{background:var(--warnbg);color:var(--warn)}
 .chip.ok{background:var(--okbg);color:var(--ok)}
 .menu{width:36px;height:36px;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* узкие экраны: шапка не должна быть шире телефона */
+@media (max-width:420px){.top{gap:6px;padding-left:10px;padding-right:10px;flex-wrap:wrap}.brand{font-size:14px}.tb{padding:0 10px;font-size:13px}}
 /* полоса каналов */
 .chs{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
 .chs .lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px;white-space:nowrap}
