@@ -25,6 +25,7 @@ const MAX_RECEIPT = 5 * 1024 * 1024, MAX_RECEIPTS_PER_USER = 10;
 const SESSION_TTL = 30 * 24 * 3600;
 const MAX_FAILS = 5, FAIL_WINDOW = 15 * 60;
 const PUBLIC = path.join(path.dirname(new URL(import.meta.url).pathname), 'public');
+const WINDOW_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'window.html'));
 const MIME = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -102,6 +103,15 @@ export const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': p === '/sw.js' ? 'no-cache' : 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
         return res.end(fs.readFileSync(f));
       }
+    }
+
+    // «Единое окно» — статичная страница на n8n-вебхуках (свой CSP: инлайн-скрипт и запросы к n8n)
+    if (req.method === 'GET' && (p === '/window' || p === '/w')) {
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',
+        'Content-Security-Policy': "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://n8n-ny7q.srv2033023.hstgr.cloud; frame-ancestors 'none'",
+      });
+      return res.end(WINDOW_HTML);
     }
 
     const user = cookies.sid ? await db.userBySession(sha(cookies.sid)) : null;

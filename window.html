@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Единое окно</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600&display=swap">
+<style>
+:root{--navy:#16224F;--navy2:#1B2A5C;--amber:#F5A524;--amberText:#1A1200;--bg:#F5F6FA;--card:#fff;--line:#DDE1EC;--muted:#55607A;--soft:#E8ECF8;--ink:#101A33;--ok:#0E8F6F;--okbg:#DDF3EC;--bad:#B4372D;--badbg:#FBE5E2;--warn:#8A5A0B;--warnbg:#F8EBD0}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Onest',system-ui,sans-serif}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.app{height:100%;display:flex;flex-direction:column;max-width:1180px;margin:0 auto;background:var(--bg)}
+/* верхняя полоса */
+.top{flex:none;background:var(--navy);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px))}
+.brand{font-family:'Unbounded',sans-serif;font-weight:600;font-size:16px;letter-spacing:-.02em;margin-right:auto;white-space:nowrap}
+.tb{height:36px;padding:0 14px;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tb.pri{background:var(--amber);border-color:var(--amber);color:var(--amberText)}
+.chip{font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
+.chip.wait{background:var(--warnbg);color:var(--warn)}
+.chip.ok{background:var(--okbg);color:var(--ok)}
+.menu{width:36px;height:36px;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* полоса каналов */
+.chs{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
+.chs .lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px;white-space:nowrap}
+.ch{position:relative;flex:none;width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;cursor:default;padding:0}
+.ch svg{width:26px;height:26px}
+.ch.live{cursor:pointer}
+.ch.live:hover{border-color:var(--navy2)}
+.ch .dot{position:absolute;right:-3px;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid #fff}
+.ch .soon{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);font-size:9.5px;font-weight:700;background:var(--soft);color:var(--navy2);border-radius:8px;padding:1px 5px;white-space:nowrap}
+.chs .plus{width:44px;height:44px;border-radius:14px;border:1.5px dashed var(--line);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.hint{flex:none;margin:0;padding:8px 14px;font-size:13px;line-height:1.4;background:var(--warnbg);color:var(--warn)}
+/* рабочая область */
+.work{flex:1;min-height:0;display:grid;grid-template-columns:1fr}
+.list,.dlg{min-height:0;display:flex;flex-direction:column;background:#fff}
+.list{overflow-y:auto}
+.dlg{display:none;background:var(--bg)}
+.work.open .list{display:none}
+.work.open .dlg{display:flex}
+.row{display:flex;gap:12px;align-items:center;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:#fff;width:100%;text-align:left;cursor:pointer}
+.row.sel{background:var(--soft)}
+.av{position:relative;flex:none;width:44px;height:44px;border-radius:50%;background:var(--soft);color:var(--navy2);display:flex;align-items:center;justify-content:center;font-weight:700}
+.av .b{position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+.av .b svg{width:13px;height:13px}
+.rt{flex:1;min-width:0}
+.rt b{display:flex;justify-content:space-between;gap:8px;font-size:15px}
+.rt b i{font-style:normal;font-weight:400;font-size:12px;color:var(--muted)}
+.rt span{display:block;font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.tabs{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:2}.tabs button{flex:1;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 10px;font:inherit;font-size:13.5px;cursor:pointer}.tabs button.on{background:var(--soft);font-weight:600}.ronote{padding:12px 14px;text-align:center;color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);background:#fff}
+.empty{padding:28px 20px;text-align:center;color:var(--muted);font-size:14.5px;line-height:1.5}
+.dh{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
+.dh b{font-size:16px}.dh small{display:block;color:var(--muted);font-size:12.5px}
+.back{border:0;background:var(--soft);width:40px;height:40px;border-radius:12px;cursor:pointer;font-size:18px}
+.msgs{flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+.bub{max-width:82%;padding:9px 13px;border-radius:16px;font-size:15px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
+.bub small{display:block;font-size:11px;opacity:.65;margin-top:3px}
+.bub.in{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.bub.out{align-self:flex-end;background:var(--navy2);color:#fff;border-bottom-right-radius:4px}
+.snd{flex:none;display:flex;gap:8px;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line)}
+.snd input{flex:1;min-width:0;height:46px;border:1px solid var(--line);border-radius:23px;padding:0 16px;font:inherit;font-size:16px}
+.snd button{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--amber);color:var(--amberText);font-weight:700;font-size:17px;cursor:pointer}
+.noch{flex:1;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:14.5px}
+@media(min-width:860px){
+  .work{grid-template-columns:360px 1fr}
+  .work .list{display:flex!important;border-right:1px solid var(--line)}
+  .work .dlg{display:flex!important}
+  .back{display:none}
+  .work:not(.hasdlg) .dlg .msgs,.work:not(.hasdlg) .dlg .snd,.work:not(.hasdlg) .dlg .dh{display:none}
+  .work:not(.hasdlg) .noch{display:flex}
+}
+/* окна */
+dialog{border:0;border-radius:20px;padding:0;width:min(400px,calc(100vw - 24px));max-height:calc(100vh - 24px);box-shadow:0 20px 60px rgba(16,26,51,.35);color:var(--ink)}
+dialog::backdrop{background:rgba(16,26,51,.55)}
+.dbody{padding:20px;display:flex;flex-direction:column;gap:14px}
+.dbody h2{margin:0;font-family:'Unbounded',sans-serif;font-weight:500;font-size:19px;letter-spacing:-.02em}
+.dbody p{margin:0;font-size:14px;line-height:1.5;color:var(--muted)}
+.x{position:absolute;right:10px;top:10px;width:36px;height:36px;border:0;border-radius:10px;background:var(--soft);cursor:pointer;font-size:18px}
+.f{display:flex;flex-direction:column;gap:6px}
+label{font-weight:500;font-size:14px}
+.in2{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:inherit;font-size:16px;background:#fff}
+input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14px}
+.ph{display:flex}.ph span{min-height:46px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-right:0;border-radius:12px 0 0 12px;background:var(--soft);font-weight:600}.ph .in2{border-radius:0 12px 12px 0}
+.pay{border:1.5px dashed var(--navy2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.pay .r{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pay b{font-family:'Unbounded',sans-serif;font-weight:600;font-size:18px;color:var(--navy2);letter-spacing:-.02em}
+.pay .sum{font-size:14px;color:var(--muted)}.pay .sum strong{color:var(--ink)}
+.banks{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
+.bank{display:flex}
+.bank .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;overflow:hidden}
+.bank .ic img{width:100%;height:100%;object-fit:contain;background:#fff}
+.sm{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn{height:50px;border:0;border-radius:14px;background:var(--amber);color:var(--amberText);font-size:16.5px;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.6}
+.btn.sec{background:#fff;border:1.5px solid var(--navy2);color:var(--navy2)}
+.link{background:none;border:0;color:var(--navy2);text-decoration:underline;font-size:14px;font-weight:500;min-height:40px;cursor:pointer}
+.err{margin:0;padding:10px 12px;border-radius:10px;background:var(--badbg);color:var(--bad);font-size:14px}
+.okb{padding:12px;border-radius:12px;background:var(--okbg);color:var(--ok);font-weight:500;font-size:14.5px;line-height:1.45}
+.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:14.5px;line-height:1.4}
+.steps li{display:flex;gap:10px}.steps i{flex:none;width:24px;height:24px;border-radius:50%;background:var(--soft);color:var(--navy2);font-style:normal;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center}
+.pw{position:relative}.pw .in2{padding-right:48px}
+.eye{position:absolute;right:4px;top:3px;width:40px;height:40px;border:0;background:none;border-radius:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.eye[aria-pressed=true]{color:var(--navy2)}
+.rem{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14.5px;cursor:pointer}
+.rem input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--navy2)}
+.rem small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.mi{display:flex;flex-direction:column;gap:8px}
+[hidden]{display:none!important}
+.dv{display:flex;align-items:center;gap:20px;margin:10px 4px 10px}.dvb{position:relative;width:64px;height:64px;border-radius:16px;border:2px solid #d9dde3;background:#fff;display:grid;place-items:center;cursor:pointer;opacity:.45;filter:grayscale(.35)}.dvb.on{border-color:#16a34a;opacity:1;filter:none;background:#f2fbf5}.dvw{position:relative;display:block}.dvc{position:absolute;right:-7px;top:-7px;z-index:2;width:22px;height:22px;border:2px solid #b8c0cc;border-radius:6px;background:#fff;color:#fff;font-size:15px;line-height:18px;text-align:center;pointer-events:none}.dvb.on+.dvc,.dvw.on .dvc{background:#16a34a;border-color:#16a34a}.dvb .ck{display:none}.dv em{font-style:normal;font-size:13px;color:#555}
+
+.seg{display:flex;gap:4px;background:var(--soft);border-radius:12px;padding:4px}
+.seg button{flex:1;height:38px;border:0;border-radius:9px;background:transparent;font:inherit;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer}
+.seg button.on{background:#fff;color:var(--navy2);box-shadow:0 1px 3px rgba(16,26,51,.15)}
+.ord{flex:none;margin-left:auto;height:38px;padding:0 12px;border-radius:10px;border:1.5px solid var(--ok);background:#fff;color:var(--ok);font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.ord.done{background:var(--okbg);cursor:default}
+#m-staff{width:min(820px,calc(100vw - 16px))}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.sum .t{border-radius:14px;padding:12px 14px;background:#fff;border:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.sum .t small{font-size:12px;color:var(--muted)}.sum .t b{font-family:'Unbounded',sans-serif;font-weight:500;font-size:22px;letter-spacing:-.02em}
+.sum .t.ok{background:var(--okbg);border-color:transparent}.sum .t.ok b{color:var(--ok)}
+.sum .t.warn{background:var(--warnbg);border-color:transparent}.sum .t.warn b{color:var(--warn)}
+.sum .t.bad{background:var(--badbg);border-color:transparent}.sum .t.bad b{color:var(--bad)}
+.sc{border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.sc.on{border-color:#bfe6da}
+.sc .sctop{display:flex;align-items:center;gap:10px}.sc .dot2{width:10px;height:10px;border-radius:50%;background:#b8c0cc;flex:none}.sc .dot2.on{background:var(--ok);box-shadow:0 0 0 4px var(--okbg)}
+.sc .nm{flex:1;min-width:0;display:flex;flex-direction:column}.sc .nm b{font-size:16px}.sc .nm span{font-size:12.5px;color:var(--muted)}
+.sc .pill{font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 10px;background:#eef0f5;color:var(--muted);white-space:nowrap}
+.sc .pill.ok{background:var(--okbg);color:var(--ok)}.sc .pill.bad{background:var(--badbg);color:var(--bad)}
+.sc .act{border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4;display:flex;flex-direction:column;gap:2px}
+.sc .act small{font-size:12.5px;opacity:.85}
+.sc .act.ok{background:var(--okbg);color:var(--ok)}.sc .act.warn{background:var(--warnbg);color:var(--warn)}.sc .act.bad{background:var(--badbg);color:var(--bad)}.sc .act.na{background:var(--bg);color:var(--muted)}
+.tl{position:relative;height:12px;border-radius:6px;background:#eceff6}
+.tl i{position:absolute;top:0;bottom:0;border-radius:6px;background:#7fb9a8}.tl i.on{background:var(--ok)}
+.tlx{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:-4px}
+.sc .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+.sc .grid div{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--muted)}.sc .grid div b{display:block;font-size:16px;color:var(--ink);margin-top:2px}
+.sc .acts{display:flex;gap:8px;flex-wrap:wrap}.sc details{font-size:13px;color:var(--muted)}.sc .chi svg{width:20px;height:20px;vertical-align:middle;margin-right:4px}
+#s-list{display:flex;flex-direction:column;gap:12px}
+@media (max-width:520px){#m-staff{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0;margin:0}}
+.addst{display:flex;flex-direction:column;gap:10px}
+.okb{background:var(--okbg);color:var(--ok);border-radius:12px;padding:12px 14px;font-size:14.5px;line-height:1.5}
+.stc{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.stc .h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.stc .h b{font-size:16px}
+.stc .dot2{width:10px;height:10px;border-radius:50%;background:#b8c0cc;flex:none}.stc .dot2.on{background:var(--ok)}
+.stc .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stc .grid div{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--muted)}
+.stc .grid div b{display:block;font-size:16px;color:var(--ink);margin-top:2px}
+.stc .acts{display:flex;gap:8px;flex-wrap:wrap}
+.stc details{font-size:13px;color:var(--muted)}
+.stc .chi svg{width:20px;height:20px;vertical-align:middle;margin-right:4px}
+.tag{font-size:12px;font-weight:600;border-radius:8px;padding:2px 8px;background:var(--badbg);color:var(--bad)}
+.dlrow{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0;font-size:14px}
+.dlrow span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlrow select{flex:none;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font:inherit;font-size:14px;background:#fff;max-width:48%}
+.dbody h3{margin:6px 0 0;font-size:15px}
+.who{display:inline-block;margin-top:3px;font-style:normal;font-size:12px;font-weight:600;color:var(--ok)}.who.ai{color:#6D3FC0}.who.wait{color:var(--warn)}
+.bub .au{display:block;font-size:11.5px;font-weight:600;margin-bottom:3px;opacity:.85}
+.bub.out.ai{background:#EFE8FB;color:#2B1A55;border:1px solid #D8C9F5}
+.bub .chk{display:block;margin-top:4px;font-size:11.5px;font-weight:600;color:var(--ok)}.bub .chk.ai{color:#6D3FC0}.bub .chk.wait{color:var(--warn)}
+.err.info{background:var(--warnbg);color:var(--warn)}
+.alertbar{flex:none;background:#FFF4DC;border-bottom:1px solid #F0D9A0;padding:8px 14px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.alertbar .al{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.alertbar .al span{flex:1;min-width:180px}
+.devrow{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0;font-size:13.5px;flex-wrap:wrap}
+.devrow .dd{flex:1;min-width:170px}.devrow .dd small{display:block;color:var(--muted);font-size:12px}
+.tag.ok{background:var(--okbg);color:var(--ok)}.tag.wait{background:var(--warnbg);color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand" id="brand">Единое окно</div>
+    <span class="chip wait" id="chip-wait" hidden>Проверяем оплату</span>
+    <span class="chip ok" id="chip-ok" hidden></span>
+    <button class="tb" id="b-code" type="button" hidden>Ввести код</button>
+    <button class="tb" id="b-login" type="button">Войти</button>
+    <button class="tb pri" id="b-reg" type="button">Зарегистрироваться</button>
+    <button class="tb" id="b-team" type="button" hidden>Команда</button>
+    <button class="menu" id="b-menu" type="button" aria-label="Меню" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </header>
+  <div class="chs" id="chs" aria-label="Каналы"></div>
+  <p class="hint" id="hint">Это пример окна: так выглядит работа внутри. Войдите или зарегистрируйтесь, чтобы подключить свои каналы.</p>
+  <div class="alertbar" id="alertbar" hidden></div>
+  <main class="work" id="work">
+    <section class="list" id="list" aria-label="Переписки"></section>
+    <section class="dlg" id="dlg" aria-label="Диалог">
+      <div class="noch">Выберите переписку</div>
+      <div class="dh"><button class="back" id="back" type="button" aria-label="К списку">←</button><div class="av" id="d-av"></div><div><b id="d-name"></b><small id="d-ch"></small></div><button class="ord" id="b-order" type="button" hidden>Оформлен заказ</button></div>
+      <div class="msgs" id="msgs"></div>
+      <form class="snd" id="f-send" novalidate><input id="c-text" type="text" autocomplete="off" placeholder="Ответить клиенту" aria-label="Ответ клиенту"><button type="submit" aria-label="Отправить">&#10148;</button></form>
+    </section>
+  </main>
+</div>
+
+<!-- Регистрация -->
+<dialog id="m-reg"><div class="dbody" style="position:relative">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <div id="reg-form">
+    <h2 style="margin-bottom:14px;padding-right:36px">Регистрация</h2>
+    <form id="f-reg" novalidate style="display:flex;flex-direction:column;gap:14px">
+      <div class="pay">
+        <span class="sum">Переведите на номер</span>
+        <div class="r"><b>+992 907 52 19 86</b><button class="sm" id="copy" type="button">Копировать</button></div>
+        <div class="banks" id="banks" aria-label="Куда можно перевести"></div>
+        <span class="sum">Сумма: <strong>300 сомони</strong></span>
+      </div>
+      <div class="f"><label for="r-phone">Ваш номер телефона</label><div class="ph"><span>+992</span><input class="in2" id="r-phone" type="tel" inputmode="numeric" placeholder="900 00 00 00"></div><label style="margin-top:12px">Куда прислать код для входа?</label><div class="dv" id="deliver" role="radiogroup"><div class="dvw" data-w="whatsapp"><span class="dvc"></span><button type="button" class="dvb" data-d="whatsapp" role="radio" aria-checked="false" title="Код придёт в WhatsApp"><svg viewBox="0 0 24 24" width="38" height="38"><circle cx="12" cy="12" r="11" fill="#25D366"/><path fill="#fff" d="M12 5.5a6.5 6.5 0 0 0-5.6 9.8L5.5 18.5l3.3-.9A6.5 6.5 0 1 0 12 5.5zm3.4 8.9c-.2.5-1 .9-1.4.9-.4.1-.8.1-2.5-.5-2.100-.9-3.400-3-3.500-3.100-.1-.1-.8-1-.8-2s.5-1.400.7-1.600c.2-.2.4-.2.5-.2h.4c.1 0 .3 0 .4.3l.6 1.400c.1.100.1.300 0 .4l-.3.400c-.1.100-.2.300-.1.400.4.700.9 1.200 1.500 1.600.2.100.3.100.4 0l.5-.6c.1-.1.300-.2.400-.1l1.400.7c.2.100.3.100.3.200 0 .1 0 .6-.2 1z"/></svg><span class="ck">✓</span></button></div><div class="dvw" data-w="telegram"><span class="dvc"></span><button type="button" class="dvb" data-d="telegram" role="radio" aria-checked="false" title="Код придёт в Telegram"><svg viewBox="0 0 24 24" width="38" height="38"><circle cx="12" cy="12" r="11" fill="#2AABEE"/><path fill="#fff" d="M5.700 11.800l10.800-4.200c.5-.2.900.1.700.9l-1.800 8.600c-.1.600-.5.800-1 .500l-2.800-2.100-1.300 1.300c-.2.200-.3.300-.6.300l.2-2.900 5.300-4.800c.2-.2 0-.3-.3-.1l-6.600 4.100-2.800-.9c-.6-.2-.6-.6.200-.8z"/></svg><span class="ck">✓</span></button></div></div></div>
+      <div class="f"><label for="r-file">Чек (фото или скриншот)</label><input id="r-file" type="file" accept="image/*,application/pdf"></div>
+      <p class="err" id="r-err" hidden></p>
+      <button class="btn" id="r-btn" type="submit">Отправить чек</button>
+    </form>
+  </div>
+  <div id="reg-done" hidden>
+    <h2 style="margin-bottom:14px;padding-right:36px">Чек отправлен</h2>
+    <div class="okb">Мы проверим перевод. Код для входа придёт в <span id="done-app">WhatsApp</span> на <b id="done-phone"></b>.</div>
+    <button class="btn" data-close type="button" style="margin-top:14px;width:100%">Понятно</button>
+  </div>
+</div></dialog>
+
+<!-- Вход -->
+<dialog id="m-login"><div class="dbody" style="position:relative">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Вход</h2>
+  <div class="seg" id="l-role" role="radiogroup" aria-label="Кто входит"><button type="button" class="on" data-r="owner" role="radio" aria-checked="true">Руководитель</button><button type="button" data-r="staff" role="radio" aria-checked="false">Сотрудник</button></div>
+  <form id="f-login" novalidate style="display:flex;flex-direction:column;gap:14px">
+    <div class="f"><label for="l-phone">Номер телефона</label><div class="ph"><span>+992</span><input class="in2" id="l-phone" type="tel" inputmode="numeric" autocomplete="username" placeholder="900 00 00 00"></div></div>
+    <div class="f"><label for="l-pass">Код</label><div class="pw"><input class="in2" id="l-pass" type="password" autocomplete="current-password" placeholder="Код для входа"><button type="button" class="eye" data-eye="l-pass" aria-label="Показать код" aria-pressed="false"><svg class="eo" style="display:none" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ec" style="display:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div></div>
+    <label class="rem"><input type="checkbox" id="l-remember"><span>Запомнить меня на этом устройстве<small>Не отмечайте на чужом телефоне</small></span></label>
+    <p class="err" id="l-err" hidden></p>
+    <button class="btn" id="l-btn" type="submit">Войти</button>
+  </form>
+  <p>Нет доступа? <button class="link" id="to-reg" type="button" style="min-height:0">Зарегистрироваться</button></p>
+</div></dialog>
+
+<!-- Меню кабинета -->
+<dialog id="m-menu"><div class="dbody" style="position:relative">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Кабинет</h2>
+  <p id="menu-paid"></p>
+  <div class="mi">
+    <button class="btn sec" id="m-staffbtn" type="button">Сотрудники</button>
+    <button class="btn sec" id="m-chcode" type="button">Сменить код</button>
+    <button class="btn sec" id="m-logout" type="button">Выйти</button>
+  </div>
+</div></dialog>
+
+<!-- Смена кода -->
+<dialog id="m-code"><div class="dbody" style="position:relative">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Новый код</h2>
+  <p>Можно заменить простой код на более сложный: от 8 символов, буквы и цифры.</p>
+  <form id="f-code" novalidate style="display:flex;flex-direction:column;gap:14px">
+    <div class="f"><label for="k-old">Текущий код</label><div class="pw"><input class="in2" id="k-old" type="password" autocomplete="current-password"><button type="button" class="eye" data-eye="k-old" aria-label="Показать код" aria-pressed="false"><svg class="eo" style="display:none" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ec" style="display:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div></div>
+    <div class="f"><label for="k-new">Новый код</label><div class="pw"><input class="in2" id="k-new" type="password" autocomplete="new-password"><button type="button" class="eye" data-eye="k-new" aria-label="Показать код" aria-pressed="false"><svg class="eo" style="display:none" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ec" style="display:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div></div>
+    <div class="f"><label for="k-new2">Новый код ещё раз</label><div class="pw"><input class="in2" id="k-new2" type="password" autocomplete="new-password"><button type="button" class="eye" data-eye="k-new2" aria-label="Показать код" aria-pressed="false"><svg class="eo" style="display:none" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ec" style="display:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div></div>
+    <p class="err" id="k-err" hidden></p>
+    <button class="btn" id="k-btn" type="submit">Сохранить</button>
+  </form>
+</div></dialog>
+
+<!-- Подключение Telegram -->
+<dialog id="m-tg"><div class="dbody" style="position:relative">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Подключить Telegram</h2>
+  <ul class="steps">
+    <li><i>1</i><span>В Telegram откройте @BotFather и отправьте команду /newbot.</span></li>
+    <li><i>2</i><span>Придумайте имя бота и адрес, он должен заканчиваться на bot.</span></li>
+    <li><i>3</i><span>BotFather пришлёт ключ вида 123456789:AA… Вставьте его ниже.</span></li>
+  </ul>
+  <form id="f-tg" novalidate style="display:flex;flex-direction:column;gap:14px">
+    <div class="f"><label for="t-key">Ключ бота</label><input class="in2" id="t-key" type="text" autocomplete="off" placeholder="123456789:AA..."></div>
+    <p class="err" id="t-err" hidden></p>
+    <button class="btn" id="t-btn" type="submit">Подключить</button>
+  </form>
+</div></dialog>
+
+<!-- Сотрудники (для руководителя) -->
+<dialog id="m-staff"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Команда</h2>
+  <div class="seg" id="s-days"><button type="button" class="on" data-d="1">Сегодня</button><button type="button" data-d="7">7 дней</button></div>
+  <div class="sum" id="s-sum"></div>
+  <div id="s-list"></div>
+  <h3>Устройства</h3>
+  <div id="s-devs"></div>
+  <h3>Добавить сотрудника</h3>
+  <form id="f-staff" class="addst" novalidate>
+    <input class="in2" id="s-name" type="text" autocomplete="off" placeholder="Имя сотрудника">
+    <div class="ph"><span>+992</span><input class="in2" id="s-phone" type="tel" inputmode="numeric" autocomplete="off" placeholder="900 00 00 00"></div>
+    <p class="err" id="s-err" hidden></p>
+    <button class="btn" id="s-add" type="submit">Добавить</button>
+  </form>
+  <div class="okb" id="s-new" hidden></div>
+  <h3>Кому какой диалог</h3>
+  <div id="s-dlgs"></div>
+</div></dialog>
+
+<script>
+var API = 'https://n8n-ny7q.srv2033023.hstgr.cloud/webhook';
+var PAY_PHONE = '+992907521986';
+var BRAND = 'Единое окно';
+
+/* Каналы. Чтобы добавить новый мессенджер, достаточно ещё одной записи здесь. */
+var CHANNELS = [
+  { id:'instagram', name:'Instagram', live:false,
+    svg:'<svg viewBox="0 0 24 24"><defs><linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset=".4" stop-color="#FA7E1E"/><stop offset=".7" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="url(#ig)"/><rect x="6" y="6" width="12" height="12" rx="3.5" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="16" cy="8" r="1" fill="#fff"/></svg>' },
+  { id:'whatsapp',  name:'WhatsApp',  live:false,
+    svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#25D366"/><path d="M7.2 17.2l.9-3.1a5 5 0 1 1 2 2z" fill="#fff"/><path d="M10 9.6c.1 1.6 1.6 3.2 3.4 3.7l.9-.9-1.2-.7-.5.4c-.7-.3-1.2-.8-1.5-1.5l.4-.5-.7-1.2z" fill="#25D366"/></svg>' },
+  { id:'telegram',  name:'Telegram',  live:true,
+    svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#2AABEE"/><path d="M5.5 11.7l11.8-4.6c.5-.2 1 .1.8.9l-2 9.4c-.1.7-.6.9-1.1.5l-3-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3.1 5.6-5.1c.2-.2 0-.3-.4-.1l-6.9 4.4-3-.9c-.6-.2-.6-.6.1-.9z" fill="#fff"/></svg>' },
+  { id:'facebook',  name:'Facebook',  live:false,
+    svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#1877F2"/><path d="M13.4 21v-7.2h2.4l.4-2.8h-2.8V9.3c0-.8.3-1.4 1.4-1.4h1.5V5.4c-.3 0-1.1-.1-2.1-.1-2.2 0-3.6 1.3-3.6 3.7V11H8.2v2.8h2.4V21z" fill="#fff"/></svg>' },
+  { id:'messenger', name:'Messenger', live:false,
+    svg:'<svg viewBox="0 0 24 24"><defs><linearGradient id="ms" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0099FF"/><stop offset="1" stop-color="#A033FF"/></linearGradient></defs><path d="M12 1.5C6.2 1.5 1.5 5.9 1.5 11.4c0 3 1.4 5.6 3.6 7.4V22l3.3-1.8c1.1.3 2.3.5 3.6.5 5.8 0 10.5-4.4 10.5-9.9S17.800 1.5 12 1.5z" fill="url(#ms)"/><path d="M5.500 14.300l4.600-4.900 2.500 2.500 4.500-2.500-4.600 4.900-2.500-2.500z" fill="#fff"/></svg>' }
+];
+function chan(id){ for (var i=0;i<CHANNELS.length;i++) if (CHANNELS[i].id===id) return CHANNELS[i]; return null; }
+
+/* Пример для гостя. Имена и сообщения вымышленные. */
+var DEMO = [
+  { id:'d1', kanal:'instagram', imya:'Мадина', time:'12:40', messages:[
+    {d:'in',t:'Здравствуйте! Подскажите, сколько стоит консультация?',v:'12:38'},
+    {d:'out',a:'ai',t:'Здравствуйте, Мадина. Первая консультация 300 сомони, длится 50 минут.',v:'12:39'},
+    {d:'in',t:'А можно в субботу?',v:'12:40'}]},
+  { id:'d2', kanal:'whatsapp', imya:'Фаррух', time:'11:15', messages:[
+    {d:'in',t:'Добрый день, хочу записаться на вечер.',v:'11:14'},
+    {d:'out',a:'Азиза',t:'Добрый день! Есть среда в 18:00 и четверг в 19:00. Какое время удобно?',v:'11:15'}]},
+  { id:'d3', kanal:'telegram', imya:'Сабина', time:'вчера', messages:[
+    {d:'in',t:'Спасибо за встречу, стало легче.',v:'вчера'},
+    {d:'out',a:'ai',t:'Рад это слышать. Если появятся вопросы, пишите.',v:'вчера'}]},
+  { id:'d4', kanal:'whatsapp', imya:'Рустам', time:'вчера', messages:[
+    {d:'in',t:'Есть ли рассрочка?',v:'вчера'}]}
+];
+
+/* Банки и кошельки для перевода. Свой логотип: добавьте поле img с адресом картинки. */
+var BANKS = [
+  { name:'Алиф Мобайл',     img:'data:image/png;base64,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', mono:'А',  color:'#E4572E' },
+  { name:'Душанбе Сити',    img:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9Ii00IC0xNCA3MCA2MCI+PHJlY3QgeD0iLTQiIHk9Ii0xNCIgd2lkdGg9IjcwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTE0LjgzNTUgMTkuMzUwNUgxNC44NDY0TDE1Ljc4NyAxMi40NTg2TDE3LjEwMDYgMi43ODMyOEg4Ljk5NzhMNi43NDgzMSAxOS4zNTA1TDYuNDAwMzMgMjEuOTExNEg2LjQyNjk3TDYuMjI3ODcgMjMuMzc3MUM4LjA1MTM1IDIyLjQxMzkgMTAuMDc5OSAyMS45MTA5IDEyLjEzOTIgMjEuOTExNEgxNC41MTFMMTQuODAxIDE5Ljc3NUgxNC43Nzc1TDE0LjgzNTUgMTkuMzUwNVpNMTguMTY1IDEwLjcyOTJIMjQuNDAyNEMyNy4wNjczIDEwLjcyOTIgMjguOTQ4NCAxMi45MjA5IDI4LjU4IDE1LjZMMjguMDk1NiAxOS4xNzA2QzI3LjczMiAyMS44NTI5IDI1LjI1NjcgMjQuMDQxNCAyMi41OTUgMjQuMDQxNEgyNC41ODU4QzI3LjE4MzYgMjQuMDMzNSAyOS43MTgxIDIzLjIzMzUgMzEuODU1MiAyMS43NDY5QzMzLjk5MjMgMjAuMjYwMyAzNS42MzE3IDE4LjE1NjggMzYuNTU3NCAxNS43MTM2QzM2LjU5NjYgOC43OTAwNyAzMC45MTQyIDIuNzc1MzkgMjMuNzAzMyAyLjc3NTM5SDE5LjI0NTFMMTguMTY1IDEwLjcyOTJaIiBmaWxsPSIjMDQ1NkEyIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTMuMjc2MTYgMjcuMzU2NUMxLjg1MzgzIDI4LjYzOTEgMC43MzQ0MzUgMzAuMjI1NyAtNy42MjkzOWUtMDUgMzJIMjMuMjkxQzI2LjM3MjkgMzEuOTk0MyAyOS4zNDk1IDMwLjg3MTIgMzEuNjc1NyAyOC44MzY0QzM0LjAwMTggMjYuODAxNiAzNS41MjE4IDIzLjk5MTQgMzUuOTU3MSAyMC45MjA1TDM2LjQ0MTUgMTcuMzU2MkMzNi41MTU3IDE2LjgxNTUgMzYuNTU0NSAxNi4yNzA1IDM2LjU1NzUgMTUuNzI0N0MzNS42MzE3IDE4LjE2NzggMzMuOTkyNCAyMC4yNzE0IDMxLjg1NTIgMjEuNzU4QzI5LjcxODEgMjMuMjQ0NiAyNy4xODM3IDI0LjA0NDYgMjQuNTg1OSAyNC4wNTI1SDExLjgyNDJDOC42NjYwNiAyNC4wNTYzIDUuNjIxMDYgMjUuMjM2NiAzLjI3NjE2IDI3LjM2NTkiIGZpbGw9IiNGMDdGMUMiLz4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNNTIuMDIzMyAxNS4wNDkzSDQ2LjA4NjhDNDQuMjA1OCAxNS4wNDkzIDQyLjg3MzMgMTMuNDk2NyA0My4xMzA0IDExLjYwMThMNDMuNDczNyA5LjA3NzE4QzQzLjczMDggNy4xODM3NyA0NS40ODE4IDUuNjI5NjQgNDcuMzY2IDUuNjI5NjRINDUuOTU1MkM0NC4xMTc4IDUuNjM2IDQyLjMyNTYgNi4yMDI1NCA0MC44MTQ1IDcuMjU0NTJDMzkuMzAzNCA4LjMwNjUxIDM4LjE0NDQgOS43OTQ2OCAzNy40OTAyIDExLjUyMjlDMzcuNDYyIDE2LjQyMiA0MS40ODI5IDIwLjY3NDMgNDYuNTgyMiAyMC42NzQzSDUzLjE4NjRMNTMuOTUxNCAxNS4wNDYxTDUyLjAyMzMgMTUuMDQ5M1pNNTQuNzA4NSAyMC42Nzc0SDU2LjI2NTFMNTcuMDMwMSAxNS4wNDkzSDU1LjQ3MzVMNTQuNzA4NSAyMC42Nzc0WiIgZmlsbD0iIzA0NTZBMiIvPgo8cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik01OC42NjgyIDMuMjg2NjJDNTkuNjc0MiAyLjM3ODE0IDYwLjQ2NiAxLjI1NTM3IDYwLjk4NjIgMEg0Ni44NzA0QzQ0LjY4OTUgMC4wMDM4MDUxNCA0Mi41ODI5IDAuNzk4NDY0IDQwLjkzNjggMi4yMzgzOEMzOS4yOTA2IDMuNjc4MyAzOC4yMTUgNS42NjcwNCAzNy45MDcgNy44NDAyM0wzNy41NjM3IDEwLjM2NDhDMzcuNTExIDEwLjc0NyAzNy40ODM3IDExLjEzMjMgMzcuNDgyMiAxMS41MTgyQzM4LjEzNjMgOS43OTAwMiAzOS4yOTUzIDguMzAxODUgNDAuODA2NCA3LjI0OTg2QzQyLjMxNzUgNi4xOTc4MiA0NC4xMDk4IDUuNjMxMzMgNDUuOTQ3MSA1LjYyNDk3SDUyLjYwNzhDNTQuODQyMyA1LjYyMzI0IDU2Ljk5NzEgNC43ODkxNyA1OC42NTcyIDMuMjgzNDciIGZpbGw9IiNGMDdGMUMiLz48L3N2Zz4K', mono:'ДС', color:'#0A7C5A' },
+  { name:'Эсхата Банк',     img:'data:image/png;base64,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', mono:'Э',  color:'#B4372D' },
+  { name:'Спитамен Банк',   img:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9Ii0yMCAtMjAgNDIwIDI4MCI+PHJlY3QgeD0iLTIwIiB5PSItMjAiIHdpZHRoPSI0MjAiIGhlaWdodD0iMjgwIiBmaWxsPSIjZmZmIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTM4MS42IDMuMjkxMDJDMzUzLjk0MSAyMC43MDM4IDMyNi4yODIgMzcuMTc1NCAyOTguMTU0IDUyLjcwNTdDMTkyLjIwNiAxMDYuMzU2IDk0LjIyOCAxNjguNDc3IDAgMjQwLjk1MkM5My4yOTA0IDE4Mi4xMjUgMTkwLjMzMSAxMzIuMjQgMjkwLjY1NCA5MS4yOTYyQzMwNy4wNjEgMTM0LjEyMiAyOTIuMDYgMTg0LjAwOCAyNTEuNzQzIDIwOC45NUMyMDguMTQ1IDIzNi4yNDYgMTUwLjk1MiAyMjQuNDgxIDEyMC45NDkgMTgzLjA2NkMxMTcuNjY4IDE4NC45NDkgMTEzLjkxNyAxODYuODMxIDExMC42MzYgMTg4LjcxNEMxNDcuNjcxIDIzNC4zNjMgMjEzLjc3MSAyNDYuMTI5IDI2NC40MDEgMjE0LjEyN0MzMTYuOTA2IDE4MS4xODQgMzM0LjI1MiAxMTIuOTQ1IDMwNS42NTUgNTguODIzN0MzMzEuNDM5IDQwLjk0MDMgMzU2Ljc1NCAyMi41ODYzIDM4MS42IDMuMjkxMDJaIiBmaWxsPSIjRkZENDAwIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTEzNy44MjYgMTIzLjc2OEMxNDcuNjcxIDExNy42NSAxNTcuNTE2IDExMS41MzIgMTY3LjM2MSAxMDUuODg1TDEwNS45NDggMTI3LjUzM0M5Ny4wNDExIDg4LjAwMTQgMTEyLjk4IDQ1LjY0NTkgMTQ4LjYwOSAyMy4wNTY0QzE4NS42NDQgLTAuNDc0NDM2IDIzMi41MjMgNC43MDIzNCAyNjQuNDAxIDMyLjkzOTNDMjQ5LjQgNDQuNzA0NyAyMTEuODk2IDc2LjIzNiAxOTkuMjM5IDg3LjUzMDdDMjIxLjI3MiA3NC44MjQxIDI0My43NzQgNjIuNTg4MSAyNjYuMjc2IDUwLjgyMjdDMjcwLjQ5NiA0OC40Njk2IDI3My43NzcgNDYuNTg3MiAyNzYuMTIxIDQ1LjY0NTlDMjc5LjQwMyA0My43NjM1IDI4My4xNTMgNDEuODgxIDI4Ni40MzUgNDAuNDY5MUMyNDguOTMxIC0xLjg4NjI4IDE4NS4xNzUgLTEyLjIzOTggMTM1Ljk1MSAxOC44MjA4Qzg4LjYwMjggNDguNDY5NiA2OS44NTEgMTA2LjgyNiA4Ny42NjUyIDE1Ny42NTNDODguMTM0IDE1Ny42NTMgODguMTM0IDE1Ny4xODIgODguNjAyOCAxNTcuMTgyQzEwNS4wMTEgMTQ1LjQxNiAxMjEuNDE5IDEzNC41OTIgMTM3LjgyNiAxMjMuNzY4WiIgZmlsbD0iIzUyNUY3QiIvPjwvc3ZnPgo=', mono:'С',  color:'#6B3FA0' },
+  { name:'Имон Интернешнл', img:'data:image/png;base64,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', mono:'И',  color:'#1B6EC2' }
+];
+document.getElementById('banks').innerHTML = BANKS.map(function(b){
+  return '<div class="bank" title="' + b.name + '"><span class="ic" style="background:' + (b.img ? '#fff' : b.color) + '">' + (b.img ? '<img src="' + b.img + '" alt="' + b.name + '">' : b.mono) + '</span></div>';
+}).join('');
+
+var $ = function(id){ return document.getElementById(id); };
+function lstore(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){} return null; }
+/* Сессия: если человек согласился «запомнить», хранится на устройстве, иначе только до закрытия вкладки. Сам код не хранится нигде. */
+function store(k,v){
+  try{
+    if(v===undefined) return sessionStorage.getItem(k) || localStorage.getItem(k);
+    sessionStorage.removeItem(k); localStorage.removeItem(k);
+    if(v!==null) (lstore('ew_remember')==='1' ? localStorage : sessionStorage).setItem(k,v);
+  }catch(e){} return null;
+}
+function esc(t){ var d=document.createElement('div'); d.textContent=String(t==null?'':t); return d.innerHTML; }
+function nine(s){ return String(s||'').replace(/\D/g,'').slice(-9); }
+function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; }
+function post(path,body){ return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
+function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+
+var TAB = 'msg', MODE = 'guest', CHATS = DEMO, CUR = null, INFO = { channels:{}, bot:'', paidUntil:'' };
+
+function isStaff(){ return !!store('ew_sid'); }
+function devId(){ var v = lstore('ew_did'); if (!v) { var a = new Uint8Array(12); try { crypto.getRandomValues(a); } catch(e) { for (var i=0;i<12;i++) a[i] = Math.floor(Math.random()*256); } v = Array.prototype.map.call(a, function(x){ return ('0'+x.toString(16)).slice(-2); }).join(''); lstore('ew_did', v); } return v; }
+function deviceName(model){ var u = navigator.userAgent, mob = /Mobi|Android|iPhone|iPad/.test(u);
+  var os = /Android/.test(u) ? 'Android' : /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Windows/.test(u) ? 'Windows' : /Mac/.test(u) ? 'macOS' : /Linux/.test(u) ? 'Linux' : 'ОС';
+  var br = /Edg\//.test(u) ? 'Edge' : /OPR\//.test(u) ? 'Opera' : /Chrome\//.test(u) ? 'Chrome' : /Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : 'браузер';
+  var m = model || ''; if (!m) { var mm = u.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\)|;)/); if (mm) m = mm[1].trim(); }
+  if (m.length < 3) m = '';
+  if (/^SM-/.test(m)) m = 'Samsung ' + m; else if (/^(Pixel)/.test(m)) m = 'Google ' + m;
+  if (m) os = m;
+  return (mob ? 'Телефон' : 'Компьютер') + ' · ' + os + ' · ' + br; }
+function getDevice(cb){ var base = deviceName(); try { if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) { navigator.userAgentData.getHighEntropyValues(['model']).then(function(v){ cb(deviceName(v && v.model)); }, function(){ cb(base); }); return; } } catch(e) {} cb(base); }
+var ORDERED = [], LROLE = 'owner';
+function mode(){ if (store('ew_cab') || store('ew_sid')) return 'user'; if (lstore('ew_pending')) return 'pending'; return 'guest'; }
+
+function render_top(){
+  MODE = mode();
+  $('brand').textContent = BRAND;
+  $('b-login').hidden = MODE !== 'guest';
+  $('b-reg').hidden = MODE !== 'guest';
+  $('chip-wait').hidden = MODE !== 'pending';
+  $('b-code').hidden = MODE !== 'pending';
+  $('chip-ok').hidden = MODE !== 'user';
+  $('b-menu').hidden = MODE !== 'user';
+  $('b-team').hidden = !(MODE === 'user' && !isStaff());
+  $('hint').hidden = MODE === 'user';
+  if (MODE !== 'user' || isStaff()) $('alertbar').hidden = true;
+  $('hint').textContent = MODE === 'pending'
+    ? 'Мы проверяем ваш чек. Когда придёт сообщение с кодом, нажмите «Ввести код».'
+    : 'Это пример окна: так выглядит работа внутри. Войдите или зарегистрируйтесь, чтобы подключить свои каналы.';
+  if (MODE === 'user') $('chip-ok').textContent = isStaff() ? 'Сотрудник: ' + (store('ew_sname')||'') : (INFO.paidUntil ? 'Оплачено до ' + INFO.paidUntil : 'Доступ открыт');
+  render_channels();
+}
+function render_channels(){
+  var h = '<span class="lbl">Каналы</span>';
+  CHANNELS.forEach(function(c){
+    var on = MODE === 'user' && !isStaff() && INFO.channels[c.id] === 'on';
+    var live = MODE === 'user' && c.live && !isStaff();
+    h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
+  });
+  $('chs').innerHTML = h;
+  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ if (b.getAttribute('data-ch')==='telegram') open_tg(); }); });
+}
+function render_list(){
+  var box = $('list');
+  var tabs = '', showTabs = MODE==='user' && !isStaff() && CHATS.some(function(c){ return c.comment; });
+  if (!showTabs) TAB = 'msg';
+  if (showTabs) tabs = '<div class="tabs"><button type="button" data-tab="msg" class="' + (TAB==='msg'?'on':'') + '">Сообщения</button><button type="button" data-tab="com" class="' + (TAB==='com'?'on':'') + '">Комментарии</button></div>';
+  if (!CHATS.length) { box.innerHTML = '<div class="empty">' + (isStaff() ? 'Диалогов пока нет. Руководитель назначит вам клиентов, и они появятся здесь.' : 'Переписок пока нет. Подключите канал, и сообщения клиентов появятся здесь.') + '</div>'; return; }
+  var shown = 0;
+  box.innerHTML = tabs + CHATS.map(function(c,i){
+    if (showTabs && !!c.comment !== (TAB==='com')) return '';
+    shown++;
+    var ch = chan(c.kanal);
+    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + '</i></b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + '</span></button>';
+  }).join('');
+  if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
+  box.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ TAB = b.getAttribute('data-tab'); render_list(); }); });
+  box.querySelectorAll('.row').forEach(function(b){ b.addEventListener('click', function(){ open_chat(CHATS[+b.getAttribute('data-i')]); }); });
+}
+function whoName(a){ return a==='ai' ? 'ИИ' : (a==='human' ? 'Руководитель' : (a||'Оператор')); }
+function answeredBy(msgs){ // для каждого входящего: кто ответил первым
+  var res = {};
+  for (var i=0;i<msgs.length;i++) { if (msgs[i].d !== 'in') continue; for (var j=i+1;j<msgs.length;j++) { if (msgs[j].d === 'out') { res[i] = msgs[j].a; break; } if (msgs[j].d === 'in') { /* ответ придёт на следующую пачку */ } } }
+  return res;
+}
+function mark_of(c){ // отметка для списка: кто ответил на последнее входящее
+  var m = c.messages||[], last = -1; for (var i=0;i<m.length;i++) if (m[i].d==='in') last = i;
+  if (last < 0) return '';
+  var r = answeredBy(m)[last];
+  return r === undefined ? '<em class="who wait">ждёт ответа</em>' : '<em class="who' + (r==='ai' ? ' ai' : '') + '">✓ ' + esc(whoName(r)) + '</em>';
+}
+function msgs_html(c){
+  var m = c.messages||[], ans = answeredBy(m);
+  return m.map(function(x,i){
+    var t = esc(MODE==='user' ? hm(x.v) : x.v), body = esc(x.t);
+    if (x.d === 'in') {
+      var r = ans[i];
+      var chk = r === undefined ? '<span class="chk wait">ждёт ответа</span>' : '<span class="chk' + (r==='ai' ? ' ai' : '') + '">✓ ответил: ' + esc(whoName(r)) + '</span>';
+      return '<div class="bub in">' + body + '<small>' + t + '</small>' + chk + '</div>';
+    }
+    var ai = x.a === 'ai';
+    return '<div class="bub out' + (ai ? ' ai' : '') + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + '</small></div>';
+  }).join('');
+}
+function open_chat(c){
+  CUR = c;
+  var ch = chan(c.kanal);
+  $('d-av').innerHTML = esc((c.imya||'?').charAt(0).toUpperCase());
+  $('d-name').textContent = c.imya || 'Клиент';
+  $('d-ch').textContent = ch ? ch.name : c.kanal;
+  $('msgs').innerHTML = msgs_html(c);
+  var ob = $('b-order'); ob.hidden = !(MODE==='user' && isStaff());
+  if (!ob.hidden) { var dn = ORDERED.indexOf(c.kanal+':'+c.id) >= 0; ob.textContent = dn ? '✓ Заказ оформлен' : 'Оформлен заказ'; ob.className = 'ord' + (dn ? ' done' : ''); ob.disabled = dn; }
+  var fs = $('f-send'), rn = $('ro-note');
+  if (!rn) { rn = document.createElement('div'); rn.id = 'ro-note'; rn.className = 'ronote'; fs.parentNode.insertBefore(rn, fs); }
+  fs.hidden = !!c.ro; rn.hidden = !c.ro;
+  rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
+  $('work').classList.add('open','hasdlg');
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+  render_list();
+}
+$('back').addEventListener('click', function(){ $('work').classList.remove('open'); });
+
+/* Гость: показываем пример, но ничего не отправляется */
+$('f-send').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var t = $('c-text').value.trim();
+  if (!t || !CUR) return;
+  if (MODE !== 'user') return;
+  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post('/cabinet-send', { code: store('ew_cab')||'', contact: CUR.id, text: t });
+  sreq.then(function(x){
+    if (x.s===200 && x.j && x.j.ok) { $('c-text').value=''; CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
+  }).catch(function(){});
+});
+
+/* Загрузка данных кабинета */
+function load_all(){
+  if (isStaff()) { render_top(); load_chats(); return; }
+  var code = store('ew_cab') || '';
+  check_devices();
+  post('/cabinet', { code: code }).then(function(x){
+    if (x.s === 401) { logout(); return; }
+    var d = x.j || {};
+    INFO = { channels: d.channels || {}, bot: d.bot || '', paidUntil: d.paidUntil || '' };
+    store('ew_paid', INFO.paidUntil);
+    render_top();
+  }).catch(function(){});
+  load_chats();
+}
+function load_chats(){
+  if (MODE !== 'user') return;
+  var creq = isStaff() ? post('/staff', { action:'chats', sid: store('ew_sid') || '' }) : post('/cabinet-chats', { code: store('ew_cab') || '' });
+  creq.then(function(x){
+    if (isStaff() && !(x.j && x.j.ok)) { logout(true); return; }
+    if (isStaff()) { ORDERED = x.j.ordered || []; if (x.j.name) { store('ew_sname', x.j.name); } }
+    CHATS = (x.j && x.j.chats) || [];
+    render_list();
+    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f && $('work').classList.contains('hasdlg')) open_chat(f); }
+  }).catch(function(){});
+}
+
+var PENDTIMER = null;
+function staff_login(login, pass, remember, done){
+  if (PENDTIMER) { clearTimeout(PENDTIMER); PENDTIMER = null; }
+  getDevice(function(dev){
+    post('/staff',{action:'login',phone:login,pass:pass,did:devId(),device:dev}).then(function(x){
+      var j = x.j || {};
+      if (j.ok) { $('l-err').classList.remove('info'); lstore('ew_remember', remember ? '1' : null); lstore('ew_role', remember ? 'staff' : null); store('ew_sid',j.sid); store('ew_sname',j.name||''); store('ew_login',login); $('m-login').close(); $('f-login').reset(); enter_mode(); done && done(); return; }
+      if (j.pending) {
+        $('l-err').classList.add('info'); showErr('l-err', j.error);
+        if ($('m-login').open) PENDTIMER = setTimeout(function(){ if ($('m-login').open && LROLE==='staff') staff_login(login, pass, remember, null); }, 8000);
+        done && done(); return;
+      }
+      $('l-err').classList.remove('info'); showErr('l-err', j.error || 'Не получилось войти. Попробуйте ещё раз.'); done && done();
+    }).catch(function(){ $('l-err').classList.remove('info'); showErr('l-err','Нет связи с сервером. Проверьте интернет.'); done && done(); });
+  });
+}
+function enter_mode(){
+  MODE = mode(); CUR = null;
+  $('work').classList.remove('open','hasdlg');
+  if (MODE === 'user') { CHATS = []; INFO.paidUntil = store('ew_paid') || ''; render_top(); render_list(); load_all(); if (!isStaff()) owner_seen(); }
+  else { CHATS = DEMO; render_top(); render_list(); }
+}
+function logout(quiet){ if (isStaff() && !quiet) { post('/staff', { action:'logout', sid: store('ew_sid') }).catch(function(){}); } store('ew_sid',null); store('ew_sname',null); ORDERED=[]; var ph = store('ew_login'); store('ew_cab',null); store('ew_paid',null); if (lstore('ew_remember')==='1' && ph) lstore('ew_phone',ph); else lstore('ew_phone',null); store('ew_login',null); INFO = {channels:{},bot:'',paidUntil:''}; enter_mode(); }
+
+document.querySelectorAll('.eye').forEach(function(b){
+  b.addEventListener('click', function(){
+    var inp = $(b.getAttribute('data-eye')), show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    b.setAttribute('aria-pressed', show ? 'true' : 'false');
+    b.setAttribute('aria-label', show ? 'Скрыть код' : 'Показать код');
+    b.querySelector('.eo').style.display = show ? 'block' : 'none'; b.querySelector('.ec').style.display = show ? 'none' : 'block';
+    inp.focus();
+  });
+});
+/* Окна */
+document.querySelectorAll('dialog').forEach(function(d){
+  d.addEventListener('click', function(e){ if (e.target === d) d.close(); });
+  d.querySelectorAll('[data-close]').forEach(function(b){ b.addEventListener('click', function(){ d.close(); }); });
+});
+function open_dlg(id){ var d=$(id); if (!d.open) d.showModal(); }
+
+var deliver='';
+document.querySelectorAll('.dvb').forEach(function(b){b.addEventListener('click',function(){deliver=b.dataset.d;document.querySelectorAll('.dvb').forEach(function(x){var on=x===b;x.classList.toggle('on',on);x.setAttribute('aria-checked',on);var w=x.parentNode;w.classList.toggle('on',on);w.querySelector('.dvc').textContent=on?'✓':'';});});});
+$('b-reg').addEventListener('click', function(){ $('reg-form').hidden=false; $('reg-done').hidden=true; deliver=''; document.querySelectorAll('.dvb').forEach(function(x){x.classList.remove('on');x.setAttribute('aria-checked','false');x.parentNode.classList.remove('on');x.parentNode.querySelector('.dvc').textContent='';}); showErr('r-err',''); open_dlg('m-reg'); });
+$('b-login').addEventListener('click', function(){ $('l-err').classList.remove('info'); if (PENDTIMER) { clearTimeout(PENDTIMER); PENDTIMER = null; } showErr('l-err',''); set_role(lstore('ew_role')==='staff' ? 'staff' : 'owner'); if (lstore('ew_remember')==='1' && lstore('ew_phone')) { $('l-phone').value = lstore('ew_phone'); $('l-remember').checked = true; } open_dlg('m-login'); });
+$('b-code').addEventListener('click', function(){ showErr('l-err',''); $('l-phone').value = lstore('ew_pending') || ''; open_dlg('m-login'); });
+function set_role(r){ LROLE = r; document.querySelectorAll('#l-role button').forEach(function(b){ var on = b.getAttribute('data-r')===r; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); $('l-pass').placeholder = r==='staff' ? 'Код от руководителя' : 'Код для входа'; $('to-reg').parentNode.hidden = r==='staff'; }
+document.querySelectorAll('#l-role button').forEach(function(b){ b.addEventListener('click', function(){ set_role(b.getAttribute('data-r')); }); });
+$('to-reg').addEventListener('click', function(){ $('m-login').close(); $('b-reg').click(); });
+$('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-staffbtn').hidden = st; $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
+$('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
+$('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
+function open_tg(){ showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
+
+$('copy').addEventListener('click', function(){
+  var b=$('copy'); function done(){ b.textContent='Скопировано'; setTimeout(function(){ b.textContent='Копировать'; },1800); }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(PAY_PHONE).then(done,function(){});
+});
+
+$('f-reg').addEventListener('submit', function(ev){
+  ev.preventDefault(); showErr('r-err','');
+  var ph = nine($('r-phone').value), file = $('r-file').files[0];
+  if (ph.length !== 9) return showErr('r-err','Введите номер телефона: 9 цифр после +992.');
+  if (!deliver) return showErr('r-err','Отметьте, куда прислать код: WhatsApp или Telegram.');
+  if (!file) return showErr('r-err','Приложите фото или скриншот чека.');
+  if (file.size > 10*1024*1024) return showErr('r-err','Файл больше 10 МБ. Приложите скриншот поменьше.');
+  var fd = new FormData(); fd.append('phone','+992'+ph); fd.append('platforms',deliver); fd.append('receipt',file,file.name);
+  var btn=$('r-btn'); btn.disabled=true; btn.textContent='Отправляем…';
+  fetch(API+'/registration',{method:'POST',body:fd}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); })
+  .then(function(x){
+    if (x.s===200 && x.j && x.j.ok) { lstore('ew_pending',ph); $('done-phone').textContent='+992 '+ph; $('done-app').textContent=deliver==='telegram'?'Telegram':'WhatsApp'; $('reg-form').hidden=true; $('reg-done').hidden=false; render_top(); }
+    else showErr('r-err','Не удалось отправить чек. Проверьте номер и файл.');
+  }).catch(function(){ showErr('r-err','Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'); })
+  .then(function(){ btn.disabled=false; btn.textContent='Отправить чек'; });
+});
+
+$('f-login').addEventListener('submit', function(ev){
+  ev.preventDefault(); showErr('l-err','');
+  var login=nine($('l-phone').value), pass=$('l-pass').value;
+  if (login.length!==9) return showErr('l-err','Введите номер: 9 цифр после +992.');
+  if (!pass) return showErr('l-err', LROLE==='staff' ? 'Введите код, который дал руководитель.' : 'Введите код для входа.');
+  var btn=$('l-btn'); btn.disabled=true; btn.textContent='Проверяем…';
+  if (LROLE === 'staff') { staff_login(login, pass, $('l-remember').checked, function(){ btn.disabled=false; btn.textContent='Войти'; }); return; }
+  post('/login',{login:login,password:pass}).then(function(x){
+    if (x.s===200 && x.j && x.j.ok) { lstore('ew_remember', $('l-remember').checked ? '1' : null); lstore('ew_role', null); store('ew_cab',x.j.cabinet); store('ew_paid',x.j.paidUntil||''); lstore('ew_pending',null); store('ew_login',login); $('m-login').close(); $('f-login').reset(); enter_mode(); }
+    else showErr('l-err', x.s===401 ? 'Номер или код неверные. Проверьте сообщение с кодом в WhatsApp или Telegram.' : 'Не получилось войти. Попробуйте ещё раз.');
+  }).catch(function(){ showErr('l-err','Нет связи с сервером. Проверьте интернет.'); })
+  .then(function(){ btn.disabled=false; btn.textContent='Войти'; });
+});
+
+$('f-code').addEventListener('submit', function(ev){
+  ev.preventDefault(); showErr('k-err','');
+  var o=$('k-old').value, n=$('k-new').value, n2=$('k-new2').value, login=store('ew_login')||'';
+  if (!login) return showErr('k-err','Выйдите и войдите заново, затем повторите.');
+  if (n.length<8) return showErr('k-err','Новый код должен быть не короче 8 символов.');
+  if (n!==n2) return showErr('k-err','Новый код и повтор не совпадают.');
+  var btn=$('k-btn'); btn.disabled=true; btn.textContent='Сохраняем…';
+  post('/change-code',{login:login,password:o,newPassword:n}).then(function(x){
+    if (x.s===200 && x.j && x.j.ok) { $('m-code').close(); }
+    else showErr('k-err','Текущий код неверный.');
+  }).catch(function(){ showErr('k-err','Нет связи с сервером.'); })
+  .then(function(){ btn.disabled=false; btn.textContent='Сохранить'; });
+});
+
+$('f-tg').addEventListener('submit', function(ev){
+  ev.preventDefault(); showErr('t-err','');
+  var key=$('t-key').value.trim();
+  if (!key) return showErr('t-err','Вставьте ключ бота от BotFather.');
+  var btn=$('t-btn'); btn.disabled=true; btn.textContent='Подключаем…';
+  post('/cabinet-telegram',{code:store('ew_cab')||'',token:key}).then(function(x){
+    if (x.s===200 && x.j && x.j.ok) { $('m-tg').close(); load_all(); }
+    else showErr('t-err', x.j && x.j.error==='token' ? 'Ключ выглядит неверно. Скопируйте его целиком из сообщения BotFather.' : 'Telegram не принял ключ. Проверьте его и попробуйте снова.');
+  }).catch(function(){ showErr('t-err','Нет связи с сервером.'); })
+  .then(function(){ btn.disabled=false; btn.textContent='Подключить'; });
+});
+
+
+/* Заказ (сотрудник) */
+$('b-order').addEventListener('click', function(){
+  if (!CUR || !isStaff()) return;
+  var c = CUR, b = $('b-order'); b.disabled = true;
+  post('/staff', { action:'order', sid: store('ew_sid')||'', kanal: c.kanal, contact: c.id }).then(function(x){
+    if (x.j && x.j.ok) { ORDERED.push(c.kanal+':'+c.id); open_chat(c); } else { b.disabled = false; }
+  }).catch(function(){ b.disabled = false; });
+});
+
+
+/* Устройства: разрешения и журнал */
+var DEVPOLL = null;
+function owner_seen(){ if (isStaff() || !store('ew_cab')) return; getDevice(function(dev){ post('/staff', { action:'owner_seen', code: store('ew_cab')||'', did: devId(), device: dev }).catch(function(){}); }); }
+function decide_dev(phone, did, decision){ return post('/staff', { action:'device_decide', code: store('ew_cab')||'', phone: phone, did: did, decision: decision }).then(function(){ check_devices(); if ($('m-staff').open) load_staff(); }); }
+function check_devices(){
+  if (MODE !== 'user' || isStaff()) { $('alertbar').hidden = true; return; }
+  post('/staff', { action:'devices', code: store('ew_cab')||'' }).then(function(x){
+    var list = (x.j && x.j.pending) || [], bar = $('alertbar');
+    if (!list.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+    bar.innerHTML = list.map(function(d,i){ return '<div class="al"><span><b>' + esc(d.name) + '</b> просит войти с устройства: ' + esc(d.device || 'неизвестно') + '</span><button type="button" class="sm" data-i="' + i + '" data-a="approve">Разрешить</button><button type="button" class="sm" data-i="' + i + '" data-a="deny">Запретить</button></div>'; }).join('');
+    bar.hidden = false;
+    bar.querySelectorAll('button').forEach(function(b){ b.addEventListener('click', function(){ var d = list[+b.getAttribute('data-i')]; b.disabled = true; decide_dev(d.phone, d.did, b.getAttribute('data-a')); }); });
+  }).catch(function(){});
+}
+function render_devs(list){
+  var box = $('s-devs'); if (!box) return;
+  if (!list || !list.length) { box.innerHTML = '<p>Устройств пока нет. Они появятся, когда кто-то войдёт.</p>'; return; }
+  var stl = { approved:'<span class="tag ok">разрешено</span>', pending:'<span class="tag wait">ждёт разрешения</span>', denied:'<span class="tag">запрещено</span>' };
+  list.sort(function(a,b){ return (a.rol==='owner'?0:1) - (b.rol==='owner'?0:1) || String(a.name).localeCompare(String(b.name)); });
+  box.innerHTML = list.map(function(d,i){
+    var btns = d.rol==='owner' ? '' : (d.status==='approved' ? '<button type="button" class="sm" data-i="'+i+'" data-a="deny">Запретить</button>' : '<button type="button" class="sm" data-i="'+i+'" data-a="approve">Разрешить</button>' + (d.status==='pending' ? '<button type="button" class="sm" data-i="'+i+'" data-a="deny">Запретить</button>' : ''));
+    return '<div class="devrow"><div class="dd"><b>' + esc(d.rol==='owner' ? 'Руководитель' : d.name) + '</b> ' + (d.rol==='owner' ? '<span class="tag ok">вы</span>' : (stl[d.status]||'')) + '<small>' + esc(d.device||'устройство не определено') + ' · последний вход ' + fmtT(d.last) + '</small></div>' + btns + '</div>';
+  }).join('');
+  box.querySelectorAll('button[data-a]').forEach(function(b){ b.addEventListener('click', function(){ var d = list[+b.getAttribute('data-i')]; b.disabled = true; decide_dev(d.phone, d.did, b.getAttribute('data-a')); }); });
+}
+
+/* Сотрудники (руководитель) */
+var SDAYS = 1, SDATA = null;
+function fmtMin(m){ var h = Math.floor(m/60), mm = m%60; return (h ? h + ' ч ' : '') + mm + ' мин'; }
+function fmtT(v){ if (!v) return '—'; var d = new Date(v); if (isNaN(d)) return '—'; var t = hm(v); return SDAYS > 1 ? ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+t : t; }
+function chIcons(list){ return (list||[]).map(function(id){ var c = chan(id); return c ? '<span class="chi" title="' + esc(c.name) + '">' + c.svg + '</span>' : ''; }).join('') || '—'; }
+function load_staff(){
+  post('/staff', { action:'staff_list', code: store('ew_cab')||'', days: SDAYS }).then(function(x){
+    if (x.j && x.j.ok) { SDATA = x.j; var sv = Date.parse(x.j.now); SOFF = isNaN(sv) ? 0 : sv - Date.now(); render_staff(); render_devs(x.j.devices); }
+  }).catch(function(){});
+}
+var SOFF = 0;
+function snow(){ return Date.now() + SOFF; }
+function agoMin(iso){ if (!iso) return null; var t = Date.parse(iso); return isNaN(t) ? null : Math.max(0, Math.round((snow() - t) / 60000)); }
+function fmtAgo(m){ return m === null ? '—' : (m < 1 ? 'только что' : fmtMin(m) + ' назад'); }
+function lvl(m){ return m === null ? 'ok' : (m < 5 ? 'ok' : (m < 15 ? 'warn' : 'bad')); }
+function tl_html(sess){
+  var ds = new Date(); ds.setHours(0,0,0,0); var D0 = ds.getTime(), seg = '';
+  sess.forEach(function(q){ var a = Date.parse(q.from), e = q.online ? snow() : Date.parse(q.to || q.from); if (isNaN(a) || isNaN(e) || e < D0) return;
+    var l = Math.max(0, (a - D0) / 864e5 * 100), w = Math.max(.8, (e - Math.max(a, D0)) / 864e5 * 100); if (l + w > 100) w = 100 - l;
+    seg += '<i class="' + (q.online ? 'on' : '') + '" style="left:' + l.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></i>'; });
+  return '<div class="tl" role="img" aria-label="Когда был в сети сегодня">' + seg + '</div><div class="tlx"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>';
+}
+function render_staff(){
+  var d = SDATA; if (!d) return;
+  var list = d.staff.slice().sort(function(x,y){ if (x.online !== y.online) return x.online ? -1 : 1; return String(x.waitSince||'9').localeCompare(String(y.waitSince||'9')); });
+  var onl = list.filter(function(x){ return x.online; }).length, tot = list.reduce(function(a,x){ return a + (x.minutes||0); }, 0);
+  var wsum = (d.freeWaiting||0), wmax = d.freeWaitSince ? agoMin(d.freeWaitSince) : null;
+  list.forEach(function(x){ wsum += (x.waiting||0); var m = agoMin(x.waitSince); if (m !== null && (wmax === null || m > wmax)) wmax = m; });
+  $('s-sum').innerHTML = '<div class="t ' + (onl ? 'ok' : 'bad') + '"><small>В сети сейчас</small><b>' + onl + ' из ' + list.length + '</b></div>'
+    + '<div class="t"><small>Отработано' + (SDAYS>1 ? ' за 7 дней' : ' сегодня') + '</small><b>' + fmtMin(tot) + '</b></div>'
+    + '<div class="t ' + (wsum ? lvl(wmax) : 'ok') + '"><small>Ждут ответа</small><b>' + wsum + '</b></div>'
+    + '<div class="t ' + (wsum ? lvl(wmax) : '') + '"><small>Дольше всех ждёт</small><b>' + (wsum && wmax !== null ? fmtMin(wmax) : '—') + '</b></div>'
+    + (d.freeWaiting ? '<div class="t bad"><small>Без исполнителя</small><b>' + d.freeWaiting + '</b></div>' : '');
+  $('s-list').innerHTML = list.length ? list.map(function(s){
+    var sess = s.sessions.map(function(q){ return '<div>' + fmtT(q.from) + ' – ' + (q.online ? 'в сети' : fmtT(q.to)) + ' · ' + fmtMin(q.min) + ' · ' + esc(q.device||'устройство не определено') + '</div>'; }).join('');
+    var cur = s.sessions.filter(function(q){ return q.online; })[0], pill, act = '';
+    if (s.status === 'off') pill = '<span class="pill bad">Отключён</span>';
+    else if (s.online) pill = '<span class="pill ok">В сети · ' + fmtMin(cur ? agoMin(cur.from) : 0) + '</span>';
+    else { var ls = agoMin(s.lastSeen); pill = '<span class="pill">Не в сети' + (s.lastSeen ? ' · был ' + (ls !== null && ls < 1440 ? fmtAgo(ls) : fmtT(s.lastSeen)) : '') + '</span>'; }
+    if (s.online && s.status !== 'off') {
+      var wm = agoMin(s.waitSince), lr = agoMin(s.lastReply);
+      act = s.waiting
+        ? '<div class="act ' + lvl(wm) + '"><b>' + (wm !== null && wm < 5 ? 'Новое сообщение, ждёт ' : 'Не отвечает уже ') + fmtMin(wm||0) + '</b><small>Ждут ответа: ' + s.waiting + ' · последний ответ: ' + (s.lastReply ? fmtAgo(lr) : 'ещё не отвечал') + '</small></div>'
+        : '<div class="act ok"><b>Все клиенты отвечены</b><small>Последний ответ: ' + (s.lastReply ? fmtAgo(lr) : 'ещё не отвечал') + '</small></div>';
+    }
+    return '<div class="sc' + (s.online ? ' on' : '') + '"><div class="sctop"><span class="dot2' + (s.online?' on':'') + '"></span><div class="nm"><b>' + esc(s.name) + '</b><span>+992 ' + esc(s.phone) + '</span></div>' + pill + '</div>'
+     + act + (SDAYS === 1 ? tl_html(s.sessions) : '')
+     + '<div class="grid"><div>Всего в работе<b>' + fmtMin(s.minutes) + '</b></div><div>Включился<b>' + fmtT(s.firstIn) + '</b></div><div>Выключился<b>' + (s.online ? 'в сети' : fmtT(s.lastOut)) + '</b></div>'
+     + '<div>Ответов<b>' + s.replies + '</b></div><div>Написали ему<b>' + s.incoming + '</b></div><div>Клиентов<b>' + s.clients + '</b></div><div>Заказов<b>' + s.orders + '</b></div><div>Мессенджеры<b class="chi">' + chIcons(s.channels) + '</b></div></div>'
+     + '<div style="font-size:13px;color:var(--muted)">Устройство: ' + (s.devices.length ? esc(s.devices.join('; ')) : '—') + '</div>'
+     + (sess ? '<details><summary>Все заходы</summary>' + sess + '</details>' : '')
+     + '<div class="acts"><button type="button" class="sm" data-act="reset" data-p="' + esc(s.phone) + '">Новый код</button><button type="button" class="sm" data-act="' + (s.status==='off'?'on':'off') + '" data-p="' + esc(s.phone) + '">' + (s.status==='off'?'Включить':'Отключить') + '</button></div></div>';
+  }).join('') : '<p>Сотрудников пока нет. Добавьте первого ниже.</p>';
+  $('s-list').querySelectorAll('[data-act]').forEach(function(b){ b.addEventListener('click', function(){
+    var a = b.getAttribute('data-act'), body = { action:'staff_update', code: store('ew_cab')||'', phone: b.getAttribute('data-p') };
+    if (a==='reset') body.reset = true; else body.status = a;
+    b.disabled = true;
+    post('/staff', body).then(function(x){
+      if (x.j && x.j.ok && x.j.code) show_new('Новый код для +992 ' + body.phone + ': ' + x.j.code);
+      load_staff();
+    }).catch(function(){ b.disabled = false; });
+  }); });
+  var opts = '<option value="">никому</option>' + d.staff.filter(function(s){ return s.status!=='off'; }).map(function(s){ return '<option value="' + esc(s.phone) + '">' + esc(s.name) + '</option>'; }).join('');
+  $('s-dlgs').innerHTML = d.dialogs.length ? d.dialogs.map(function(g,i){
+    var c = chan(g.kanal);
+    return '<div class="dlrow"><span>' + (c ? '<span class="chi" style="display:inline-block;width:20px;vertical-align:middle;margin-right:6px">' + c.svg + '</span>' : '') + esc(g.imya || 'Клиент') + '</span><select data-i="' + i + '" aria-label="Кому назначить">' + opts + '</select></div>';
+  }).join('') : '<p>Диалогов пока нет.</p>';
+  $('s-dlgs').querySelectorAll('select').forEach(function(sel){
+    var g = d.dialogs[+sel.getAttribute('data-i')]; sel.value = g.phone || '';
+    sel.addEventListener('change', function(){
+      sel.disabled = true;
+      post('/staff', { action:'assign', code: store('ew_cab')||'', kanal: g.kanal, contact: g.id, phone: sel.value }).then(function(){ sel.disabled = false; load_staff(); }).catch(function(){ sel.disabled = false; });
+    });
+  });
+}
+function show_new(t){ var n = $('s-new'); n.textContent = t + '. Передайте сотруднику номер и код: он входит через кнопку «Сотрудник».'; n.hidden = false; }
+function open_team(){ var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = '<p>Загрузка…</p>'; open_dlg('m-staff'); load_staff();}
+$('m-staffbtn').addEventListener('click', open_team);
+$('b-team').addEventListener('click', open_team);
+document.querySelectorAll('#s-days button').forEach(function(b){ b.addEventListener('click', function(){ SDAYS = +b.getAttribute('data-d'); document.querySelectorAll('#s-days button').forEach(function(x){ x.classList.toggle('on', x===b); }); load_staff(); }); });
+$('f-staff').addEventListener('submit', function(ev){
+  ev.preventDefault(); showErr('s-err','');
+  var name = $('s-name').value.trim(), ph = nine($('s-phone').value);
+  if (!name) return showErr('s-err','Введите имя сотрудника.');
+  if (ph.length !== 9) return showErr('s-err','Введите номер: 9 цифр после +992.');
+  var btn = $('s-add'); btn.disabled = true;
+  post('/staff', { action:'staff_add', code: store('ew_cab')||'', name: name, phone: ph }).then(function(x){
+    if (x.j && x.j.ok) { $('f-staff').reset(); show_new('Сотрудник ' + x.j.name + ' добавлен. Номер: +992 ' + x.j.phone + ', код: ' + x.j.code); load_staff(); }
+    else showErr('s-err', (x.j && x.j.error) || 'Не удалось добавить.');
+  }).catch(function(){ showErr('s-err','Нет связи с сервером.'); }).then(function(){ btn.disabled = false; });
+});
+setInterval(function(){ if ($('m-staff').open && !document.hidden) load_staff(); }, 15000);
+setInterval(function(){ if ($('m-staff').open && !document.hidden && SDATA) render_staff(); }, 30000);
+
+setInterval(function(){ if (!document.hidden && MODE==='user') load_chats(); }, 15000);
+setInterval(function(){ if (!document.hidden && MODE==='user' && !isStaff()) check_devices(); }, 20000);
+enter_mode();
+</script>
+</body>
+</html>
