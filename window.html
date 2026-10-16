@@ -573,7 +573,7 @@ $('f-send').addEventListener('submit', function(ev){
   var t = $('c-text').value.trim();
   if (!t || !CUR) return;
   if (MODE !== 'user') return;
-  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : '/cabinet-send', { code: store('ew_cab')||'', contact: CUR.id, text: t });
+  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : '/cabinet-send'), { code: store('ew_cab')||'', contact: CUR.id, text: t });
   sreq.then(function(x){
     if (x.s===200 && x.j && x.j.ok) { $('c-text').value=''; CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
   }).catch(function(){});
@@ -659,6 +659,7 @@ $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
 function open_tg(){ showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
 
+(function(){ try { var m = /[?&]ig=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Instagram подключён. Сообщения из Direct появятся в списке переписок.' : 'Не получилось подключить Instagram. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
 /* Instagram: вход через Facebook. Работает после одобрения приложения в Meta; до этого сервер не вернёт ссылку */
 function open_ig(){
   showErr('ig-err','');
