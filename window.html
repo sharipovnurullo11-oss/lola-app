@@ -847,6 +847,7 @@ function ig_go(fresh){
     var j = x.j || {};
     if (x.s === 200 && j.ok && j.url) { if (pw) { pw.location.href = j.url; b.disabled = false; } else { location.href = j.url; } return; }
     if (pw) pw.close();
+    if (x.s === 200 && j.ok && j.state === 'open') { INFO.channels.instagram = 'on'; $('ig-on').hidden = false; $('ig-off').style.display = 'none'; render_channels(); b.disabled = false; return; }
     showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.');
     b.disabled = false;
   }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; });
