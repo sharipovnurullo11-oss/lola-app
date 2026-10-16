@@ -321,6 +321,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   <div id="ig-on" hidden>
     <p style="margin:0 0 14px;font-size:15px;line-height:1.45">Instagram уже подключён. Сообщения из Direct приходят в список переписок.</p>
     <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
+    <button class="btn" id="ig-re" type="button" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid currentColor">Переподключить Instagram</button>
   </div>
   <div id="ig-off" style="display:flex;flex-direction:column;gap:14px">
     <p style="margin:0;font-size:15px;line-height:1.45">Подключите рабочий аккаунт Instagram (профессиональный: бизнес или автор). Вы войдёте своим логином в Facebook и сами выберете, что разрешить. Отключить можно в любой момент в настройках Instagram: Бизнес-интеграции.</p>
@@ -618,16 +619,20 @@ function pz_toggle(){
 $('back').addEventListener('click', function(){ $('work').classList.remove('open'); });
 
 /* Гость: показываем пример, но ничего не отправляется */
+var SENDING = false;
 $('f-send').addEventListener('submit', function(ev){
   ev.preventDefault();
   var t = $('c-text').value.trim();
   if (!t || !CUR) return;
   if (MODE !== 'user') return;
+  if (SENDING) return;
+  SENDING = true; $('c-text').value = '';
   var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : (CUR.kanal==='messenger' ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: CUR.id, text: t });
   sreq.then(function(x){
-    if (x.s===200 && x.j && x.j.ok) { $('c-text').value=''; CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
-    else { send_fail(); }
-  }).catch(function(){ send_fail(); });
+    SENDING = false;
+    if (x.s===200 && x.j && x.j.ok) { CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
+    else { $('c-text').value = t; send_fail(); }
+  }).catch(function(){ SENDING = false; $('c-text').value = t; send_fail(); });
 });
 
 function send_fail(){
@@ -725,14 +730,16 @@ function open_ig(){
   $('ig-go').disabled = false;
   open_dlg('m-ig');
 }
-$('ig-go').addEventListener('click', function(){
+function ig_go(fresh){
   var b = $('ig-go'); b.disabled = true; showErr('ig-err','');
-  post('/cabinet-ig-connect', { code: store('ew_cab') || '' }).then(function(x){
+  post('/cabinet-ig-connect', { code: store('ew_cab') || '', fresh: !!fresh }).then(function(x){
     var j = x.j || {};
     if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
     showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.');
     b.disabled = false;
-  }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; });
+  }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; }
+$('ig-go').addEventListener('click', function(){ ig_go(false); });
+$('ig-re').addEventListener('click', function(){ ig_go(true); });
 });
 
 
