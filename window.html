@@ -737,10 +737,10 @@ function ig_go(fresh){
     if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
     showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.');
     b.disabled = false;
-  }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; }
+  }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; });
+}
 $('ig-go').addEventListener('click', function(){ ig_go(false); });
 $('ig-re').addEventListener('click', function(){ ig_go(true); });
-});
 
 
 (function(){ try { var m = /[?&]fb=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Facebook подключён. Сообщения из Messenger появятся в списке переписок.' : 'Не получилось подключить Facebook. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
