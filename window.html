@@ -739,12 +739,29 @@ function open_wa(){
   $('wa-qr').hidden = true; $('wa-qr').removeAttribute('src'); $('wa-wait').textContent = 'Готовим QR-код…';
   $('wa-pair').hidden = true; $('wa-phone').style.display = 'none'; $('wa-phone-btn').hidden = false;
   if (INFO.channels.whatsapp === 'on') {
+    /* в таблице «подключён», но телефон мог отключиться: спрашиваем настоящее состояние */
     $('wa-off').style.display = 'none'; $('wa-on').hidden = false;
-    $('wa-on-t').textContent = 'WhatsApp уже подключён. Сообщения клиентов приходят в список переписок.';
-    open_dlg('m-wa'); return;
+    $('wa-on-t').textContent = 'Проверяем связь с WhatsApp…';
+    open_dlg('m-wa');
+    post('/cabinet-wa-status', { code: store('ew_cab') || '' }).then(function(x){
+      var j = x.j || {};
+      if (x.s === 200 && j.ok && j.state === 'open') {
+        $('wa-on-t').textContent = 'WhatsApp подключён' + (j.number ? ': +' + j.number : '') + '. Сообщения клиентов приходят в список переписок.';
+      } else if (x.s === 200 && j.ok) {
+        wa_begin(true);
+      } else {
+        $('wa-on-t').textContent = 'WhatsApp подключён. Сообщения клиентов приходят в список переписок.';
+      }
+    }).catch(function(){ $('wa-on-t').textContent = 'WhatsApp подключён. Сообщения клиентов приходят в список переписок.'; });
+    return;
   }
   $('wa-on').hidden = true; $('wa-off').style.display = 'flex';
   open_dlg('m-wa');
+  wa_begin();
+}
+function wa_begin(lost){
+  wa_stop(); $('wa-on').hidden = true; $('wa-off').style.display = 'flex';
+  $('wa-wait').textContent = lost ? 'Телефон отключился от WhatsApp. Отсканируйте QR-код заново.' : 'Готовим QR-код…';
   wa_connect();
   WAQR = setInterval(function(){ wa_connect(WANUM); }, 15000);
   WAPOLL = setInterval(wa_check, 3000);
