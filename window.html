@@ -297,6 +297,24 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   </form>
 </div></dialog>
 
+<dialog id="m-fb"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Подключить Facebook и Messenger</h2>
+  <div id="fb-on" hidden>
+    <p style="margin:0 0 14px;font-size:15px;line-height:1.45">Страница Facebook подключена. Сообщения из Messenger приходят в список переписок, отвечать можно прямо из окна.</p>
+    <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
+  </div>
+  <div id="fb-off" style="display:flex;flex-direction:column;gap:14px">
+    <p style="margin:0;font-size:15px;line-height:1.45">Подключите свою Страницу Facebook (не личный профиль). Сообщения, которые пишут вашей Странице в Messenger, появятся в окне. Вы сами выберете, что разрешить; отключить можно в любой момент в настройках Facebook: Бизнес-интеграции.</p>
+    <ul class="steps">
+      <li>Нажмите «Подключить через Facebook».</li>
+      <li>Войдите и выберите свою Страницу.</li>
+      <li>Разрешите доступ к сообщениям и вернитесь сюда.</li>
+    </ul>
+    <button class="btn" id="fb-go" type="button" style="width:100%">Подключить через Facebook</button>
+    <p class="err" id="fb-err" role="alert" hidden></p>
+  </div>
+</div></dialog>
 <dialog id="m-ig"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
   <button class="x" data-close type="button" aria-label="Закрыть">×</button>
   <h2 style="padding-right:36px">Подключить Instagram</h2>
@@ -381,9 +399,9 @@ var CHANNELS = [
     svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#25D366"/><path d="M7.2 17.2l.9-3.1a5 5 0 1 1 2 2z" fill="#fff"/><path d="M10 9.6c.1 1.6 1.6 3.2 3.4 3.7l.9-.9-1.2-.7-.5.4c-.7-.3-1.2-.8-1.5-1.5l.4-.5-.7-1.2z" fill="#25D366"/></svg>' },
   { id:'telegram',  name:'Telegram',  live:true,
     svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#2AABEE"/><path d="M5.5 11.7l11.8-4.6c.5-.2 1 .1.8.9l-2 9.4c-.1.7-.6.9-1.1.5l-3-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3.1 5.6-5.1c.2-.2 0-.3-.4-.1l-6.9 4.4-3-.9c-.6-.2-.6-.6.1-.9z" fill="#fff"/></svg>' },
-  { id:'facebook',  name:'Facebook',  live:false,
+  { id:'facebook',  name:'Facebook',  live:true,
     svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#1877F2"/><path d="M13.4 21v-7.2h2.4l.4-2.8h-2.8V9.3c0-.8.3-1.4 1.4-1.4h1.5V5.4c-.3 0-1.1-.1-2.1-.1-2.2 0-3.6 1.3-3.6 3.7V11H8.2v2.8h2.4V21z" fill="#fff"/></svg>' },
-  { id:'messenger', name:'Messenger', live:false,
+  { id:'messenger', name:'Messenger', live:true,
     svg:'<svg viewBox="0 0 24 24"><defs><linearGradient id="ms" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0099FF"/><stop offset="1" stop-color="#A033FF"/></linearGradient></defs><path d="M12 1.5C6.2 1.5 1.5 5.9 1.5 11.4c0 3 1.4 5.6 3.6 7.4V22l3.3-1.8c1.1.3 2.3.5 3.6.5 5.8 0 10.5-4.4 10.5-9.9S17.800 1.5 12 1.5z" fill="url(#ms)"/><path d="M5.500 14.300l4.600-4.900 2.500 2.500 4.500-2.500-4.600 4.900-2.500-2.500z" fill="#fff"/></svg>' }
 ];
 function chan(id){ for (var i=0;i<CHANNELS.length;i++) if (CHANNELS[i].id===id) return CHANNELS[i]; return null; }
@@ -499,12 +517,12 @@ function render_top(){
 function render_channels(){
   var h = '<span class="lbl">Каналы</span>';
   CHANNELS.forEach(function(c){
-    var on = MODE === 'user' && !isStaff() && INFO.channels[c.id] === 'on';
+    var on = MODE === 'user' && !isStaff() && INFO.channels[(c.id==='facebook' ? 'messenger' : c.id)] === 'on';
     var live = MODE === 'user' && c.live && !isStaff();
     h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
   });
   $('chs').innerHTML = h;
-  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); }); });
+  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); else if (k==='facebook' || k==='messenger') open_fb(); }); });
 }
 function render_list(){
   var box = $('list');
@@ -604,7 +622,7 @@ $('f-send').addEventListener('submit', function(ev){
   var t = $('c-text').value.trim();
   if (!t || !CUR) return;
   if (MODE !== 'user') return;
-  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : '/cabinet-send'), { code: store('ew_cab')||'', contact: CUR.id, text: t });
+  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : (CUR.kanal==='messenger' ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: CUR.id, text: t });
   sreq.then(function(x){
     if (x.s===200 && x.j && x.j.ok) { $('c-text').value=''; CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
   }).catch(function(){});
@@ -707,6 +725,25 @@ $('ig-go').addEventListener('click', function(){
     showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.');
     b.disabled = false;
   }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; });
+});
+
+
+(function(){ try { var m = /[?&]fb=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Facebook подключён. Сообщения из Messenger появятся в списке переписок.' : 'Не получилось подключить Facebook. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
+function open_fb(){
+  showErr('fb-err','');
+  var on = INFO.channels.messenger === 'on';
+  $('fb-on').hidden = !on; $('fb-off').style.display = on ? 'none' : 'flex';
+  $('fb-go').disabled = false;
+  open_dlg('m-fb');
+}
+$('fb-go').addEventListener('click', function(){
+  var b = $('fb-go'); b.disabled = true; showErr('fb-err','');
+  var bad = 'Подключение Facebook откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.';
+  post('/cabinet-fb-connect', { code: store('ew_cab') || '' }).then(function(x){
+    var j = x.j || {};
+    if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
+    showErr('fb-err', bad); b.disabled = false;
+  }).catch(function(){ showErr('fb-err', bad); b.disabled = false; });
 });
 
 /* WhatsApp: подключение по QR или по коду */
