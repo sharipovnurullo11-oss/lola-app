@@ -561,10 +561,40 @@ function open_chat(c){
   if (!rn) { rn = document.createElement('div'); rn.id = 'ro-note'; rn.className = 'ronote'; fs.parentNode.insertBefore(rn, fs); }
   fs.hidden = !!c.ro; rn.hidden = !c.ro;
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
+  pz_show(c);
   $('work').classList.add('open','hasdlg');
   $('msgs').scrollTop = $('msgs').scrollHeight;
   render_list();
 }
+
+/* Пауза Лолы в диалоге Instagram: оператор берёт разговор на себя или возвращает его Лоле */
+function pz_show(c){
+  var fs = $('f-send'), bar = $('pz-bar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'pz-bar'; bar.className = 'ronote'; bar.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap'; bar.innerHTML = '<span id="pz-t"></span><button type="button" id="pz-b" class="btn" style="width:auto;padding:8px 14px"></button>'; fs.parentNode.insertBefore(bar, fs); $('pz-b').addEventListener('click', pz_toggle); }
+  var on = c.kanal === 'instagram' && MODE === 'user' && !isStaff() && !c.comment && !c.ro;
+  bar.style.display = on ? 'flex' : 'none';
+  if (!on) return;
+  $('pz-t').textContent = 'Проверяем, отвечает ли Лола…'; $('pz-b').hidden = true; bar.dataset.p = '';
+  post('/cabinet-ig-pause', { code: store('ew_cab')||'', contact: c.id, action: 'status' }).then(function(x){
+    if (CUR !== c) return;
+    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused); else { $('pz-t').textContent = ''; bar.style.display = 'none'; }
+  }).catch(function(){ if (CUR === c) bar.style.display = 'none'; });
+}
+function pz_set(paused){
+  var bar = $('pz-bar'); bar.dataset.p = paused ? '1' : '0';
+  $('pz-t').textContent = paused ? 'Лола на паузе: в этом диалоге отвечаете вы.' : 'Лола отвечает в этом диалоге. Когда вы пишете сами, она замолкает на час.';
+  var b = $('pz-b'); b.hidden = false; b.disabled = false; b.textContent = paused ? 'Вернуть Лолу' : 'Поставить Лолу на паузу';
+}
+function pz_toggle(){
+  var bar = $('pz-bar'), c = CUR; if (!c) return;
+  var want = bar.dataset.p === '1' ? 'resume' : 'pause';
+  $('pz-b').disabled = true;
+  post('/cabinet-ig-pause', { code: store('ew_cab')||'', contact: c.id, action: want }).then(function(x){
+    if (CUR !== c) return;
+    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused); else { $('pz-b').disabled = false; $('pz-t').textContent = 'Не получилось. Попробуйте ещё раз.'; }
+  }).catch(function(){ $('pz-b').disabled = false; });
+}
+
 $('back').addEventListener('click', function(){ $('work').classList.remove('open'); });
 
 /* Гость: показываем пример, но ничего не отправляется */
