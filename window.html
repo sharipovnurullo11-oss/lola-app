@@ -289,7 +289,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   <h3>Добавить сотрудника</h3>
   <form id="f-staff" class="addst" novalidate>
     <input class="in2" id="s-name" type="text" autocomplete="off" placeholder="Имя сотрудника">
-    <div class="ph"><span>+992</span><input class="in2" id="s-phone" type="tel" inputmode="numeric" autocomplete="off" placeholder="900 00 00 00"></div>
+    <div class="ph"><select class="cc" id="s-cc" aria-label="Страна"></select><input class="in2" id="s-phone" type="tel" inputmode="numeric" autocomplete="off" placeholder="900 00 00 00"></div>
     <p class="err" id="s-err" hidden></p>
     <button class="btn" id="s-add" type="submit">Добавить</button>
   </form>
@@ -376,7 +376,8 @@ function setPhone(ccId, inId, full){
   $(ccId).value=iso; $(inId).value=nat;
 }
 function prettyPhone(full){ return '+'+full; }
-fillCountries('r-cc'); fillCountries('l-cc');
+fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
+function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; }
 function post(path,body){ return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
@@ -606,10 +607,9 @@ $('f-login').addEventListener('submit', function(ev){
   ev.preventDefault(); showErr('l-err','');
   var login=fullPhone('l-cc','l-phone'), pass=$('l-pass').value;
   if (!login) return showErr('l-err','Выберите страну и введите номер без кода страны.');
-  if (LROLE==='staff' && login.indexOf('992')!==0) return showErr('l-err','Сотрудники пока входят с номером Таджикистана (+992).');
   if (!pass) return showErr('l-err', LROLE==='staff' ? 'Введите код, который дал руководитель.' : 'Введите код для входа.');
   var btn=$('l-btn'); btn.disabled=true; btn.textContent='Проверяем…';
-  if (LROLE === 'staff') { staff_login(login.slice(-9), pass, $('l-remember').checked, function(){ btn.disabled=false; btn.textContent='Войти'; }); return; }
+  if (LROLE === 'staff') { staff_login(login, pass, $('l-remember').checked, function(){ btn.disabled=false; btn.textContent='Войти'; }); return; }
   post('/login',{login:login,password:pass}).then(function(x){
     if (x.s===200 && x.j && x.j.ok) { lstore('ew_remember', $('l-remember').checked ? '1' : null); lstore('ew_role', null); store('ew_cab',x.j.cabinet); store('ew_paid',x.j.paidUntil||''); lstore('ew_pending',null); store('ew_login',login); $('m-login').close(); $('f-login').reset(); enter_mode(); }
     else showErr('l-err', x.s===401 ? 'Номер или код неверные. Проверьте сообщение с кодом в WhatsApp или Telegram.' : 'Не получилось войти. Попробуйте ещё раз.');
@@ -725,7 +725,7 @@ function render_staff(){
         ? '<div class="act ' + lvl(wm) + '"><b>' + (wm !== null && wm < 5 ? 'Новое сообщение, ждёт ' : 'Не отвечает уже ') + fmtMin(wm||0) + '</b><small>Ждут ответа: ' + s.waiting + ' · последний ответ: ' + (s.lastReply ? fmtAgo(lr) : 'ещё не отвечал') + '</small></div>'
         : '<div class="act ok"><b>Все клиенты отвечены</b><small>Последний ответ: ' + (s.lastReply ? fmtAgo(lr) : 'ещё не отвечал') + '</small></div>';
     }
-    return '<div class="sc' + (s.online ? ' on' : '') + '"><div class="sctop"><span class="dot2' + (s.online?' on':'') + '"></span><div class="nm"><b>' + esc(s.name) + '</b><span>+992 ' + esc(s.phone) + '</span></div>' + pill + '</div>'
+    return '<div class="sc' + (s.online ? ' on' : '') + '"><div class="sctop"><span class="dot2' + (s.online?' on':'') + '"></span><div class="nm"><b>' + esc(s.name) + '</b><span>' + esc(showPhone(s.phone)) + '</span></div>' + pill + '</div>'
      + act + (SDAYS === 1 ? tl_html(s.sessions) : '')
      + '<div class="grid"><div>Всего в работе<b>' + fmtMin(s.minutes) + '</b></div><div>Включился<b>' + fmtT(s.firstIn) + '</b></div><div>Выключился<b>' + (s.online ? 'в сети' : fmtT(s.lastOut)) + '</b></div>'
      + '<div>Ответов<b>' + s.replies + '</b></div><div>Написали ему<b>' + s.incoming + '</b></div><div>Клиентов<b>' + s.clients + '</b></div><div>Заказов<b>' + s.orders + '</b></div><div>Мессенджеры<b class="chi">' + chIcons(s.channels) + '</b></div></div>'
@@ -738,7 +738,7 @@ function render_staff(){
     if (a==='reset') body.reset = true; else body.status = a;
     b.disabled = true;
     post('/staff', body).then(function(x){
-      if (x.j && x.j.ok && x.j.code) show_new('Новый код для +992 ' + body.phone + ': ' + x.j.code);
+      if (x.j && x.j.ok && x.j.code) show_new('Новый код для ' + showPhone(body.phone) + ': ' + x.j.code);
       load_staff();
     }).catch(function(){ b.disabled = false; });
   }); });
@@ -762,12 +762,12 @@ $('b-team').addEventListener('click', open_team);
 document.querySelectorAll('#s-days button').forEach(function(b){ b.addEventListener('click', function(){ SDAYS = +b.getAttribute('data-d'); document.querySelectorAll('#s-days button').forEach(function(x){ x.classList.toggle('on', x===b); }); load_staff(); }); });
 $('f-staff').addEventListener('submit', function(ev){
   ev.preventDefault(); showErr('s-err','');
-  var name = $('s-name').value.trim(), ph = nine($('s-phone').value);
+  var name = $('s-name').value.trim(), ph = fullPhone('s-cc','s-phone');
   if (!name) return showErr('s-err','Введите имя сотрудника.');
-  if (ph.length !== 9) return showErr('s-err','Введите номер: 9 цифр после +992.');
+  if (!ph) return showErr('s-err','Выберите страну и введите номер без кода страны.');
   var btn = $('s-add'); btn.disabled = true;
   post('/staff', { action:'staff_add', code: store('ew_cab')||'', name: name, phone: ph }).then(function(x){
-    if (x.j && x.j.ok) { $('f-staff').reset(); show_new('Сотрудник ' + x.j.name + ' добавлен. Номер: +992 ' + x.j.phone + ', код: ' + x.j.code); load_staff(); }
+    if (x.j && x.j.ok) { $('f-staff').reset(); show_new('Сотрудник ' + x.j.name + ' добавлен. Номер: ' + showPhone(x.j.phone) + ', код: ' + x.j.code); load_staff(); }
     else showErr('s-err', (x.j && x.j.error) || 'Не удалось добавить.');
   }).catch(function(){ showErr('s-err','Нет связи с сервером.'); }).then(function(){ btn.disabled = false; });
 });
