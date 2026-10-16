@@ -174,7 +174,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .fbar .ft{flex:1 1 100%}
 .fbar .fb{flex:1 1 100%;display:flex;justify-content:space-between;align-items:center}
 .fbar .fb button{margin-left:0}.fbar button{border:1px solid var(--navy2);background:#fff;color:var(--navy2);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:600;margin-left:6px;cursor:pointer}
-.lbar{padding:7px 14px;font-size:13px;font-weight:600;color:var(--navy2);background:var(--soft);border-top:1px solid rgba(0,0,0,.05)}.lbar b{font-weight:800}.lbar .pp{color:#8A5A00}.lola{display:inline-block;margin:3px 0 0 8px;font-style:normal;font-size:12px;font-weight:600}.lola.on{color:#6D3FC0}.lola.off{color:#8A5A00}#pz-bar[data-p="0"]{background:#EEE6FB;color:#4B2A8F}#pz-bar[data-p="1"]{background:#FFF1D6;color:#7A4B00}
+.lbar{padding:7px 14px;font-size:13px;font-weight:600;color:var(--navy2);background:var(--soft);border-top:1px solid rgba(0,0,0,.05)}.lbar b{font-weight:800}.lbar .pp{color:#8A5A00}.lola{display:inline-block;margin:3px 0 0 8px;font-style:normal;font-size:12px;font-weight:600}.lola.on{color:#6D3FC0}.lola.off{color:#8A5A00}#pz-bar[data-p="0"]{background:#EEE6FB;color:#4B2A8F}#pz-bar[data-p="0"] #pz-b{background:#2E9E5B;color:#fff;border:0}#pz-bar[data-p="1"] #pz-b{background:#F2B01E;color:#4A3000;border:0}#pz-bar #pz-b{border-radius:999px;font-weight:700}#pz-bar[data-p="1"]{background:#FFF1D6;color:#7A4B00}
 .who{display:inline-block;margin-top:3px;font-style:normal;font-size:12px;font-weight:600;color:var(--ok)}.who.ai{color:#6D3FC0}.who.wait{color:var(--warn)}
 .bub .au{display:block;font-size:11.5px;font-weight:600;margin-bottom:3px;opacity:.85}
 .bub.out.ai{background:#EFE8FB;color:#2B1A55;border:1px solid #D8C9F5}
@@ -673,7 +673,7 @@ function open_chat(c){
 /* Пауза Лолы в диалоге (любой канал, владелец и сотрудники): оператор берёт разговор на себя или возвращает его Лоле */
 function pz_show(c){
   var fs = $('f-send'), bar = $('pz-bar');
-  if (!bar) { bar = document.createElement('div'); bar.id = 'pz-bar'; bar.className = 'ronote'; bar.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:nowrap;padding:5px 12px;font-size:12.5px;line-height:1.3'; bar.innerHTML = '<span id="pz-t" style="flex:1 1 auto;min-width:0"></span><button type="button" id="pz-b" class="btn" style="width:auto;flex:none;margin-left:auto;padding:4px 10px;font-size:12px;min-height:0;line-height:1.2;white-space:nowrap"></button>'; fs.parentNode.insertBefore(bar, fs); $('pz-b').addEventListener('click', pz_toggle); }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'pz-bar'; bar.className = 'ronote'; bar.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:nowrap;padding:5px 12px;font-size:12.5px;line-height:1.3'; bar.innerHTML = '<span id="pz-t" style="flex:1 1 auto;min-width:0"></span><button type="button" id="pz-b" class="btn" style="width:auto;flex:none;margin-left:auto;padding:3px 9px;font-size:11.5px;min-height:0;line-height:1.2;white-space:nowrap"></button>'; fs.parentNode.insertBefore(bar, fs); $('pz-b').addEventListener('click', pz_toggle); }
   var on = MODE === 'user' && !c.comment && !!pz_key(c);
   bar.style.display = on ? 'flex' : 'none';
   if (!on) return;
