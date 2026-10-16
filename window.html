@@ -710,13 +710,16 @@ $('f-send').addEventListener('submit', function(ev){
   sreq.then(function(x){
     SENDING = false;
     if (x.s===200 && x.j && x.j.ok) { CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
-    else { $('c-text').value = t; send_fail(); }
+    else { $('c-text').value = t; send_fail(x && x.j && x.j.reason); }
   }).catch(function(){ SENDING = false; $('c-text').value = t; send_fail(); });
 });
 
-function send_fail(){
+function send_fail(reason){
   var rn = $('ro-note'); if (!rn) return;
-  rn.textContent = 'Не получилось отправить. Instagram принимает ответ, только если человек писал вам в последние 24 часа. Проверьте и попробуйте ещё раз.';
+  var m = 'Не получилось отправить. Проверьте и попробуйте ещё раз.';
+  if (reason === 'token') m = 'Не получилось отправить: доступ к Instagram закончился. Нажмите «Подключение» → «Переподключить Instagram».';
+  else if (reason === 'window') m = 'Не получилось отправить: Instagram разрешает ответ, только если человек писал вам в последние 24 часа.';
+  rn.textContent = m;
   rn.hidden = false; setTimeout(function(){ rn.hidden = !$('f-send').hidden; }, 6000);
 }
 
