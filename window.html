@@ -170,6 +170,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .dlrow span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlrow select{flex:none;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font:inherit;font-size:14px;background:#fff;max-width:48%}
 .dbody h3{margin:6px 0 0;font-size:15px}
+.ch.sel{border-color:var(--navy2);box-shadow:0 0 0 2px var(--navy2)}.tot.sel{box-shadow:0 0 0 2px var(--navy2);cursor:pointer}.chs .tot{cursor:pointer}.fbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--soft);font-size:14px;font-weight:600;color:var(--navy2)}.fbar b{font-weight:800}.fbar button{border:1px solid var(--navy2);background:#fff;color:var(--navy2);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:600;margin-left:6px;cursor:pointer}
 .lbar{padding:7px 14px;font-size:13px;font-weight:600;color:var(--navy2);background:var(--soft);border-top:1px solid rgba(0,0,0,.05)}.lbar b{font-weight:800}.lbar .pp{color:#8A5A00}.lola{display:inline-block;margin:3px 0 0 8px;font-style:normal;font-size:12px;font-weight:600}.lola.on{color:#6D3FC0}.lola.off{color:#8A5A00}#pz-bar[data-p="0"]{background:#EEE6FB;color:#4B2A8F}#pz-bar[data-p="1"]{background:#FFF1D6;color:#7A4B00}
 .who{display:inline-block;margin-top:3px;font-style:normal;font-size:12px;font-weight:600;color:var(--ok)}.who.ai{color:#6D3FC0}.who.wait{color:var(--warn)}
 .bub .au{display:block;font-size:11.5px;font-weight:600;margin-bottom:3px;opacity:.85}
@@ -561,6 +562,7 @@ function render_top(){
   if (MODE === 'user') $('chip-ok').textContent = isStaff() ? 'Сотрудник: ' + (store('ew_sname')||'') : (INFO.paidUntil ? 'Оплачено до ' + INFO.paidUntil : 'Доступ открыт');
   render_channels();
 }
+var CHF = null; /* фильтр списка: id канала или '*' (все непринятые) */
 var PAUSED = {}, PZ_LOADED = false;
 function pz_key(c){ var d = String(c.id||'').replace(/[^0-9]/g,''); if (!d) return ''; return c.kanal==='messenger' ? 'fb_'+d : (c.kanal==='telegram' ? 'tgb_'+d : (c.kanal==='instagram' ? d : '')); }
 function lola_state(c){ if (c.comment) return ''; var k = pz_key(c); if (!k || !PZ_LOADED) return ''; return PAUSED[k] ? 'off' : 'on'; }
@@ -578,31 +580,45 @@ function render_channels(){
   var U = unread_by(), h = '';
   CHANNELS.forEach(function(c){
     var on = MODE === 'user' && !isStaff() && INFO.channels[(c.id==='facebook' ? 'messenger' : c.id)] === 'on';
-    var live = MODE === 'user' && c.live && !isStaff();
-    h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (U.by[c.id] ? '<span class="cnt">' + (U.by[c.id] > 99 ? '99+' : U.by[c.id]) + '</span>' : '') + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
+    var live = MODE === 'user' && c.live;
+    h += '<button type="button" class="ch' + (live ? ' live' : '') + (CHF === c.id ? ' sel' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (U.by[c.id] ? '<span class="cnt">' + (U.by[c.id] > 99 ? '99+' : U.by[c.id]) + '</span>' : '') + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
   });
-  if (MODE === 'user') h += '<span class="tot' + (U.total ? ' has' : '') + '" aria-label="Всего непринятых сообщений: ' + U.total + '">Непринято <b>' + U.total + '</b></span>';
+  if (MODE === 'user') h += '<span class="tot' + (U.total ? ' has' : '') + (CHF === '*' ? ' sel' : '') + '" data-all="1" role="button" tabindex="0" aria-label="Всего непринятых сообщений: ' + U.total + '">Непринято <b>' + U.total + '</b></span>';
   $('chs').innerHTML = h;
   var lb = $('lbar');
   if (lb) { if (MODE === 'user' && PZ_LOADED) { var L = lola_counts(); lb.hidden = false; lb.innerHTML = '🤖 Лола отвечает в <b>' + L.on + '</b> ' + (L.on===1 ? 'диалоге' : 'диалогах') + ' · <span class="pp">⏸ на паузе <b>' + L.off + '</b> (отвечаете вы)</span>'; } else lb.hidden = true; }
-  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); else if (k==='facebook' || k==='messenger') open_fb(); }); });
+  var tt = $('chs').querySelector('.tot'); if (tt) tt.addEventListener('click', function(){ CHF = (CHF === '*') ? null : '*'; $('work').classList.remove('open'); render_list(); });
+  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); var kk = (k==='facebook' ? 'messenger' : k); var conn = isStaff() || INFO.channels[kk]==='on' || (CHATS||[]).some(function(c){ return c.kanal===k; }); if (conn) { CHF = (CHF === k) ? null : k; $('work').classList.remove('open'); render_list(); return; } if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); else if (k==='facebook' || k==='messenger') open_fb(); }); });
 }
 function render_list(){
   var box = $('list'); render_channels();
-  var tabs = '', showTabs = MODE==='user' && !isStaff() && CHATS.some(function(c){ return c.comment; });
+  var tabs = '', showTabs = !CHF && MODE==='user' && !isStaff() && CHATS.some(function(c){ return c.comment; });
+  var fbar = '', fcnt = 0;
+  if (CHF) {
+    var fname = CHF === '*' ? 'Все каналы' : ((chan(CHF)||{}).name || CHF);
+    CHATS.forEach(function(c){ if ((CHF==='*' || c.kanal===CHF) && unread_of(c)>0) fcnt++; });
+    fbar = '<div class="fbar"><span>' + esc(fname) + ': ждут ответа <b>' + fcnt + '</b></span><span>' + (CHF!=='*' && MODE==='user' && !isStaff() ? '<button type="button" data-fconn>Подключение</button>' : '') + '<button type="button" data-fclr>Показать все</button></span></div>';
+  }
   if (!showTabs) TAB = 'msg';
   if (showTabs) tabs = '<div class="tabs"><button type="button" data-tab="msg" class="' + (TAB==='msg'?'on':'') + '">Сообщения</button><button type="button" data-tab="com" class="' + (TAB==='com'?'on':'') + '">Комментарии</button></div>';
+  if (CHF && !fcnt) { box.innerHTML = fbar + '<div class="empty">Здесь всё отвечено ✓</div>'; wire_fbar(box); return; }
   if (!CHATS.length) { box.innerHTML = '<div class="empty">' + (isStaff() ? 'Диалогов пока нет. Руководитель назначит вам клиентов, и они появятся здесь.' : 'Переписок пока нет. Подключите канал, и сообщения клиентов появятся здесь.') + '</div>'; return; }
   var shown = 0;
-  box.innerHTML = tabs + CHATS.map(function(c,i){
+  box.innerHTML = fbar + tabs + CHATS.map(function(c,i){
+    if (CHF && !((CHF==='*' || c.kanal===CHF) && unread_of(c)>0)) return '';
     if (showTabs && !!c.comment !== (TAB==='com')) return '';
     shown++;
     var ch = chan(c.kanal);
     return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + '</i></b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
   }).join('');
   if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
+  wire_fbar(box);
   box.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ TAB = b.getAttribute('data-tab'); render_list(); }); });
   box.querySelectorAll('.row').forEach(function(b){ b.addEventListener('click', function(){ open_chat(CHATS[+b.getAttribute('data-i')]); }); });
+}
+function wire_fbar(box){
+  var a = box.querySelector('[data-fclr]'); if (a) a.addEventListener('click', function(){ CHF = null; render_list(); });
+  var b = box.querySelector('[data-fconn]'); if (b) b.addEventListener('click', function(){ var k = CHF; if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); else open_fb(); });
 }
 function whoName(a){ return a==='ai' ? 'ИИ' : (a==='human' ? 'Руководитель' : (a||'Оператор')); }
 function answeredBy(msgs){ // для каждого входящего: кто ответил первым
