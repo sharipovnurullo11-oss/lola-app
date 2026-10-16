@@ -175,6 +175,14 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .devrow{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0;font-size:13.5px;flex-wrap:wrap}
 .devrow .dd{flex:1;min-width:170px}.devrow .dd small{display:block;color:var(--muted);font-size:12px}
 .tag.ok{background:var(--okbg);color:var(--ok)}.tag.wait{background:var(--warnbg);color:var(--warn)}
+
+.guide{display:flex;flex-direction:column;gap:12px}
+.gs{border:1px solid rgba(128,128,128,.28);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.gs b{font-size:14.5px;line-height:1.35;display:flex;gap:8px;align-items:flex-start}
+.gs b span{flex:none;width:24px;height:24px;border-radius:50%;background:#f5a623;color:#1b2a4a;display:flex;align-items:center;justify-content:center;font-size:13px}
+.gs svg{width:100%;height:auto;display:block;border-radius:10px;background:rgba(128,128,128,.10)}
+.gs small{font-size:13px;line-height:1.4;opacity:.85}
+.gnote{font-size:13.5px;line-height:1.45;border-radius:12px;padding:10px 12px;background:rgba(245,166,35,.14)}
 </style>
 </head>
 <body>
@@ -307,11 +315,26 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   </div>
   <div id="fb-off" style="display:flex;flex-direction:column;gap:14px">
     <p style="margin:0;font-size:15px;line-height:1.45">Подключите свою Страницу Facebook (не личный профиль). Сообщения, которые пишут вашей Странице в Messenger, появятся в окне. Вы сами выберете, что разрешить; отключить можно в любой момент в настройках Facebook: Бизнес-интеграции.</p>
-    <ul class="steps">
-      <li>Нажмите «Подключить через Facebook».</li>
-      <li>Войдите и выберите свою Страницу.</li>
-      <li>Разрешите доступ к сообщениям и вернитесь сюда.</li>
-    </ul>
+    <div class="guide">
+      <div class="gs"><b><span>1</span>Нажмите оранжевую кнопку «Подключить через Facebook» ниже.</b>
+        <svg viewBox="0 0 300 80" role="img" aria-label="Стрелка указывает на оранжевую кнопку"><defs><marker id="fba1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker></defs>
+          <rect x="30" y="38" width="240" height="30" rx="15" fill="#f5a623"/><text x="150" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#1b2a4a">Подключить через Facebook</text>
+          <path d="M150 6 L150 32" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#fba1)"/></svg></div>
+      <div class="gs"><b><span>2</span>Facebook откроется в этом же окне. Если он просит войти, войдите под своим аккаунтом, а потом нажмите синюю кнопку «Продолжить».</b>
+        <svg viewBox="0 0 300 100" role="img" aria-label="Стрелка указывает на синюю кнопку Продолжить"><defs><marker id="fba2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker></defs>
+          <rect x="50" y="8" width="200" height="84" rx="10" fill="#fff" stroke="#c9ced6"/><text x="150" y="30" text-anchor="middle" font-size="11" fill="#555">Продолжить как ваше имя?</text>
+          <rect x="70" y="48" width="160" height="28" rx="14" fill="#1877f2"/><text x="150" y="66" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Продолжить</text>
+          <path d="M270 62 L238 62" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#fba2)"/></svg>
+        <small>Пароль вводите только на странице Facebook. Наше окно его не видит.</small></div>
+      <div class="gs"><b><span>3</span>Выберите свою Страницу (поставьте галочку), нажмите «Продолжить» и разрешите доступ к сообщениям. Потом вы вернётесь сюда сами.</b>
+        <svg viewBox="0 0 300 110" role="img" aria-label="Стрелка указывает на галочку у вашей Страницы"><defs><marker id="fba3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker></defs>
+          <rect x="30" y="8" width="240" height="94" rx="10" fill="#fff" stroke="#c9ced6"/>
+          <rect x="46" y="26" width="20" height="20" rx="4" fill="#1877f2"/><path d="M50 36 L55 41 L63 30" stroke="#fff" stroke-width="3" fill="none"/>
+          <text x="76" y="41" font-size="12" fill="#222">Ваша Страница</text>
+          <rect x="150" y="66" width="104" height="26" rx="13" fill="#1877f2"/><text x="202" y="83" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Продолжить</text>
+          <path d="M8 36 L40 36" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#fba3)"/></svg></div>
+      <p class="gnote"><b>Это нормально:</b> Facebook может попросить подтвердить, что это вы (код из SMS или пароль), и покажет список разрешений. Мы просим доступ только к сообщениям вашей Страницы. Отключить его можно в любой момент в настройках Facebook («Бизнес-интеграции»). Если зависли, нажмите кнопку ещё раз.</p>
+    </div>
     <button class="btn" id="fb-go" type="button" style="width:100%">Подключить через Facebook</button>
     <p class="err" id="fb-err" role="alert" hidden></p>
   </div>
@@ -326,11 +349,26 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   </div>
   <div id="ig-off" style="display:flex;flex-direction:column;gap:14px">
     <p style="margin:0;font-size:15px;line-height:1.45">Подключите рабочий аккаунт Instagram (профессиональный: бизнес или автор). Вы войдёте своим логином в Facebook и сами выберете, что разрешить. Отключить можно в любой момент в настройках Instagram: Бизнес-интеграции.</p>
-    <ul class="steps">
-      <li>Нажмите «Подключить через Facebook».</li>
-      <li>Войдите и выберите свой аккаунт Instagram и Страницу.</li>
-      <li>Разрешите доступ к сообщениям и вернитесь сюда.</li>
-    </ul>
+    <div class="guide">
+      <div class="gs"><b><span>1</span>Нажмите оранжевую кнопку «Подключить через Facebook» ниже.</b>
+        <svg viewBox="0 0 300 80" role="img" aria-label="Стрелка указывает на оранжевую кнопку"><defs><marker id="iga1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker></defs>
+          <rect x="30" y="38" width="240" height="30" rx="15" fill="#f5a623"/><text x="150" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#1b2a4a">Подключить через Facebook</text>
+          <path d="M150 6 L150 32" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#iga1)"/></svg></div>
+      <div class="gs"><b><span>2</span>Facebook откроется в этом же окне. Если он просит войти, войдите под своим аккаунтом, а потом нажмите синюю кнопку «Продолжить».</b>
+        <svg viewBox="0 0 300 100" role="img" aria-label="Стрелка указывает на синюю кнопку Продолжить"><defs><marker id="iga2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker></defs>
+          <rect x="50" y="8" width="200" height="84" rx="10" fill="#fff" stroke="#c9ced6"/><text x="150" y="30" text-anchor="middle" font-size="11" fill="#555">Продолжить как ваше имя?</text>
+          <rect x="70" y="48" width="160" height="28" rx="14" fill="#1877f2"/><text x="150" y="66" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Продолжить</text>
+          <path d="M270 62 L238 62" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#iga2)"/></svg>
+        <small>Пароль вводите только на странице Facebook. Наше окно его не видит.</small></div>
+      <div class="gs"><b><span>3</span>Выберите свой аккаунт Instagram и Страницу (поставьте галочки), нажмите «Продолжить» и разрешите доступ к сообщениям. Потом вы вернётесь сюда сами.</b>
+        <svg viewBox="0 0 300 110" role="img" aria-label="Стрелка указывает на галочку у вашей Страницы и аккаунта Instagram"><defs><marker id="iga3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker></defs>
+          <rect x="30" y="8" width="240" height="94" rx="10" fill="#fff" stroke="#c9ced6"/>
+          <rect x="46" y="26" width="20" height="20" rx="4" fill="#1877f2"/><path d="M50 36 L55 41 L63 30" stroke="#fff" stroke-width="3" fill="none"/>
+          <text x="76" y="41" font-size="12" fill="#222">Ваш аккаунт Instagram</text>
+          <rect x="150" y="66" width="104" height="26" rx="13" fill="#1877f2"/><text x="202" y="83" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Продолжить</text>
+          <path d="M8 36 L40 36" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#iga3)"/></svg></div>
+      <p class="gnote"><b>Это нормально:</b> Facebook может попросить подтвердить, что это вы (код из SMS или пароль), и покажет список разрешений. Мы просим доступ только к сообщениям вашей Страницы. Отключить его можно в любой момент в настройках Facebook («Бизнес-интеграции»). Если зависли, нажмите кнопку ещё раз.</p>
+    </div>
     <button class="btn" id="ig-go" type="button" style="width:100%">Подключить через Facebook</button>
     <p class="err" id="ig-err" role="alert" hidden></p>
   </div>
