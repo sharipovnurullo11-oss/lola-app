@@ -720,11 +720,12 @@ $('to-reg').addEventListener('click', function(){ $('m-login').close(); $('b-reg
 $('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-staffbtn').hidden = st; $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
 $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
-function open_tg(){ showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
+function open_tg(){ if (isStaff()) return; showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
 
 (function(){ try { var m = /[?&]ig=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Instagram подключён. Сообщения из Direct появятся в списке переписок.' : 'Не получилось подключить Instagram. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
 /* Instagram: вход через Facebook. Работает после одобрения приложения в Meta; до этого сервер не вернёт ссылку */
 function open_ig(){
+  if (isStaff()) return;
   showErr('ig-err','');
   var on = INFO.channels.instagram === 'on';
   $('ig-on').hidden = !on; $('ig-off').style.display = on ? 'none' : 'flex';
@@ -746,6 +747,7 @@ $('ig-re').addEventListener('click', function(){ ig_go(true); });
 
 (function(){ try { var m = /[?&]fb=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Facebook подключён. Сообщения из Messenger появятся в списке переписок.' : 'Не получилось подключить Facebook. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
 function open_fb(){
+  if (isStaff()) return;
   showErr('fb-err','');
   var on = INFO.channels.messenger === 'on';
   $('fb-on').hidden = !on; $('fb-off').style.display = on ? 'none' : 'flex';
@@ -793,6 +795,7 @@ function wa_check(){
   post('/cabinet-wa-status', { code: store('ew_cab') || '' }).then(function(x){ if (x.j && x.j.state === 'open') wa_done(x.j.number || ''); }).catch(function(){});
 }
 function open_wa(){
+  if (isStaff()) return;
   wa_stop(); showErr('wa-err', ''); WANUM = '';
   $('wa-qr').hidden = true; $('wa-qr').removeAttribute('src'); $('wa-wait').textContent = 'Готовим QR-код…';
   $('wa-pair').hidden = true; $('wa-phone').style.display = 'none'; $('wa-phone-btn').hidden = false;
