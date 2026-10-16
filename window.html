@@ -271,7 +271,6 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   <p id="menu-paid"></p>
   <div class="mi">
     <button class="btn sec" id="m-addbtn" type="button">Добавить на экран телефона</button>
-    <button class="btn sec" id="m-staffbtn" type="button">Сотрудники</button>
     <button class="btn sec" id="m-chcode" type="button">Сменить код</button>
     <button class="btn sec" id="m-logout" type="button">Выйти</button>
   </div>
@@ -802,7 +801,7 @@ $('b-code').addEventListener('click', function(){ showErr('l-err',''); setPhone(
 function set_role(r){ LROLE = r; document.querySelectorAll('#l-role button').forEach(function(b){ var on = b.getAttribute('data-r')===r; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); $('l-pass').placeholder = r==='staff' ? 'Код от руководителя' : 'Код для входа'; $('to-reg').parentNode.hidden = r==='staff'; }
 document.querySelectorAll('#l-role button').forEach(function(b){ b.addEventListener('click', function(){ set_role(b.getAttribute('data-r')); }); });
 $('to-reg').addEventListener('click', function(){ $('m-login').close(); $('b-reg').click(); });
-$('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-staffbtn').hidden = st; $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
+$('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
 $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
 function open_tg(){ if (isStaff()) return; showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
@@ -1128,7 +1127,6 @@ function render_staff(){
 }
 function show_new(t){ var n = $('s-new'); n.textContent = t + '. Передайте сотруднику номер и код: он входит через кнопку «Сотрудник».'; n.hidden = false; }
 function open_team(){ var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = '<p>Загрузка…</p>'; open_dlg('m-staff'); load_staff();}
-$('m-staffbtn').addEventListener('click', open_team);
 $('b-team').addEventListener('click', open_team);
 document.querySelectorAll('#s-days button').forEach(function(b){ b.addEventListener('click', function(){ SDAYS = +b.getAttribute('data-d'); document.querySelectorAll('#s-days button').forEach(function(x){ x.classList.toggle('on', x===b); }); load_staff(); }); });
 $('f-staff').addEventListener('submit', function(ev){
