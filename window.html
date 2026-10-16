@@ -170,7 +170,10 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .dlrow span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlrow select{flex:none;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font:inherit;font-size:14px;background:#fff;max-width:48%}
 .dbody h3{margin:6px 0 0;font-size:15px}
-.ch.sel{border-color:var(--navy2);box-shadow:0 0 0 2px var(--navy2)}.tot.sel{box-shadow:0 0 0 2px var(--navy2);cursor:pointer}.chs .tot{cursor:pointer}.fbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--soft);font-size:14px;font-weight:600;color:var(--navy2)}.fbar b{font-weight:800}.fbar button{border:1px solid var(--navy2);background:#fff;color:var(--navy2);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:600;margin-left:6px;cursor:pointer}
+.ch.sel{border-color:var(--navy2);box-shadow:0 0 0 2px var(--navy2)}.tot.sel{box-shadow:0 0 0 2px var(--navy2);cursor:pointer}.chs .tot{cursor:pointer}.fbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--soft);font-size:14px;font-weight:600;color:var(--navy2)}.fbar b{font-weight:800}
+.fbar .ft{flex:1 1 100%}
+.fbar .fb{flex:1 1 100%;display:flex;justify-content:space-between;align-items:center}
+.fbar .fb button{margin-left:0}.fbar button{border:1px solid var(--navy2);background:#fff;color:var(--navy2);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:600;margin-left:6px;cursor:pointer}
 .lbar{padding:7px 14px;font-size:13px;font-weight:600;color:var(--navy2);background:var(--soft);border-top:1px solid rgba(0,0,0,.05)}.lbar b{font-weight:800}.lbar .pp{color:#8A5A00}.lola{display:inline-block;margin:3px 0 0 8px;font-style:normal;font-size:12px;font-weight:600}.lola.on{color:#6D3FC0}.lola.off{color:#8A5A00}#pz-bar[data-p="0"]{background:#EEE6FB;color:#4B2A8F}#pz-bar[data-p="1"]{background:#FFF1D6;color:#7A4B00}
 .who{display:inline-block;margin-top:3px;font-style:normal;font-size:12px;font-weight:600;color:var(--ok)}.who.ai{color:#6D3FC0}.who.wait{color:var(--warn)}
 .bub .au{display:block;font-size:11.5px;font-weight:600;margin-bottom:3px;opacity:.85}
@@ -597,7 +600,7 @@ function render_list(){
   if (CHF) {
     var fname = CHF === '*' ? 'Все каналы' : ((chan(CHF)||{}).name || CHF);
     CHATS.forEach(function(c){ if ((CHF==='*' || c.kanal===CHF) && unread_of(c)>0) fcnt++; });
-    fbar = '<div class="fbar"><span>' + esc(fname) + ': ждут ответа <b>' + fcnt + '</b></span><span>' + (CHF!=='*' && MODE==='user' && !isStaff() ? '<button type="button" data-fconn>Подключение</button>' : '') + '<button type="button" data-fclr>Показать все</button></span></div>';
+    fbar = '<div class="fbar"><span class="ft">' + esc(fname) + ': ждут ответа <b>' + fcnt + '</b></span><span class="fb"><button type="button" data-fclr>Показать все</button>' + (CHF!=='*' && MODE==='user' && !isStaff() ? '<button type="button" data-fconn>Подключение</button>' : '') + '</span></div>';
   }
   if (!showTabs) TAB = 'msg';
   if (showTabs) tabs = '<div class="tabs"><button type="button" data-tab="msg" class="' + (TAB==='msg'?'on':'') + '">Сообщения</button><button type="button" data-tab="com" class="' + (TAB==='com'?'on':'') + '">Комментарии</button></div>';
