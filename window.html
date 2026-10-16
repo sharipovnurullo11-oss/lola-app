@@ -760,7 +760,30 @@ $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
 function open_tg(){ if (isStaff()) return; showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
 
-(function(){ try { var m = /[?&]ig=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Instagram подключён. Сообщения из Direct появятся в списке переписок.' : 'Не получилось подключить Instagram. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
+/* Вход через Facebook/Instagram во всплывающем окне поверх приложения */
+function ew_popup_done(kind, res){
+  try {
+    if (window.opener && window.name === 'ew_oauth') {
+      window.opener.postMessage({ ew_conn: kind, res: res }, location.origin);
+      window.close();
+      document.body.innerHTML = '<p style="font:18px sans-serif;padding:30px;text-align:center">Готово. Это окно можно закрыть.</p>';
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
+function ew_popup_open(){
+  try { var w = window.open('', 'ew_oauth', 'width=480,height=740,menubar=no,toolbar=no'); if (w && !w.closed) { try { w.document.write('<p style="font:18px sans-serif;padding:30px;text-align:center">Открываем Facebook…</p>'); } catch(e){} return w; } } catch(e){}
+  return null;
+}
+window.addEventListener('message', function(ev){
+  if (ev.origin !== location.origin || !ev.data || !ev.data.ew_conn) return;
+  var ok = ev.data.res === 'ok', k = ev.data.ew_conn;
+  var t = ok ? (k==='ig' ? 'Instagram подключён. Сообщения из Direct появятся в списке переписок.' : 'Facebook подключён. Сообщения из Messenger появятся в списке переписок.')
+             : 'Не получилось подключить. Попробуйте ещё раз или напишите руководителю.';
+  alert(t); location.reload();
+});
+(function(){ try { var m = /[?&]ig=(ok|err)/.exec(location.search); if (m) { if (ew_popup_done('ig', m[1])) return; history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Instagram подключён. Сообщения из Direct появятся в списке переписок.' : 'Не получилось подключить Instagram. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
 /* Instagram: вход через Facebook. Работает после одобрения приложения в Meta; до этого сервер не вернёт ссылку */
 function open_ig(){
   if (isStaff()) return;
@@ -772,9 +795,11 @@ function open_ig(){
 }
 function ig_go(fresh){
   var b = $('ig-go'); b.disabled = true; showErr('ig-err','');
+  var pw = ew_popup_open();
   post('/cabinet-ig-connect', { code: store('ew_cab') || '', fresh: !!fresh }).then(function(x){
     var j = x.j || {};
-    if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
+    if (x.s === 200 && j.ok && j.url) { if (pw) { pw.location.href = j.url; b.disabled = false; } else { location.href = j.url; } return; }
+    if (pw) pw.close();
     showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.');
     b.disabled = false;
   }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; });
@@ -783,7 +808,7 @@ $('ig-go').addEventListener('click', function(){ ig_go(false); });
 $('ig-re').addEventListener('click', function(){ ig_go(true); });
 
 
-(function(){ try { var m = /[?&]fb=(ok|err)/.exec(location.search); if (m) { history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Facebook подключён. Сообщения из Messenger появятся в списке переписок.' : 'Не получилось подключить Facebook. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
+(function(){ try { var m = /[?&]fb=(ok|err)/.exec(location.search); if (m) { if (ew_popup_done('fb', m[1])) return; history.replaceState(null,'',location.pathname); setTimeout(function(){ alert(m[1]==='ok' ? 'Facebook подключён. Сообщения из Messenger появятся в списке переписок.' : 'Не получилось подключить Facebook. Попробуйте ещё раз или напишите руководителю.'); }, 1200); } } catch(e){} })();
 function open_fb(){
   if (isStaff()) return;
   showErr('fb-err','');
@@ -794,13 +819,15 @@ function open_fb(){
 }
 function fb_go(fresh){
   var b = $(fresh ? 'fb-re' : 'fb-go'); b.disabled = true; showErr('fb-err','');
+  var pw = ew_popup_open();
   var bad = 'Подключение Facebook откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.';
   post('/cabinet-fb-connect', { code: store('ew_cab') || '', fresh: !!fresh }).then(function(x){
     var j = x.j || {};
-    if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
+    if (x.s === 200 && j.ok && j.url) { if (pw) { pw.location.href = j.url; b.disabled = false; } else { location.href = j.url; } return; }
+    if (pw) pw.close();
     if (x.s === 200 && j.ok && j.state === 'open') { INFO.channels.messenger = 'on'; $('fb-on').hidden = false; $('fb-off').style.display = 'none'; render_channels(); return; }
     showErr('fb-err', bad); b.disabled = false;
-  }).catch(function(){ showErr('fb-err', bad); b.disabled = false; });
+  }).catch(function(){ if (pw) pw.close(); showErr('fb-err', bad); b.disabled = false; });
 }
 $('fb-go').addEventListener('click', function(){ fb_go(false); });
 $('fb-re').addEventListener('click', function(){ fb_go(true); });
