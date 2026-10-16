@@ -297,6 +297,25 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   </form>
 </div></dialog>
 
+<dialog id="m-ig"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Подключить Instagram</h2>
+  <div id="ig-on" hidden>
+    <p style="margin:0 0 14px;font-size:15px;line-height:1.45">Instagram уже подключён. Сообщения из Direct приходят в список переписок.</p>
+    <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
+  </div>
+  <div id="ig-off" style="display:flex;flex-direction:column;gap:14px">
+    <p style="margin:0;font-size:15px;line-height:1.45">Подключите рабочий аккаунт Instagram (профессиональный: бизнес или автор). Вы войдёте своим логином в Facebook и сами выберете, что разрешить. Отключить можно в любой момент в настройках Instagram: Бизнес-интеграции.</p>
+    <ul class="steps">
+      <li>Нажмите «Подключить через Facebook».</li>
+      <li>Войдите и выберите свой аккаунт Instagram и Страницу.</li>
+      <li>Разрешите доступ к сообщениям и вернитесь сюда.</li>
+    </ul>
+    <button class="btn" id="ig-go" type="button" style="width:100%">Подключить через Facebook</button>
+    <p class="err" id="ig-err" role="alert" hidden></p>
+  </div>
+</div></dialog>
+
 <dialog id="m-wa"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
   <button class="x" data-close type="button" aria-label="Закрыть">×</button>
   <h2 style="padding-right:36px">Подключить WhatsApp</h2>
@@ -356,7 +375,7 @@ var BRAND = 'Единое окно';
 
 /* Каналы. Чтобы добавить новый мессенджер, достаточно ещё одной записи здесь. */
 var CHANNELS = [
-  { id:'instagram', name:'Instagram', live:false,
+  { id:'instagram', name:'Instagram', live:true,
     svg:'<svg viewBox="0 0 24 24"><defs><linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset=".4" stop-color="#FA7E1E"/><stop offset=".7" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="url(#ig)"/><rect x="6" y="6" width="12" height="12" rx="3.5" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="16" cy="8" r="1" fill="#fff"/></svg>' },
   { id:'whatsapp',  name:'WhatsApp',  live:true,
     svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#25D366"/><path d="M7.2 17.2l.9-3.1a5 5 0 1 1 2 2z" fill="#fff"/><path d="M10 9.6c.1 1.6 1.6 3.2 3.4 3.7l.9-.9-1.2-.7-.5.4c-.7-.3-1.2-.8-1.5-1.5l.4-.5-.7-1.2z" fill="#25D366"/></svg>' },
@@ -485,7 +504,7 @@ function render_channels(){
     h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
   });
   $('chs').innerHTML = h;
-  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); }); });
+  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); }); });
 }
 function render_list(){
   var box = $('list');
@@ -639,6 +658,24 @@ $('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-staff
 $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
 function open_tg(){ showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
+
+/* Instagram: вход через Facebook. Работает после одобрения приложения в Meta; до этого сервер не вернёт ссылку */
+function open_ig(){
+  showErr('ig-err','');
+  var on = INFO.channels.instagram === 'on';
+  $('ig-on').hidden = !on; $('ig-off').style.display = on ? 'none' : 'flex';
+  $('ig-go').disabled = false;
+  open_dlg('m-ig');
+}
+$('ig-go').addEventListener('click', function(){
+  var b = $('ig-go'); b.disabled = true; showErr('ig-err','');
+  post('/cabinet-ig-connect', { code: store('ew_cab') || '' }).then(function(x){
+    var j = x.j || {};
+    if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
+    showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.');
+    b.disabled = false;
+  }).catch(function(){ showErr('ig-err', 'Подключение Instagram откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.'); b.disabled = false; });
+});
 
 /* WhatsApp: подключение по QR или по коду */
 var WAPOLL = null, WAQR = null, WASTOP = null, WANUM = '';
