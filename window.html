@@ -819,7 +819,8 @@ function ew_popup_done(kind, res){
   return false;
 }
 function ew_popup_open(){
-  try { var w = window.open('', 'ew_oauth', 'width=480,height=740,menubar=no,toolbar=no'); if (w && !w.closed) { try { w.document.write('<p style="font:18px sans-serif;padding:30px;text-align:center">Открываем Facebook…</p>'); } catch(e){} return w; } } catch(e){}
+  try { if ((window.matchMedia && matchMedia('(pointer:coarse)').matches) || window.innerWidth < 700) return null; } catch(e){}
+  try { var w = window.open('', 'ew_oauth', 'width=480,height=740,menubar=no,toolbar=no'); if (w && !w.closed) { try { w.document.write('<p style="font:18px sans-serif;padding:30px;text-align:center">Открываем вход…</p>'); } catch(e){} return w; } } catch(e){}
   return null;
 }
 window.addEventListener('message', function(ev){
