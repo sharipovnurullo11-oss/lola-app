@@ -170,6 +170,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .dlrow span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlrow select{flex:none;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font:inherit;font-size:14px;background:#fff;max-width:48%}
 .dbody h3{margin:6px 0 0;font-size:15px}
+.lbar{padding:7px 14px;font-size:13px;font-weight:600;color:var(--navy2);background:var(--soft);border-top:1px solid rgba(0,0,0,.05)}.lbar b{font-weight:800}.lbar .pp{color:#8A5A00}.lola{display:inline-block;margin:3px 0 0 8px;font-style:normal;font-size:12px;font-weight:600}.lola.on{color:#6D3FC0}.lola.off{color:#8A5A00}#pz-bar[data-p="0"]{background:#EEE6FB;color:#4B2A8F}#pz-bar[data-p="1"]{background:#FFF1D6;color:#7A4B00}
 .who{display:inline-block;margin-top:3px;font-style:normal;font-size:12px;font-weight:600;color:var(--ok)}.who.ai{color:#6D3FC0}.who.wait{color:var(--warn)}
 .bub .au{display:block;font-size:11.5px;font-weight:600;margin-bottom:3px;opacity:.85}
 .bub.out.ai{background:#EFE8FB;color:#2B1A55;border:1px solid #D8C9F5}
@@ -205,6 +206,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   <div class="addbar inapp" id="inapp" hidden><span id="inapp-t"></span><button class="sm" id="b-ext" type="button" hidden>Открыть в Chrome</button></div>
   <div class="addbar" id="addbar" hidden><span>Добавьте окно на экран телефона и заходите в один клик</span><button class="sm" id="b-add" type="button">Как добавить</button><button class="ax" id="add-x" type="button" aria-label="Скрыть">×</button></div>
   <div class="chs" id="chs" aria-label="Каналы"></div>
+  <div class="lbar" id="lbar" hidden></div>
   <p class="hint" id="hint">Это пример окна: так выглядит работа внутри. Войдите или зарегистрируйтесь, чтобы подключить свои каналы.</p>
   <div class="alertbar" id="alertbar" hidden></div>
   <main class="work" id="work">
@@ -559,6 +561,17 @@ function render_top(){
   if (MODE === 'user') $('chip-ok').textContent = isStaff() ? 'Сотрудник: ' + (store('ew_sname')||'') : (INFO.paidUntil ? 'Оплачено до ' + INFO.paidUntil : 'Доступ открыт');
   render_channels();
 }
+var PAUSED = {}, PZ_LOADED = false;
+function pz_key(c){ var d = String(c.id||'').replace(/[^0-9]/g,''); if (!d) return ''; return c.kanal==='messenger' ? 'fb_'+d : (c.kanal==='telegram' ? 'tgb_'+d : (c.kanal==='instagram' ? d : '')); }
+function lola_state(c){ if (c.comment) return ''; var k = pz_key(c); if (!k || !PZ_LOADED) return ''; return PAUSED[k] ? 'off' : 'on'; }
+function lola_counts(){ var on = 0, off = 0; (CHATS||[]).forEach(function(c){ var st = lola_state(c); if (st==='on') on++; else if (st==='off') off++; }); return {on:on, off:off}; }
+function pz_post(action, c){ var b = isStaff() ? { sid: store('ew_sid')||'', action: action } : { code: store('ew_cab')||'', action: action }; if (c) { b.contact = c.id; b.kanal = c.kanal; } return post('/cabinet-ig-pause', b); }
+function load_pauses(){
+  if (MODE !== 'user') return;
+  pz_post('list').then(function(x){
+    if (x.s === 200 && x.j && x.j.ok && Array.isArray(x.j.list)) { PAUSED = {}; x.j.list.forEach(function(k){ PAUSED[k] = 1; }); PZ_LOADED = true; render_list(); }
+  }).catch(function(){});
+}
 function unread_of(c){ var m = c.messages||[], n = 0; for (var i=m.length-1;i>=0;i--) { if (m[i].d==='in') n++; else break; } return n; }
 function unread_by(){ var r = {}, t = 0; if (MODE !== 'user') return {by:r,total:0}; (CHATS||[]).forEach(function(c){ var n = unread_of(c); if (!n) return; var k = c.kanal; r[k] = (r[k]||0) + n; t += n; }); return {by:r,total:t}; }
 function render_channels(){
@@ -570,6 +583,8 @@ function render_channels(){
   });
   if (MODE === 'user') h += '<span class="tot' + (U.total ? ' has' : '') + '" aria-label="Всего непринятых сообщений: ' + U.total + '">Непринято <b>' + U.total + '</b></span>';
   $('chs').innerHTML = h;
+  var lb = $('lbar');
+  if (lb) { if (MODE === 'user' && PZ_LOADED) { var L = lola_counts(); lb.hidden = false; lb.innerHTML = '🤖 Лола отвечает в <b>' + L.on + '</b> ' + (L.on===1 ? 'диалоге' : 'диалогах') + ' · <span class="pp">⏸ на паузе <b>' + L.off + '</b> (отвечаете вы)</span>'; } else lb.hidden = true; }
   $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); else if (k==='facebook' || k==='messenger') open_fb(); }); });
 }
 function render_list(){
@@ -583,7 +598,7 @@ function render_list(){
     if (showTabs && !!c.comment !== (TAB==='com')) return '';
     shown++;
     var ch = chan(c.kanal);
-    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + '</i></b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + '</span></button>';
+    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + '</i></b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
   }).join('');
   if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
   box.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ TAB = b.getAttribute('data-tab'); render_list(); }); });
@@ -595,6 +610,7 @@ function answeredBy(msgs){ // для каждого входящего: кто �
   for (var i=0;i<msgs.length;i++) { if (msgs[i].d !== 'in') continue; for (var j=i+1;j<msgs.length;j++) { if (msgs[j].d === 'out') { res[i] = msgs[j].a; break; } if (msgs[j].d === 'in') { /* ответ придёт на следующую пачку */ } } }
   return res;
 }
+function lola_badge(c){ var st = lola_state(c); return st==='on' ? '<em class="lola on">🤖 Лола отвечает</em>' : (st==='off' ? '<em class="lola off">⏸ Лола молчит, ведёте вы</em>' : ''); }
 function mark_of(c){ // отметка для списка: кто ответил на последнее входящее
   var m = c.messages||[], last = -1; for (var i=0;i<m.length;i++) if (m[i].d==='in') last = i;
   if (last < 0) return '';
@@ -638,28 +654,28 @@ function open_chat(c){
 function pz_show(c){
   var fs = $('f-send'), bar = $('pz-bar');
   if (!bar) { bar = document.createElement('div'); bar.id = 'pz-bar'; bar.className = 'ronote'; bar.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap'; bar.innerHTML = '<span id="pz-t"></span><button type="button" id="pz-b" class="btn" style="width:auto;padding:8px 14px"></button>'; fs.parentNode.insertBefore(bar, fs); $('pz-b').addEventListener('click', pz_toggle); }
-  var on = MODE === 'user' && !c.comment;
+  var on = MODE === 'user' && !c.comment && !!pz_key(c);
   bar.style.display = on ? 'flex' : 'none';
   if (!on) return;
   $('pz-t').textContent = 'Проверяем, отвечает ли Лола…'; $('pz-b').hidden = true; bar.dataset.p = '';
-  post('/cabinet-ig-pause', pz_body(c, 'status')).then(function(x){
+  pz_post('status', c).then(function(x){
     if (CUR !== c) return;
-    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused); else { $('pz-t').textContent = ''; bar.style.display = 'none'; }
-  }).catch(function(){ if (CUR === c) bar.style.display = 'none'; });
+    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused, c); else { $('pz-t').textContent = 'Не удалось узнать, отвечает ли Лола. Обновите страницу.'; $('pz-b').hidden = true; }
+  }).catch(function(){ if (CUR === c) { $('pz-t').textContent = 'Не удалось узнать, отвечает ли Лола. Нет связи.'; $('pz-b').hidden = true; } });
 }
-function pz_body(c, action){ return isStaff() ? { sid: store('ew_sid')||'', contact: c.id, action: action } : { code: store('ew_cab')||'', contact: c.id, action: action }; }
-function pz_set(paused){
+function pz_set(paused, c){
   var bar = $('pz-bar'); bar.dataset.p = paused ? '1' : '0';
-  $('pz-t').textContent = paused ? 'Лола на паузе: в этом диалоге отвечаете вы.' : 'Лола отвечает в этом диалоге. Когда вы пишете сами, она замолкает на час.';
+  if (c) { var k = pz_key(c); if (k) { if (paused) PAUSED[k] = 1; else delete PAUSED[k]; PZ_LOADED = true; render_list(); } }
+  $('pz-t').textContent = paused ? '⏸ Лола молчит в этом диалоге: отвечаете вы.' : '🤖 В этом диалоге отвечает Лола. Если напишете сами, она замолчит на час.';
   var b = $('pz-b'); b.hidden = false; b.disabled = false; b.textContent = paused ? 'Вернуть Лолу' : 'Поставить Лолу на паузу';
 }
 function pz_toggle(){
   var bar = $('pz-bar'), c = CUR; if (!c) return;
   var want = bar.dataset.p === '1' ? 'resume' : 'pause';
   $('pz-b').disabled = true;
-  post('/cabinet-ig-pause', pz_body(c, want)).then(function(x){
+  pz_post(want, c).then(function(x){
     if (CUR !== c) return;
-    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused); else { $('pz-b').disabled = false; $('pz-t').textContent = 'Не получилось. Попробуйте ещё раз.'; }
+    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused, c); else { $('pz-b').disabled = false; $('pz-t').textContent = 'Не получилось. Попробуйте ещё раз.'; }
   }).catch(function(){ $('pz-b').disabled = false; });
 }
 
@@ -710,6 +726,7 @@ function load_chats(){
     if (isStaff()) { ORDERED = x.j.ordered || []; if (x.j.name) { store('ew_sname', x.j.name); } }
     CHATS = (x.j && x.j.chats) || [];
     render_list();
+    load_pauses();
     if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f && $('work').classList.contains('hasdlg')) open_chat(f); }
   }).catch(function(){});
 }
