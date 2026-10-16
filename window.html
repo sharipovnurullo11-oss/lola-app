@@ -566,7 +566,7 @@ function render_top(){
 }
 var CHF = null; /* фильтр списка: id канала или '*' (все непринятые) */
 var PAUSED = {}, PZ_LOADED = false;
-function pz_key(c){ var d = String(c.id||'').replace(/[^0-9]/g,''); if (!d) return ''; return c.kanal==='messenger' ? 'fb_'+d : (c.kanal==='telegram' ? 'tgb_'+d : (c.kanal==='instagram' ? d : '')); }
+function pz_key(c){ var d = String(c.id||'').replace(/[^0-9]/g,''); if (!d) return ''; return c.kanal==='messenger' ? 'fb_'+d : (c.kanal==='telegram' ? 'tgb_'+d : ((c.kanal==='instagram' || c.kanal==='whatsapp') ? d : '')); }
 function lola_state(c){ if (c.comment) return ''; var k = pz_key(c); if (!k || !PZ_LOADED) return ''; return PAUSED[k] ? 'off' : 'on'; }
 function lola_counts(){ var on = 0, off = 0; (CHATS||[]).forEach(function(c){ var st = lola_state(c); if (st==='on') on++; else if (st==='off') off++; }); return {on:on, off:off}; }
 function pz_post(action, c){ var b = isStaff() ? { sid: store('ew_sid')||'', action: action } : { code: store('ew_cab')||'', action: action }; if (c) { b.contact = c.id; b.kanal = c.kanal; } return post('/cabinet-ig-pause', b); }
