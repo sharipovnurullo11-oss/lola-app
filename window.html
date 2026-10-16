@@ -742,6 +742,7 @@ $('fb-go').addEventListener('click', function(){
   post('/cabinet-fb-connect', { code: store('ew_cab') || '' }).then(function(x){
     var j = x.j || {};
     if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
+    if (x.s === 200 && j.ok && j.state === 'open') { INFO.channels.messenger = 'on'; $('fb-on').hidden = false; $('fb-off').style.display = 'none'; render_channels(); return; }
     showErr('fb-err', bad); b.disabled = false;
   }).catch(function(){ showErr('fb-err', bad); b.disabled = false; });
 });
