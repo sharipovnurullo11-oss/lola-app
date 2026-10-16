@@ -41,7 +41,7 @@ button{font:inherit;color:inherit}
 .ch .dot{position:absolute;right:-3px;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid #fff}
 .ch .soon{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);font-size:9.5px;font-weight:700;background:var(--soft);color:var(--navy2);border-radius:8px;padding:1px 5px;white-space:nowrap}
 .chs .plus{width:44px;height:44px;border-radius:14px;border:1.5px dashed var(--line);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
-.addbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;background:var(--soft);font-size:13px;line-height:1.35;color:var(--ink)}.addbar span{flex:1;min-width:0}.addbar .sm{flex:none}.addbar .ax{flex:none;width:30px;height:30px;border:0;border-radius:8px;background:transparent;font-size:18px;cursor:pointer;color:var(--muted)}.addst{margin:0;padding-left:22px;font-size:14px;line-height:1.5;color:var(--ink);list-style:decimal}.addst li{display:list-item;margin:0 0 8px;padding:0}.addst b{font-weight:600}
+.addbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;background:var(--soft);font-size:13px;line-height:1.35;color:var(--ink)}.addbar span{flex:1;min-width:0}.addbar .sm{flex:none}.addbar.inapp{background:var(--warnbg);color:var(--warn)}.addbar .ax{flex:none;width:30px;height:30px;border:0;border-radius:8px;background:transparent;font-size:18px;cursor:pointer;color:var(--muted)}.addst{margin:0;padding-left:22px;font-size:14px;line-height:1.5;color:var(--ink);list-style:decimal}.addst li{display:list-item;margin:0 0 8px;padding:0}.addst b{font-weight:600}
 .hint{flex:none;margin:0;padding:8px 14px;font-size:13px;line-height:1.4;background:var(--warnbg);color:var(--warn)}
 /* рабочая область */
 .work{flex:1;min-height:0;display:grid;grid-template-columns:1fr}
@@ -189,6 +189,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
     <button class="tb" id="b-team" type="button" hidden>Команда</button>
     <button class="menu" id="b-menu" type="button" aria-label="Меню" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </header>
+  <div class="addbar inapp" id="inapp" hidden><span id="inapp-t"></span><button class="sm" id="b-ext" type="button" hidden>Открыть в Chrome</button></div>
   <div class="addbar" id="addbar" hidden><span>Добавьте окно на экран телефона и заходите в один клик</span><button class="sm" id="b-add" type="button">Как добавить</button><button class="ax" id="add-x" type="button" aria-label="Скрыть">×</button></div>
   <div class="chs" id="chs" aria-label="Каналы"></div>
   <p class="hint" id="hint">Это пример окна: так выглядит работа внутри. Войдите или зарегистрируйтесь, чтобы подключить свои каналы.</p>
@@ -841,6 +842,20 @@ enter_mode();
   if (b2) b2.addEventListener('click', function(){ var m=$('m-menu'); if (m && m.open) m.close(); open_add(); });
   if (x) x.addEventListener('click', function(){ lstore('ew_addx','1'); show_bar(); });
   show_bar();
+})();
+
+/* ссылка открыта внутри Telegram/Instagram: просим открыть в обычном браузере (там работают файл чека и значок на экране) */
+(function(){
+  var ua = navigator.userAgent || '';
+  var inApp = /Telegram|Instagram|FBAN|FBAV|WhatsApp|Line\//i.test(ua) || !!window.TelegramWebviewProxy || !!window.TelegramWebview;
+  if (!inApp) return;
+  var isAndroid = /android/i.test(ua);
+  $('inapp').hidden = false;
+  $('inapp-t').textContent = isAndroid ? 'Вы открыли окно внутри мессенджера. Лучше открыть в браузере: так работает чек и значок на экране.' : 'Вы открыли окно внутри мессенджера. Лучше открыть в Safari: нажмите три точки справа сверху и выберите «Открыть в браузере».';
+  if (isAndroid) {
+    var b=$('b-ext'); b.hidden=false;
+    b.addEventListener('click', function(){ location.href = 'intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end'; });
+  }
 })();
 </script>
 </body>
