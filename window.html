@@ -297,6 +297,37 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   </form>
 </div></dialog>
 
+<dialog id="m-wa"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Подключить WhatsApp</h2>
+  <div id="wa-on" hidden>
+    <p id="wa-on-t" style="margin:0 0 14px;font-size:15px;line-height:1.45"></p>
+    <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
+  </div>
+  <div id="wa-off" style="display:flex;flex-direction:column;gap:14px">
+    <div id="wa-qrbox" style="text-align:center">
+      <img id="wa-qr" alt="QR-код для WhatsApp" width="240" height="240" hidden style="max-width:100%;height:auto;border-radius:12px;background:#fff;padding:8px;box-sizing:border-box">
+      <p id="wa-wait" style="margin:8px 0;color:var(--navy2);font-size:14px">Готовим QR-код…</p>
+    </div>
+    <ul class="steps">
+      <li><i>1</i><span>Откройте WhatsApp на телефоне. На Android нажмите три точки, на iPhone откройте «Настройки».</span></li>
+      <li><i>2</i><span>Выберите «Связанные устройства», затем «Привязать устройство».</span></li>
+      <li><i>3</i><span>Наведите камеру на этот код. Если QR открыт на этом же телефоне, воспользуйтесь кнопкой ниже.</span></li>
+    </ul>
+    <button class="btn sec" id="wa-phone-btn" type="button">Подключаю с этого телефона</button>
+    <div id="wa-phone" style="display:none;flex-direction:column;gap:12px">
+      <div class="f"><label for="wa-num">Номер этого WhatsApp</label>
+        <div class="ph"><select class="cc" id="wa-cc" aria-label="Страна"></select><input class="in2" id="wa-in" type="tel" inputmode="tel" autocomplete="off" placeholder="90 123 45 67"></div></div>
+      <button class="btn" id="wa-code-btn" type="button">Получить код</button>
+      <div id="wa-pair" hidden style="text-align:center">
+        <div id="wa-pair-code" style="font-size:30px;font-weight:800;letter-spacing:3px;color:var(--navy)"></div>
+        <p style="margin:8px 0 0;font-size:14px;line-height:1.4">В WhatsApp: «Связанные устройства», «Привязать устройство», внизу «Привязать по номеру телефона». Введите этот код.</p>
+      </div>
+    </div>
+    <p class="err" id="wa-err" hidden></p>
+  </div>
+</div></dialog>
+
 <!-- Сотрудники (для руководителя) -->
 <dialog id="m-staff"><div class="dbody" style="position:relative;max-height:calc(100vh - 24px);overflow:auto">
   <button class="x" data-close type="button" aria-label="Закрыть">×</button>
@@ -327,7 +358,7 @@ var BRAND = 'Единое окно';
 var CHANNELS = [
   { id:'instagram', name:'Instagram', live:false,
     svg:'<svg viewBox="0 0 24 24"><defs><linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset=".4" stop-color="#FA7E1E"/><stop offset=".7" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="url(#ig)"/><rect x="6" y="6" width="12" height="12" rx="3.5" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="16" cy="8" r="1" fill="#fff"/></svg>' },
-  { id:'whatsapp',  name:'WhatsApp',  live:false,
+  { id:'whatsapp',  name:'WhatsApp',  live:true,
     svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#25D366"/><path d="M7.2 17.2l.9-3.1a5 5 0 1 1 2 2z" fill="#fff"/><path d="M10 9.6c.1 1.6 1.6 3.2 3.4 3.7l.9-.9-1.2-.7-.5.4c-.7-.3-1.2-.8-1.5-1.5l.4-.5-.7-1.2z" fill="#25D366"/></svg>' },
   { id:'telegram',  name:'Telegram',  live:true,
     svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#2AABEE"/><path d="M5.5 11.7l11.8-4.6c.5-.2 1 .1.8.9l-2 9.4c-.1.7-.6.9-1.1.5l-3-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3.1 5.6-5.1c.2-.2 0-.3-.4-.1l-6.9 4.4-3-.9c-.6-.2-.6-.6.1-.9z" fill="#fff"/></svg>' },
@@ -454,7 +485,7 @@ function render_channels(){
     h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
   });
   $('chs').innerHTML = h;
-  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ if (b.getAttribute('data-ch')==='telegram') open_tg(); }); });
+  $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); }); });
 }
 function render_list(){
   var box = $('list');
@@ -523,7 +554,7 @@ $('f-send').addEventListener('submit', function(ev){
   var t = $('c-text').value.trim();
   if (!t || !CUR) return;
   if (MODE !== 'user') return;
-  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post('/cabinet-send', { code: store('ew_cab')||'', contact: CUR.id, text: t });
+  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : '/cabinet-send', { code: store('ew_cab')||'', contact: CUR.id, text: t });
   sreq.then(function(x){
     if (x.s===200 && x.j && x.j.ok) { $('c-text').value=''; CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
   }).catch(function(){});
@@ -608,6 +639,60 @@ $('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-staff
 $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
 function open_tg(){ showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
+
+/* WhatsApp: подключение по QR или по коду */
+var WAPOLL = null, WAQR = null, WASTOP = null, WANUM = '';
+function wa_stop(){ if (WAPOLL) { clearInterval(WAPOLL); WAPOLL = null; } if (WAQR) { clearInterval(WAQR); WAQR = null; } if (WASTOP) { clearTimeout(WASTOP); WASTOP = null; } }
+function wa_done(num){
+  wa_stop();
+  $('wa-off').style.display = 'none'; $('wa-on').hidden = false;
+  $('wa-on-t').textContent = 'WhatsApp подключён' + (num ? ': +' + num : '') + '. Сообщения клиентов появятся в списке переписок, а отвечать можно прямо из окна.';
+  load_all();
+}
+function wa_connect(number){
+  var body = { code: store('ew_cab') || '' };
+  if (number) body.number = number;
+  return post('/cabinet-wa-connect', body).then(function(x){
+    var j = x.j || {};
+    if (x.s !== 200 || !j.ok) { showErr('wa-err', 'Не получилось начать подключение. Попробуйте ещё раз.'); return; }
+    showErr('wa-err', '');
+    if (j.state === 'open') { wa_done(''); return; }
+    if (j.state === 'pair' && j.pair) { var c = String(j.pair); $('wa-pair-code').textContent = c.length === 8 ? c.slice(0,4) + '-' + c.slice(4) : c; $('wa-pair').hidden = false; }
+    if (j.state === 'pair') { $('wa-qr').hidden = true; $('wa-wait').textContent = 'Код обновляется сам, пока открыто это окно.'; }
+    else if (j.state === 'qr' && j.qr) { $('wa-qr').src = j.qr; $('wa-qr').hidden = false; $('wa-wait').textContent = 'Код обновляется сам, пока открыто это окно.'; }
+    else if (j.state === 'wait') { $('wa-wait').textContent = 'Готовим QR-код…'; }
+  }).catch(function(){ showErr('wa-err', 'Нет связи с сервером.'); });
+}
+function wa_check(){
+  post('/cabinet-wa-status', { code: store('ew_cab') || '' }).then(function(x){ if (x.j && x.j.state === 'open') wa_done(x.j.number || ''); }).catch(function(){});
+}
+function open_wa(){
+  wa_stop(); showErr('wa-err', ''); WANUM = '';
+  $('wa-qr').hidden = true; $('wa-qr').removeAttribute('src'); $('wa-wait').textContent = 'Готовим QR-код…';
+  $('wa-pair').hidden = true; $('wa-phone').style.display = 'none'; $('wa-phone-btn').hidden = false;
+  if (INFO.channels.whatsapp === 'on') {
+    $('wa-off').style.display = 'none'; $('wa-on').hidden = false;
+    $('wa-on-t').textContent = 'WhatsApp уже подключён. Сообщения клиентов приходят в список переписок.';
+    open_dlg('m-wa'); return;
+  }
+  $('wa-on').hidden = true; $('wa-off').style.display = 'flex';
+  open_dlg('m-wa');
+  wa_connect();
+  WAQR = setInterval(function(){ wa_connect(WANUM); }, 15000);
+  WAPOLL = setInterval(wa_check, 3000);
+  WASTOP = setTimeout(function(){ wa_stop(); $('wa-wait').textContent = 'Время вышло. Закройте окно и нажмите значок WhatsApp ещё раз.'; }, 180000);
+}
+$('m-wa').addEventListener('close', wa_stop);
+fillCountries('wa-cc');
+$('wa-phone-btn').addEventListener('click', function(){ $('wa-phone-btn').hidden = true; var ph = (store('ew_login') || ''); setPhone('wa-cc', 'wa-in', ph); $('wa-phone').style.display = 'flex'; });
+$('wa-code-btn').addEventListener('click', function(){
+  var n = fullPhone('wa-cc', 'wa-in');
+  if (!n) return showErr('wa-err', 'Введите номер WhatsApp этого телефона.');
+  showErr('wa-err', ''); WANUM = n; $('wa-pair').hidden = true;
+  var b = $('wa-code-btn'); b.disabled = true;
+  wa_connect(n).then(function(){ b.disabled = false; });
+});
+
 
 $('copy').addEventListener('click', function(){
   var b=$('copy'); function done(){ b.textContent='Скопировано'; setTimeout(function(){ b.textContent='Копировать'; },1800); }
