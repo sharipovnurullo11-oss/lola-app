@@ -303,6 +303,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   <div id="fb-on" hidden>
     <p style="margin:0 0 14px;font-size:15px;line-height:1.45">Страница Facebook подключена. Сообщения из Messenger приходят в список переписок, отвечать можно прямо из окна.</p>
     <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
+    <button class="btn" id="fb-re" type="button" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid currentColor">Переподключить Facebook</button>
   </div>
   <div id="fb-off" style="display:flex;flex-direction:column;gap:14px">
     <p style="margin:0;font-size:15px;line-height:1.45">Подключите свою Страницу Facebook (не личный профиль). Сообщения, которые пишут вашей Странице в Messenger, появятся в окне. Вы сами выберете, что разрешить; отключить можно в любой момент в настройках Facebook: Бизнес-интеграции.</p>
@@ -751,16 +752,18 @@ function open_fb(){
   $('fb-go').disabled = false;
   open_dlg('m-fb');
 }
-$('fb-go').addEventListener('click', function(){
-  var b = $('fb-go'); b.disabled = true; showErr('fb-err','');
+function fb_go(fresh){
+  var b = $(fresh ? 'fb-re' : 'fb-go'); b.disabled = true; showErr('fb-err','');
   var bad = 'Подключение Facebook откроется после проверки приложения в Meta. Пока оно идёт, подключаем вручную: напишите руководителю.';
-  post('/cabinet-fb-connect', { code: store('ew_cab') || '' }).then(function(x){
+  post('/cabinet-fb-connect', { code: store('ew_cab') || '', fresh: !!fresh }).then(function(x){
     var j = x.j || {};
     if (x.s === 200 && j.ok && j.url) { location.href = j.url; return; }
     if (x.s === 200 && j.ok && j.state === 'open') { INFO.channels.messenger = 'on'; $('fb-on').hidden = false; $('fb-off').style.display = 'none'; render_channels(); return; }
     showErr('fb-err', bad); b.disabled = false;
   }).catch(function(){ showErr('fb-err', bad); b.disabled = false; });
-});
+}
+$('fb-go').addEventListener('click', function(){ fb_go(false); });
+$('fb-re').addEventListener('click', function(){ fb_go(true); });
 
 /* WhatsApp: подключение по QR или по коду */
 var WAPOLL = null, WAQR = null, WASTOP = null, WANUM = '';
