@@ -577,7 +577,8 @@ function open_chat(c){
   if (!ob.hidden) { var dn = ORDERED.indexOf(c.kanal+':'+c.id) >= 0; ob.textContent = dn ? '✓ Заказ оформлен' : 'Оформлен заказ'; ob.className = 'ord' + (dn ? ' done' : ''); ob.disabled = dn; }
   var fs = $('f-send'), rn = $('ro-note');
   if (!rn) { rn = document.createElement('div'); rn.id = 'ro-note'; rn.className = 'ronote'; fs.parentNode.insertBefore(rn, fs); }
-  fs.hidden = !!c.ro; rn.hidden = !c.ro;
+  var canr = !c.ro || (c.kanal === 'instagram' && !c.comment && MODE === 'user' && !isStaff() && INFO.channels.instagram === 'on');
+  fs.hidden = !canr; rn.hidden = canr;
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
   pz_show(c);
   $('work').classList.add('open','hasdlg');
@@ -625,8 +626,15 @@ $('f-send').addEventListener('submit', function(ev){
   var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : (CUR.kanal==='messenger' ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: CUR.id, text: t });
   sreq.then(function(x){
     if (x.s===200 && x.j && x.j.ok) { $('c-text').value=''; CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
-  }).catch(function(){});
+    else { send_fail(); }
+  }).catch(function(){ send_fail(); });
 });
+
+function send_fail(){
+  var rn = $('ro-note'); if (!rn) return;
+  rn.textContent = 'Не получилось отправить. Instagram принимает ответ, только если человек писал вам в последние 24 часа. Проверьте и попробуйте ещё раз.';
+  rn.hidden = false; setTimeout(function(){ rn.hidden = !$('f-send').hidden; }, 6000);
+}
 
 /* Загрузка данных кабинета */
 function load_all(){
