@@ -717,9 +717,10 @@ function wa_done(num){
   $('wa-on-t').textContent = 'WhatsApp подключён' + (num ? ': +' + num : '') + '. Сообщения клиентов появятся в списке переписок, а отвечать можно прямо из окна.';
   load_all();
 }
-function wa_connect(number){
+function wa_connect(number, fresh){
   var body = { code: store('ew_cab') || '' };
   if (number) body.number = number;
+  if (fresh) body.fresh = true;
   return post('/cabinet-wa-connect', body).then(function(x){
     var j = x.j || {};
     if (x.s !== 200 || !j.ok) { showErr('wa-err', 'Не получилось начать подключение. Попробуйте ещё раз.'); return; }
@@ -762,7 +763,7 @@ function open_wa(){
 function wa_begin(lost){
   wa_stop(); $('wa-on').hidden = true; $('wa-off').style.display = 'flex';
   $('wa-wait').textContent = lost ? 'Телефон отключился от WhatsApp. Отсканируйте QR-код заново.' : 'Готовим QR-код…';
-  wa_connect();
+  wa_connect('', true);
   WAQR = setInterval(function(){ wa_connect(WANUM); }, 15000);
   WAPOLL = setInterval(wa_check, 3000);
   WASTOP = setTimeout(function(){ wa_stop(); $('wa-wait').textContent = 'Время вышло. Закройте окно и нажмите значок WhatsApp ещё раз.'; }, 180000);
@@ -775,7 +776,7 @@ $('wa-code-btn').addEventListener('click', function(){
   if (!n) return showErr('wa-err', 'Введите номер WhatsApp этого телефона.');
   showErr('wa-err', ''); WANUM = n; $('wa-pair').hidden = true;
   var b = $('wa-code-btn'); b.disabled = true;
-  wa_connect(n).then(function(){ b.disabled = false; });
+  wa_connect(n, true).then(function(){ b.disabled = false; });
 });
 
 
