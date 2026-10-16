@@ -30,7 +30,7 @@ button{font:inherit;color:inherit}
 .chip.ok{background:var(--okbg);color:var(--ok)}
 .menu{flex:none;margin-left:auto;width:36px;height:36px;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
 /* узкие экраны: шапка не должна быть шире телефона */
-@media (max-width:420px){.pay b{font-size:15px;white-space:nowrap}.top{gap:6px;padding-left:10px;padding-right:10px;flex-wrap:wrap}.brand{font-size:14px}.tb{padding:0 10px;font-size:13px}}
+@media (max-width:420px){.chs.chs{gap:8px;padding-left:10px;padding-right:10px}.chs .ch,.chs .plus{width:40px;height:40px}.chs .ch svg{width:24px;height:24px}.chs .tot{padding:5px 8px;gap:6px;font-size:12px}.chs .tot b{min-width:24px;height:24px;font-size:13px}.pay b{font-size:15px;white-space:nowrap}.top{gap:6px;padding-left:10px;padding-right:10px;flex-wrap:wrap}.brand{font-size:14px}.tb{padding:0 10px;font-size:13px}}
 /* полоса каналов */
 .chs{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto;overscroll-behavior-x:contain}
 .chs .lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px;white-space:nowrap}
@@ -38,7 +38,11 @@ button{font:inherit;color:inherit}
 .ch svg{width:26px;height:26px}
 .ch.live{cursor:pointer}
 .ch.live:hover{border-color:var(--navy2)}
-.ch .dot{position:absolute;right:-3px;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid #fff}
+.ch .dot{position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid #fff}
+.ch .cnt{position:absolute;right:-7px;top:-8px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--bad);color:#fff;border:2px solid #fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
+.chs .tot{margin-left:auto;flex:none;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:12px;background:var(--soft);color:var(--navy2);font-size:13px;font-weight:600;white-space:nowrap}
+.chs .tot b{min-width:26px;height:26px;padding:0 7px;border-radius:13px;background:var(--navy2);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.chs .tot.has b{background:var(--bad)}
 .ch .soon{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);font-size:9.5px;font-weight:700;background:var(--soft);color:var(--navy2);border-radius:8px;padding:1px 5px;white-space:nowrap}
 .chs .plus{width:44px;height:44px;border-radius:14px;border:1.5px dashed var(--line);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
 .addbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;background:var(--soft);font-size:13px;line-height:1.35;color:var(--ink)}.addbar span{flex:1;min-width:0}.addbar .sm{flex:none}.addbar.inapp{background:var(--warnbg);color:var(--warn)}.addbar .ax{flex:none;width:30px;height:30px;border:0;border-radius:8px;background:transparent;font-size:18px;cursor:pointer;color:var(--muted)}.addst{margin:0;padding-left:22px;font-size:14px;line-height:1.5;color:var(--ink);list-style:decimal}.addst li{display:list-item;margin:0 0 8px;padding:0}.addst b{font-weight:600}
@@ -555,18 +559,21 @@ function render_top(){
   if (MODE === 'user') $('chip-ok').textContent = isStaff() ? 'Сотрудник: ' + (store('ew_sname')||'') : (INFO.paidUntil ? 'Оплачено до ' + INFO.paidUntil : 'Доступ открыт');
   render_channels();
 }
+function unread_of(c){ var m = c.messages||[], n = 0; for (var i=m.length-1;i>=0;i--) { if (m[i].d==='in') n++; else break; } return n; }
+function unread_by(){ var r = {}, t = 0; if (MODE !== 'user') return {by:r,total:0}; (CHATS||[]).forEach(function(c){ var n = unread_of(c); if (!n) return; var k = c.kanal; r[k] = (r[k]||0) + n; t += n; }); return {by:r,total:t}; }
 function render_channels(){
-  var h = '<span class="lbl">Каналы</span>';
+  var U = unread_by(), h = '';
   CHANNELS.forEach(function(c){
     var on = MODE === 'user' && !isStaff() && INFO.channels[(c.id==='facebook' ? 'messenger' : c.id)] === 'on';
     var live = MODE === 'user' && c.live && !isStaff();
-    h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
+    h += '<button type="button" class="ch' + (live ? ' live' : '') + '" data-ch="' + c.id + '" aria-label="' + c.name + (on ? ', подключён' : '') + '"' + (live ? '' : ' tabindex="-1" aria-disabled="true"') + '>' + c.svg + (U.by[c.id] ? '<span class="cnt">' + (U.by[c.id] > 99 ? '99+' : U.by[c.id]) + '</span>' : '') + (on ? '<span class="dot"></span>' : '') + (MODE === 'user' && !c.live && !isStaff() ? '<span class="soon">скоро</span>' : '') + '</button>';
   });
+  if (MODE === 'user') h += '<span class="tot' + (U.total ? ' has' : '') + '" aria-label="Всего непринятых сообщений: ' + U.total + '">Непринято <b>' + U.total + '</b></span>';
   $('chs').innerHTML = h;
   $('chs').querySelectorAll('.ch.live').forEach(function(b){ b.addEventListener('click', function(){ var k=b.getAttribute('data-ch'); if (k==='telegram') open_tg(); else if (k==='whatsapp') open_wa(); else if (k==='instagram') open_ig(); else if (k==='facebook' || k==='messenger') open_fb(); }); });
 }
 function render_list(){
-  var box = $('list');
+  var box = $('list'); render_channels();
   var tabs = '', showTabs = MODE==='user' && !isStaff() && CHATS.some(function(c){ return c.comment; });
   if (!showTabs) TAB = 'msg';
   if (showTabs) tabs = '<div class="tabs"><button type="button" data-tab="msg" class="' + (TAB==='msg'?'on':'') + '">Сообщения</button><button type="button" data-tab="com" class="' + (TAB==='com'?'on':'') + '">Комментарии</button></div>';
