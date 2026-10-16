@@ -207,7 +207,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
         <div class="banks" id="banks" aria-label="Куда можно перевести"></div>
         <span class="sum">Сумма: <strong>300 сомони</strong></span>
       </div>
-      <div class="f"><label for="r-phone">Ваш номер телефона</label><div class="ph"><select class="cc" id="r-cc" aria-label="Страна"></select><input class="in2" id="r-phone" type="tel" inputmode="numeric" placeholder="900 00 00 00"></div><label style="margin-top:12px">Куда прислать код для входа?</label><div class="dv" id="deliver" role="radiogroup"><div class="dvw" data-w="whatsapp"><span class="dvc"></span><button type="button" class="dvb" data-d="whatsapp" role="radio" aria-checked="false" title="Код придёт в WhatsApp"><svg viewBox="0 0 24 24" width="38" height="38"><circle cx="12" cy="12" r="11" fill="#25D366"/><path fill="#fff" d="M12 5.5a6.5 6.5 0 0 0-5.6 9.8L5.5 18.5l3.3-.9A6.5 6.5 0 1 0 12 5.5zm3.4 8.9c-.2.5-1 .9-1.4.9-.4.1-.8.1-2.5-.5-2.100-.9-3.400-3-3.500-3.100-.1-.1-.8-1-.8-2s.5-1.400.7-1.600c.2-.2.4-.2.5-.2h.4c.1 0 .3 0 .4.3l.6 1.400c.1.100.1.300 0 .4l-.3.400c-.1.100-.2.300-.1.400.4.700.9 1.200 1.500 1.600.2.100.3.100.4 0l.5-.6c.1-.1.300-.2.400-.1l1.400.7c.2.100.3.100.3.200 0 .1 0 .6-.2 1z"/></svg><span class="ck">✓</span></button></div><div class="dvw" data-w="telegram"><span class="dvc"></span><button type="button" class="dvb" data-d="telegram" role="radio" aria-checked="false" title="Код придёт в Telegram"><svg viewBox="0 0 24 24" width="38" height="38"><circle cx="12" cy="12" r="11" fill="#2AABEE"/><path fill="#fff" d="M5.700 11.800l10.800-4.200c.5-.2.900.1.700.9l-1.800 8.600c-.1.600-.5.800-1 .500l-2.800-2.100-1.300 1.300c-.2.200-.3.300-.6.300l.2-2.900 5.300-4.800c.2-.2 0-.3-.3-.1l-6.600 4.100-2.800-.9c-.6-.2-.6-.6.200-.8z"/></svg><span class="ck">✓</span></button></div></div></div>
+      <div class="f"><label for="r-phone">Ваш номер телефона</label><div class="ph"><select class="cc" id="r-cc" aria-label="Страна"></select><input class="in2" id="r-phone" type="tel" inputmode="numeric" placeholder="900 00 00 00"></div><p class="hint" style="margin:12px 0 0;font-size:14px;color:var(--muted)">Код для входа придёт вам в WhatsApp на этот номер.</p></div>
       <div class="f"><label for="r-file">Чек (фото или скриншот)</label><input id="r-file" type="file" accept="image/*,application/pdf"></div>
       <p class="err" id="r-err" hidden></p>
       <button class="btn" id="r-btn" type="submit">Отправить чек</button>
@@ -576,9 +576,9 @@ document.querySelectorAll('dialog').forEach(function(d){
 });
 function open_dlg(id){ var d=$(id); if (!d.open) d.showModal(); }
 
-var deliver='';
+var deliver='whatsapp'; /* код приходит только в WhatsApp */
 document.querySelectorAll('.dvb').forEach(function(b){b.addEventListener('click',function(){deliver=b.dataset.d;document.querySelectorAll('.dvb').forEach(function(x){var on=x===b;x.classList.toggle('on',on);x.setAttribute('aria-checked',on);var w=x.parentNode;w.classList.toggle('on',on);w.querySelector('.dvc').textContent=on?'✓':'';});});});
-$('b-reg').addEventListener('click', function(){ $('reg-form').hidden=false; $('reg-done').hidden=true; deliver=''; document.querySelectorAll('.dvb').forEach(function(x){x.classList.remove('on');x.setAttribute('aria-checked','false');x.parentNode.classList.remove('on');x.parentNode.querySelector('.dvc').textContent='';}); showErr('r-err',''); open_dlg('m-reg'); });
+$('b-reg').addEventListener('click', function(){ $('reg-form').hidden=false; $('reg-done').hidden=true; deliver='whatsapp'; document.querySelectorAll('.dvb').forEach(function(x){x.classList.remove('on');x.setAttribute('aria-checked','false');x.parentNode.classList.remove('on');x.parentNode.querySelector('.dvc').textContent='';}); showErr('r-err',''); open_dlg('m-reg'); });
 $('b-login').addEventListener('click', function(){ $('l-err').classList.remove('info'); if (PENDTIMER) { clearTimeout(PENDTIMER); PENDTIMER = null; } showErr('l-err',''); set_role(lstore('ew_role')==='staff' ? 'staff' : 'owner'); if (lstore('ew_remember')==='1' && lstore('ew_phone')) { setPhone('l-cc','l-phone', lstore('ew_phone')); $('l-remember').checked = true; } open_dlg('m-login'); });
 $('b-code').addEventListener('click', function(){ showErr('l-err',''); setPhone('l-cc','l-phone', lstore('ew_pending') || ''); open_dlg('m-login'); });
 function set_role(r){ LROLE = r; document.querySelectorAll('#l-role button').forEach(function(b){ var on = b.getAttribute('data-r')===r; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); $('l-pass').placeholder = r==='staff' ? 'Код от руководителя' : 'Код для входа'; $('to-reg').parentNode.hidden = r==='staff'; }
@@ -598,14 +598,13 @@ $('f-reg').addEventListener('submit', function(ev){
   ev.preventDefault(); showErr('r-err','');
   var ph = fullPhone('r-cc','r-phone'), file = $('r-file').files[0];
   if (!ph) return showErr('r-err','Выберите страну и введите номер телефона без кода страны.');
-  if (!deliver) return showErr('r-err','Отметьте, куда прислать код: WhatsApp или Telegram.');
   if (!file) return showErr('r-err','Приложите фото или скриншот чека.');
   if (file.size > 10*1024*1024) return showErr('r-err','Файл больше 10 МБ. Приложите скриншот поменьше.');
   var fd = new FormData(); fd.append('phone','+'+ph); fd.append('platforms',deliver); fd.append('receipt',file,file.name);
   var btn=$('r-btn'); btn.disabled=true; btn.textContent='Отправляем…';
   fetch(API+'/registration',{method:'POST',body:fd}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); })
   .then(function(x){
-    if (x.s===200 && x.j && x.j.ok) { lstore('ew_pending',ph); $('done-phone').textContent=prettyPhone(ph); $('done-app').textContent=deliver==='telegram'?'Telegram':'WhatsApp'; $('reg-form').hidden=true; $('reg-done').hidden=false; render_top(); }
+    if (x.s===200 && x.j && x.j.ok) { lstore('ew_pending',ph); $('done-phone').textContent=prettyPhone(ph); $('done-app').textContent='WhatsApp'; $('reg-form').hidden=true; $('reg-done').hidden=false; render_top(); }
     else if (x.s===409 && x.j && x.j.error==='exists') showErr('r-err','Этот номер уже зарегистрирован. Закройте окно, нажмите «Войти» и введите код.');
     else showErr('r-err','Не удалось отправить чек. Проверьте номер и файл.');
   }).catch(function(){ showErr('r-err','Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'); })
