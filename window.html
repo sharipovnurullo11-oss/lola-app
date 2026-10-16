@@ -576,7 +576,9 @@ function load_pauses(){
     if (x.s === 200 && x.j && x.j.ok && Array.isArray(x.j.list)) { PAUSED = {}; x.j.list.forEach(function(k){ PAUSED[k] = 1; }); PZ_LOADED = true; render_list(); }
   }).catch(function(){});
 }
-function unread_of(c){ var m = c.messages||[], n = 0; for (var i=m.length-1;i>=0;i--) { if (m[i].d==='in') n++; else break; } return n; }
+/* Счёт непринятых Instagram и Facebook начат с нуля 17.10.2026 01:10 (Душанбе): всё, что было раньше, не считается */
+var RESET_AT = Date.parse('2026-10-17T01:10:00+05:00'), RESET_CH = { instagram:1, messenger:1, facebook:1 };
+function unread_of(c){ var m = c.messages||[], n = 0; for (var i=m.length-1;i>=0;i--) { if (m[i].d==='in') { if (RESET_CH[c.kanal] && m[i].v && Date.parse(m[i].v) < RESET_AT) break; n++; } else break; } return n; }
 function unread_by(){ var r = {}, t = 0; if (MODE !== 'user') return {by:r,total:0}; (CHATS||[]).forEach(function(c){ var n = unread_of(c); if (!n) return; var k = c.kanal; r[k] = (r[k]||0) + n; t += n; }); return {by:r,total:t}; }
 function render_channels(){
   var U = unread_by(), h = '';
