@@ -579,7 +579,7 @@ function open_chat(c){
   if (!ob.hidden) { var dn = ORDERED.indexOf(c.kanal+':'+c.id) >= 0; ob.textContent = dn ? '✓ Заказ оформлен' : 'Оформлен заказ'; ob.className = 'ord' + (dn ? ' done' : ''); ob.disabled = dn; }
   var fs = $('f-send'), rn = $('ro-note');
   if (!rn) { rn = document.createElement('div'); rn.id = 'ro-note'; rn.className = 'ronote'; fs.parentNode.insertBefore(rn, fs); }
-  var canr = !c.ro || (c.kanal === 'instagram' && !c.comment && MODE === 'user' && !isStaff() && INFO.channels.instagram === 'on');
+  var canr = !c.ro || (c.kanal === 'instagram' && !c.comment && MODE === 'user' && !isStaff() && INFO.channels.instagram === 'on') || (c.kanal === 'facebook' && c.comment && !c.ro && MODE === 'user' && !isStaff() && INFO.channels.messenger === 'on');
   fs.hidden = !canr; rn.hidden = canr;
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
   pz_show(c);
@@ -628,7 +628,7 @@ $('f-send').addEventListener('submit', function(ev){
   if (MODE !== 'user') return;
   if (SENDING) return;
   SENDING = true; $('c-text').value = '';
-  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : (CUR.kanal==='messenger' ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: CUR.id, text: t });
+  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : ((CUR.kanal==='messenger' || CUR.kanal==='facebook') ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: CUR.id, text: t, kanal: CUR.kanal });
   sreq.then(function(x){
     SENDING = false;
     if (x.s===200 && x.j && x.j.ok) { CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
