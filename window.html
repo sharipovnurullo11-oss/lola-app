@@ -734,7 +734,7 @@ function msgs_html(c){
     return '<div class="bub out' + (ai ? ' ai' : '') + '" data-i="' + i + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + '</small></div>';
   }).join('');
 }
-function open_chat(c){ mark_seen(c);
+function open_chat(c, quiet){ mark_seen(c);
   CUR = c;
   var ch = chan(c.kanal);
   $('d-av').innerHTML = esc((c.imya||'?').charAt(0).toUpperCase());
@@ -750,7 +750,7 @@ function open_chat(c){ mark_seen(c);
   fs.hidden = !canr; rn.hidden = canr;
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
   pz_show(c);
-  $('work').classList.add('open','hasdlg');
+  $('work').classList.add('hasdlg'); if (!quiet) $('work').classList.add('open');
   $('msgs').scrollTop = $('msgs').scrollHeight;
   render_list();
 }
@@ -836,7 +836,7 @@ function load_chats(){
     CHATS = (x.j && x.j.chats) || [];
     render_list();
     load_pauses();
-    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f && $('work').classList.contains('hasdlg')) open_chat(f); }
+    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) open_chat(f, true); else CUR = f; } }
   }).catch(function(){});
 }
 
