@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Ёвари Шахси</title>
 <meta name="theme-color" content="#16224F">
 <script>
@@ -215,6 +215,10 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
 #m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0;height:100%;max-height:none!important}#m-kb,#m-sup,#m-dev{height:min(680px,calc(100svh - 24px));overscroll-behavior:contain}#m-kb .dbody>.x,#m-sup .dbody>.x,#m-dev .dbody>.x{display:none!important}#m-kb .dbody>h2,#m-sup .dbody>h2,#m-dev .dbody>h2{position:sticky;top:0;z-index:2;background:#fff;margin:0 -20px;padding:18px 20px 14px!important;border-bottom:1px solid rgba(0,0,0,.12);box-shadow:0 2px 6px rgba(0,0,0,.05)}#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 @media (max-width:520px){#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0}}
+/*ZOOM*//* без масштабирования: ни щипком двумя пальцами, ни двойным тапом */
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{touch-action:pan-x pan-y}
+dialog{touch-action:pan-y}
 /* окна не двигаются при свайпе: страница под ними заморожена, внутри только вертикальная прокрутка */
 html.dlgopen,html.dlgopen body{overflow:hidden;overscroll-behavior:none}
 body.dlglock{position:fixed;left:0;right:0;width:100%}
@@ -1442,6 +1446,13 @@ enter_mode();
   setInterval(check, 60000);
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
   window.addEventListener('focus', check);
+})();
+
+/* запрет масштабирования страницы (iOS Safari игнорирует user-scalable, поэтому блокируем жесты сами) */
+(function(){
+  ['gesturestart','gesturechange','gestureend'].forEach(function(n){ document.addEventListener(n, function(e){ e.preventDefault(); }, { passive:false }); });
+  document.addEventListener('touchmove', function(e){ if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
+  document.addEventListener('touchstart', function(e){ if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
 })();
 </script>
 </body>
