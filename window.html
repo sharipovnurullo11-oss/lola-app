@@ -204,6 +204,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .gs small{font-size:13px;line-height:1.4;opacity:.85}
 .gnote{font-size:13.5px;line-height:1.45;border-radius:12px;padding:10px 12px;background:rgba(245,166,35,.14)}
 body.inchat .bub.in,.bub.in{user-select:none;-webkit-user-select:none}
+@media (max-width:520px){#m-kb .dbody,#m-dev .dbody{padding-top:calc(20px + env(safe-area-inset-top,0px))}#m-kb .dbody>.x,#m-dev .dbody>.x{width:44px;height:44px;font-size:24px;top:4px}}
 </style>
 </head>
 <body>
@@ -245,6 +246,7 @@ body.inchat .bub.in,.bub.in{user-select:none;-webkit-user-select:none}
     <div class="f"><label for="kb-a">Как отвечать</label><textarea class="in2" id="kb-a" rows="4" maxlength="3000"></textarea></div>
     <p class="err" id="kb-err" hidden></p>
     <button class="btn" id="kb-btn" type="submit">Сохранить</button>
+    <button class="btn sec" data-close type="button">Закрыть</button>
   </form>
   <h3>Уже в базе</h3>
   <div class="kbl" id="kb-list"></div>
@@ -257,6 +259,7 @@ body.inchat .bub.in,.bub.in{user-select:none;-webkit-user-select:none}
   <textarea class="in2" id="dev-a" rows="4" maxlength="3000" placeholder="Ваш ответ"></textarea>
   <p class="err" id="dev-err" hidden></p>
   <div class="row2"><button class="btn sec" id="dev-skip" type="button">Пропустить</button><button class="btn" id="dev-send" type="button">Ответить</button></div>
+  <button class="btn sec" data-close type="button">Закрыть</button>
 </div></dialog>
 
 <!-- Регистрация -->
