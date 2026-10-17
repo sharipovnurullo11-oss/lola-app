@@ -54,6 +54,7 @@ button{font:inherit;color:inherit}
 .dlg{display:none;background:var(--bg)}
 .work.open .list{display:none}
 .work.open .dlg{display:flex}
+.row .rb{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:8px;border-radius:10px;background:var(--bad);color:#fff;font-size:12px;font-weight:700;line-height:1;vertical-align:middle}
 .row{display:flex;gap:12px;align-items:center;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:#fff;width:100%;text-align:left;cursor:pointer}
 .row.sel{background:var(--soft)}
 .av{position:relative;flex:none;width:44px;height:44px;border-radius:50%;background:var(--soft);color:var(--navy2);display:flex;align-items:center;justify-content:center;font-weight:700}
@@ -576,9 +577,26 @@ function load_pauses(){
     if (x.s === 200 && x.j && x.j.ok && Array.isArray(x.j.list)) { PAUSED = {}; x.j.list.forEach(function(k){ PAUSED[k] = 1; }); PZ_LOADED = true; render_list(); }
   }).catch(function(){});
 }
-/* Счёт непринятых Instagram и Facebook начат с нуля 17.10.2026 01:10 (Душанбе): всё, что было раньше, не считается */
+/* Красная цифра на значках и в списке: сообщения клиентов, которые человек ещё не открыл, плюс те, на которые никто не ответил.
+   Ответ Лолы цифру не снимает: цифра уходит, когда диалог открыт (или человек ответил). Счёт начат с нуля 17.10.2026 10:30 (Душанбе). */
 var RESET_AT = Date.parse('2026-10-17T01:10:00+05:00'), RESET_CH = { instagram:1, messenger:1, facebook:1 };
-function unread_of(c){ var m = c.messages||[], n = 0; for (var i=m.length-1;i>=0;i--) { if (m[i].d==='in') { if (RESET_CH[c.kanal] && m[i].v && Date.parse(m[i].v) < RESET_AT) break; n++; } else break; } return n; }
+var BASE_AT = Date.parse('2026-10-17T10:30:00+05:00');
+var SEEN = {}; try { SEEN = JSON.parse(lstore('ew_seen') || '{}') || {}; } catch(e) { SEEN = {}; }
+function ckey(c){ return c.kanal + ':' + c.id; }
+function mts(x){ var t = Date.parse(x && x.v); return isNaN(t) ? 0 : t; }
+function mark_seen(c){
+  if (MODE !== 'user' || !c) return;
+  var m = c.messages||[], mx = 0; for (var i=0;i<m.length;i++) { var t = mts(m[i]); if (t > mx) mx = t; }
+  if (!mx) return;
+  var k = ckey(c); if ((SEEN[k]||0) >= mx) return;
+  SEEN[k] = mx; lstore('ew_seen', JSON.stringify(SEEN));
+}
+function unread_of(c){
+  var m = c.messages||[], trail = 0, unseen = 0, seen = Math.max(SEEN[ckey(c)]||0, BASE_AT), i, t;
+  for (i=m.length-1;i>=0;i--) { if (m[i].d!=='in') break; t = mts(m[i]); if (RESET_CH[c.kanal] && t && t < RESET_AT) break; trail++; }
+  for (i=0;i<m.length;i++) { if (m[i].d==='in') { t = mts(m[i]); if (t > seen) unseen++; } }
+  return Math.max(trail, unseen);
+}
 function unread_by(){ var r = {}, t = 0; if (MODE !== 'user') return {by:r,total:0}; (CHATS||[]).forEach(function(c){ var n = unread_of(c); if (!n) return; var k = c.kanal; r[k] = (r[k]||0) + n; t += n; }); return {by:r,total:t}; }
 function render_channels(){
   var U = unread_by(), h = '';
@@ -613,7 +631,7 @@ function render_list(){
     if (showTabs && !!c.comment !== (TAB==='com')) return '';
     shown++;
     var ch = chan(c.kanal);
-    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + '</i></b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
+    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + '</i>' + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
   }).join('');
   if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
   wire_fbar(box);
@@ -650,7 +668,7 @@ function msgs_html(c){
     return '<div class="bub out' + (ai ? ' ai' : '') + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + '</small></div>';
   }).join('');
 }
-function open_chat(c){
+function open_chat(c){ mark_seen(c);
   CUR = c;
   var ch = chan(c.kanal);
   $('d-av').innerHTML = esc((c.imya||'?').charAt(0).toUpperCase());
