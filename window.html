@@ -203,6 +203,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .gs svg{width:100%;height:auto;display:block;border-radius:10px;background:rgba(128,128,128,.10)}
 .gs small{font-size:13px;line-height:1.4;opacity:.85}
 .gnote{font-size:13.5px;line-height:1.45;border-radius:12px;padding:10px 12px;background:rgba(245,166,35,.14)}
+body.inchat .bub.in,.bub.in{user-select:none;-webkit-user-select:none}
 </style>
 </head>
 <body>
@@ -700,7 +701,7 @@ function msgs_html(c){
     if (x.d === 'in') {
       var r = ans[i];
       var chk = r === undefined ? '<span class="chk wait">ждёт ответа</span>' : '<span class="chk' + (r==='ai' ? ' ai' : '') + '">✓ ответил: ' + esc(whoName(r)) + '</span>';
-      return '<div class="bub in">' + body + '<small>' + t + '</small>' + chk + '</div>';
+      return '<div class="bub in" data-i="' + i + '">' + body + '<small>' + t + '</small>' + chk + '</div>';
     }
     var ai = x.a === 'ai';
     return '<div class="bub out' + (ai ? ' ai' : '') + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + '</small></div>';
@@ -884,6 +885,15 @@ function kb_load(){
 function open_kb(q){ showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(); }
 function last_in(c){ var m = (c && c.messages) || []; for (var i = m.length - 1; i >= 0; i--) if (m[i].d === 'in' && m[i].t) return String(m[i].t); return ''; }
 $('m-kbbtn').addEventListener('click', function(){ $('m-menu').close(); open_kb(''); });
+(function(){ var lt = 0, lb = null;
+  $('msgs').addEventListener('click', function(e){
+    if (MODE !== 'user' || !CUR) return;
+    var b = e.target.closest && e.target.closest('.bub.in'); if (!b) { lb = null; return; }
+    var now = Date.now();
+    if (lb === b && now - lt < 450) { lb = null; var m = (CUR.messages || [])[+b.getAttribute('data-i')]; if (m && m.t) { try { window.getSelection().removeAllRanges(); } catch(_){} open_kb(String(m.t)); setTimeout(function(){ var a = $('kb-a'); if (a) a.focus(); }, 80); } return; }
+    lb = b; lt = now;
+  });
+})();
 $('b-kbq').addEventListener('click', function(){ open_kb(last_in(CUR)); });
 $('f-kb').addEventListener('submit', function(e){
   e.preventDefault(); var q = $('kb-q').value.trim(), a = $('kb-a').value.trim(), btn = $('kb-btn');
