@@ -86,6 +86,14 @@ button{font:inherit;color:inherit}
   .work:not(.hasdlg) .dlg .msgs,.work:not(.hasdlg) .dlg .snd,.work:not(.hasdlg) .dlg .dh{display:none}
   .work:not(.hasdlg) .noch{display:flex}
 }
+.dh .kbq{margin-left:auto;border-color:var(--navy2);color:var(--navy2)}.dh .kbq+.ord{margin-left:8px}
+textarea.in2{height:auto;min-height:92px;padding:12px 14px;resize:vertical;line-height:1.45}
+.kbi{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.kbi .h{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}.kbi .h b{font-weight:600}.kbi small{color:var(--muted);font-size:12px}
+.kbi .del{flex:none;border:0;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;min-width:32px;min-height:32px}
+.kbl{display:flex;flex-direction:column;gap:8px}
+.devq{font-size:17px;font-weight:600;line-height:1.4;padding:14px;border-radius:14px;background:var(--soft)}
+.row2{display:flex;gap:8px}.row2>*{flex:1}
 /* окна */
 dialog{border:0;border-radius:20px;padding:0;width:min(400px,calc(100vw - 24px));max-height:calc(100vh - 24px);box-shadow:0 20px 60px rgba(16,26,51,.35);color:var(--ink)}
 dialog::backdrop{background:rgba(16,26,51,.55)}
@@ -206,6 +214,8 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
     <button class="tb" id="b-login" type="button">Войти</button>
     <button class="tb pri" id="b-reg" type="button">Зарегистрироваться</button>
     <button class="tb" id="b-team" type="button" hidden>Команда</button>
+    <button class="tb" id="b-dev" type="button" hidden>Развивай агента</button>
+    <button class="tb" id="b-kb" type="button" hidden>База знаний</button>
     <button class="menu" id="b-menu" type="button" aria-label="Меню" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </header>
   <div class="addbar inapp" id="inapp" hidden><span id="inapp-t"></span><button class="sm" id="b-ext" type="button" hidden>Открыть в Chrome</button></div>
@@ -218,12 +228,35 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
     <section class="list" id="list" aria-label="Переписки"></section>
     <section class="dlg" id="dlg" aria-label="Диалог">
       <div class="noch">Выберите переписку</div>
-      <div class="dh"><button class="back" id="back" type="button" aria-label="К списку">←</button><div class="av" id="d-av"></div><div><b id="d-name"></b><small id="d-ch"></small></div><button class="ord" id="b-order" type="button" hidden>Оформлен заказ</button></div>
+      <div class="dh"><button class="back" id="back" type="button" aria-label="К списку">←</button><div class="av" id="d-av"></div><div><b id="d-name"></b><small id="d-ch"></small></div><button class="ord kbq" id="b-kbq" type="button">База знаний</button><button class="ord" id="b-order" type="button" hidden>Оформлен заказ</button></div>
       <div class="msgs" id="msgs"></div>
       <form class="snd" id="f-send" novalidate><input id="c-text" type="text" autocomplete="off" placeholder="Ответить клиенту" aria-label="Ответ клиенту"><button type="submit" aria-label="Отправить">&#10148;</button></form>
     </section>
   </main>
 </div>
+
+<dialog id="m-kb"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">База знаний</h2>
+  <p>Напишите, как ИИ должен отвечать на такой вопрос. После «Сохранить» он начнёт отвечать так.</p>
+  <form id="f-kb" novalidate style="display:flex;flex-direction:column;gap:12px">
+    <div class="f"><label for="kb-q">Вопрос клиента</label><textarea class="in2" id="kb-q" rows="2" maxlength="500"></textarea></div>
+    <div class="f"><label for="kb-a">Как отвечать</label><textarea class="in2" id="kb-a" rows="4" maxlength="3000"></textarea></div>
+    <p class="err" id="kb-err" hidden></p>
+    <button class="btn" id="kb-btn" type="submit">Сохранить</button>
+  </form>
+  <h3>Уже в базе</h3>
+  <div class="kbl" id="kb-list"></div>
+</div></dialog>
+<dialog id="m-dev"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Развивай агента</h2>
+  <p>Агент задаёт вопросы о вашем деле. Чем больше ответов, тем лучше он вас понимает. Отвечено: <b id="dev-n">0</b></p>
+  <div class="devq" id="dev-q">Загрузка…</div>
+  <textarea class="in2" id="dev-a" rows="4" maxlength="3000" placeholder="Ваш ответ"></textarea>
+  <p class="err" id="dev-err" hidden></p>
+  <div class="row2"><button class="btn sec" id="dev-skip" type="button">Пропустить</button><button class="btn" id="dev-send" type="button">Ответить</button></div>
+</div></dialog>
 
 <!-- Регистрация -->
 <dialog id="m-reg"><div class="dbody" style="position:relative">
@@ -235,8 +268,8 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
         <span class="sum">Переведите на номер</span>
         <div class="r"><b>+992 907 52 19 86</b><button class="sm" id="copy" type="button">Копировать</button></div>
         <div class="banks" id="banks" aria-label="Куда можно перевести"></div>
-        <span class="sum">Сумма: <strong>350 сомони</strong></span>
-        <span class="sum" style="font-size:13px;opacity:.8">Скидка для новых подключений. Со следующего месяца — 500 сомони.</span>
+        <span class="sum">Сумма: <strong id="price-sum">350 сомони</strong></span>
+        <span class="sum" id="price-note" style="font-size:13px;opacity:.8">Скидка для новых подключений. Со следующего месяца — 500 сомони.</span>
       </div>
       <div class="f"><label for="r-phone">Ваш номер телефона</label><div class="ph"><select class="cc" id="r-cc" aria-label="Страна"></select><input class="in2" id="r-phone" type="tel" inputmode="numeric" placeholder="900 00 00 00"></div><p class="hint" style="margin:12px 0 0;font-size:14px;color:var(--muted)">Код для входа придёт вам в WhatsApp на этот номер.</p></div>
       <div class="f"><label for="r-file">Чек (фото или скриншот)</label><input id="r-file" type="file" accept="image/*,application/pdf"></div>
@@ -558,6 +591,8 @@ function render_top(){
   $('chip-ok').hidden = MODE !== 'user';
   $('b-menu').hidden = MODE !== 'user';
   $('b-team').hidden = !(MODE === 'user' && !isStaff());
+  $('b-dev').hidden = MODE !== 'user';
+  $('b-kb').hidden = MODE !== 'user';
   $('hint').hidden = MODE === 'user';
   if (MODE !== 'user' || isStaff()) $('alertbar').hidden = true;
   $('hint').textContent = MODE === 'pending'
@@ -678,6 +713,7 @@ function open_chat(c){ mark_seen(c);
   $('d-name').textContent = c.imya || 'Клиент';
   $('d-ch').textContent = ch ? ch.name : c.kanal;
   $('msgs').innerHTML = msgs_html(c);
+  $('b-kbq').hidden = MODE !== 'user';
   var ob = $('b-order'); ob.hidden = !(MODE==='user' && isStaff());
   if (!ob.hidden) { var dn = ORDERED.indexOf(c.kanal+':'+c.id) >= 0; ob.textContent = dn ? '✓ Заказ оформлен' : 'Оформлен заказ'; ob.className = 'ord' + (dn ? ' done' : ''); ob.disabled = dn; }
   var fs = $('f-send'), rn = $('ro-note');
@@ -827,6 +863,56 @@ $('to-reg').addEventListener('click', function(){ $('m-login').close(); $('b-reg
 $('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
 $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
+/* Цена: 350 до конца октября 2026 (Душанбе), потом 500 */
+function price_now(){ return Date.now() < Date.UTC(2026,9,31,19,0,0) ? 350 : 500; }
+function price_show(){ var p = price_now(); var a=$('price-sum'), n=$('price-note'); if (a) a.textContent = p + ' сомони'; if (n) n.hidden = p !== 350; }
+price_show();
+/* База знаний и развитие агента */
+function kb_post(a){ var b = isStaff() ? { sid: store('ew_sid')||'' } : { code: store('ew_cab')||'' }; for (var k in a) b[k] = a[k]; return post('/kb', b).then(function(x){ return x.j || {}; }); }
+function kb_date(v){ var d = new Date(v); return isNaN(d) ? '' : ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+hm(v); }
+function kb_load(){
+  var box = $('kb-list'); box.textContent = 'Загрузка…';
+  kb_post({ action:'list' }).then(function(j){
+    if (!j.ok) { box.textContent = j.error || 'Не удалось загрузить'; return; }
+    var it = j.items || [];
+    if (!it.length) { box.textContent = 'Пока пусто. Добавьте первую запись выше.'; return; }
+    box.innerHTML = it.map(function(r){ return '<div class="kbi"><div class="h"><b>' + esc(r.q || (r.tip === 'развитие' ? 'О вас и вашем деле' : 'Без вопроса')) + '</b><button class="del" type="button" data-id="' + esc(r.id) + '" aria-label="Удалить">×</button></div><div>' + esc(r.a) + '</div><small>' + esc(r.who || '') + ' · ' + esc(kb_date(r.t)) + '</small></div>'; }).join('');
+    box.querySelectorAll('.del').forEach(function(b){ b.addEventListener('click', function(){ if (!confirm('Удалить запись из базы знаний?')) return; b.disabled = true; kb_post({ action:'delete', id: b.getAttribute('data-id') }).then(function(j){ if (!j.ok) { showErr('kb-err', j.error || 'Не удалось удалить'); b.disabled = false; } else kb_load(); }).catch(function(){ showErr('kb-err','Нет связи'); b.disabled = false; }); }); });
+  }).catch(function(){ box.textContent = 'Нет связи'; });
+}
+function open_kb(q){ showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(); }
+function last_in(c){ var m = (c && c.messages) || []; for (var i = m.length - 1; i >= 0; i--) if (m[i].d === 'in' && m[i].t) return String(m[i].t); return ''; }
+$('b-kb').addEventListener('click', function(){ open_kb(''); });
+$('b-kbq').addEventListener('click', function(){ open_kb(last_in(CUR)); });
+$('f-kb').addEventListener('submit', function(e){
+  e.preventDefault(); var q = $('kb-q').value.trim(), a = $('kb-a').value.trim(), btn = $('kb-btn');
+  if (!q) return showErr('kb-err','Напишите вопрос'); if (!a) return showErr('kb-err','Напишите, как отвечать');
+  showErr('kb-err',''); btn.disabled = true; btn.textContent = 'Сохраняю…';
+  kb_post({ action:'add', q:q, a:a }).then(function(j){
+    btn.disabled = false; btn.textContent = 'Сохранить';
+    if (!j.ok) return showErr('kb-err', j.error || 'Не удалось сохранить');
+    $('kb-q').value = ''; $('kb-a').value = ''; btn.textContent = 'Сохранено ✓'; setTimeout(function(){ btn.textContent = 'Сохранить'; }, 1800); kb_load();
+  }).catch(function(){ btn.disabled = false; btn.textContent = 'Сохранить'; showErr('kb-err','Нет связи, попробуйте ещё раз'); });
+});
+var DEV = { q:'', skip:[], n:0 };
+function dev_busy(on){ $('dev-send').disabled = on; $('dev-skip').disabled = on; $('dev-a').disabled = on; }
+function dev_next(){
+  showErr('dev-err',''); $('dev-q').textContent = 'Агент думает над вопросом…'; $('dev-a').value = ''; dev_busy(true);
+  kb_post({ action:'next', skip: DEV.skip }).then(function(j){
+    if (!j.ok || !j.question) { $('dev-q').textContent = 'Не получилось получить вопрос'; showErr('dev-err', j.error || 'Попробуйте ещё раз'); $('dev-skip').disabled = false; $('dev-skip').textContent = 'Другой вопрос'; return; }
+    DEV.q = j.question; $('dev-q').textContent = j.question; $('dev-skip').textContent = 'Пропустить'; dev_busy(false); $('dev-a').focus();
+  }).catch(function(){ $('dev-q').textContent = 'Нет связи'; $('dev-skip').disabled = false; $('dev-skip').textContent = 'Другой вопрос'; });
+}
+$('b-dev').addEventListener('click', function(){ DEV = { q:'', skip:[], n:0 }; $('dev-n').textContent = '0'; open_dlg('m-dev'); dev_next(); });
+$('dev-skip').addEventListener('click', function(){ if (DEV.q) DEV.skip.push(DEV.q); DEV.q = ''; dev_next(); });
+$('dev-send').addEventListener('click', function(){
+  var a = $('dev-a').value.trim(); if (!a) return showErr('dev-err','Напишите ответ или нажмите «Пропустить»');
+  showErr('dev-err',''); dev_busy(true);
+  kb_post({ action:'answer', q: DEV.q, a: a }).then(function(j){
+    if (!j.ok) { dev_busy(false); return showErr('dev-err', j.error || 'Не удалось сохранить'); }
+    DEV.n++; $('dev-n').textContent = String(DEV.n); dev_next();
+  }).catch(function(){ dev_busy(false); showErr('dev-err','Нет связи, попробуйте ещё раз'); });
+});
 function open_tg(){ if (isStaff()) return; showErr('t-err',''); $('t-key').value=''; open_dlg('m-tg'); }
 
 /* Вход через Facebook/Instagram во всплывающем окне поверх приложения */
