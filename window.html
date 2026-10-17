@@ -1331,7 +1331,14 @@ $('f-staff').addEventListener('submit', function(ev){
 setInterval(function(){ if ($('m-staff').open && !document.hidden) load_staff(); }, 15000);
 setInterval(function(){ if ($('m-staff').open && !document.hidden && SDATA) render_staff(); }, 30000);
 
-setInterval(function(){ if (!document.hidden && MODE==='user') load_chats(); }, 15000);
+/* живое обновление: каждые 6 секунд и сразу при возвращении в приложение (телефон усыпляет таймеры в фоне) */
+var LCLAST = 0;
+function live_refresh(){ if (document.hidden || MODE !== 'user') return; var n = Date.now(); if (n - LCLAST < 2500) return; LCLAST = n; load_chats(); }
+setInterval(live_refresh, 6000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) live_refresh(); });
+window.addEventListener('focus', live_refresh);
+window.addEventListener('pageshow', live_refresh);
+window.addEventListener('online', live_refresh);
 setInterval(function(){ if (!document.hidden && MODE==='user' && !isStaff()) check_devices(); }, 20000);
 enter_mode();
 
