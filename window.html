@@ -215,6 +215,13 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
 #m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0;height:100%;max-height:none!important}#m-kb,#m-sup,#m-dev{height:min(680px,calc(100svh - 24px));overscroll-behavior:contain}#m-kb .dbody>.x,#m-sup .dbody>.x,#m-dev .dbody>.x{display:none!important}#m-kb .dbody>h2,#m-sup .dbody>h2,#m-dev .dbody>h2{position:sticky;top:0;z-index:2;background:#fff;margin:0 -20px;padding:18px 20px 14px!important;border-bottom:1px solid rgba(0,0,0,.12);box-shadow:0 2px 6px rgba(0,0,0,.05)}#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 @media (max-width:520px){#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0}}
+/* окна не двигаются при свайпе: страница под ними заморожена, внутри только вертикальная прокрутка */
+html.dlgopen,html.dlgopen body{overflow:hidden;overscroll-behavior:none}
+body.dlglock{position:fixed;left:0;right:0;width:100%}
+dialog{overflow-x:hidden;max-width:calc(100vw - 24px);touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+dialog .dbody{overflow-x:hidden;overscroll-behavior:contain}
+dialog::backdrop{touch-action:none}
+
 </style>
 </head>
 <body>
@@ -1378,6 +1385,31 @@ enter_mode();
     var b=$('b-ext'); b.hidden=false;
     b.addEventListener('click', function(){ location.href = 'intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end'; });
   }
+})();
+
+/* заморозка страницы, пока открыто любое окно */
+(function(){
+  var saved = 0, locked = false;
+  function sync(){
+    var any = !!document.querySelector('dialog[open]');
+    if (any && !locked) { saved = window.scrollY || 0; locked = true; document.documentElement.classList.add('dlgopen'); document.body.classList.add('dlglock'); document.body.style.top = (-saved) + 'px'; }
+    else if (!any && locked) { locked = false; document.documentElement.classList.remove('dlgopen'); document.body.classList.remove('dlglock'); document.body.style.top = ''; window.scrollTo(0, saved); }
+  }
+  document.querySelectorAll('dialog').forEach(function(d){
+    new MutationObserver(sync).observe(d, { attributes:true, attributeFilter:['open'] });
+    d.addEventListener('close', sync);
+  });
+  /* свайп по тёмному фону или по заголовку не двигает ничего */
+  document.addEventListener('touchmove', function(e){
+    var d = document.querySelector('dialog[open]'); if (!d) return;
+    var t = e.target;
+    if (!(t && t.closest && t.closest('dialog') === d)) { e.preventDefault(); return; }
+    for (var n = t; n && n !== d; n = n.parentElement) {
+      var cs = getComputedStyle(n);
+      if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && n.scrollHeight > n.clientHeight + 1) return;
+    }
+    e.preventDefault();
+  }, { passive:false });
 })();
 </script>
 </body>
