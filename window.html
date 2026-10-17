@@ -218,6 +218,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
 #m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0;height:100%;max-height:none!important}#m-kb,#m-sup,#m-dev{height:min(680px,calc(100svh - 24px));overscroll-behavior:contain}#m-kb .dbody>.x,#m-sup .dbody>.x,#m-dev .dbody>.x{display:none!important}#m-kb .dbody>h2,#m-sup .dbody>h2,#m-dev .dbody>h2{position:sticky;top:0;z-index:2;background:#fff;margin:0 -20px;padding:18px 20px 14px!important;border-bottom:1px solid rgba(0,0,0,.12);box-shadow:0 2px 6px rgba(0,0,0,.05)}#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 @media (max-width:520px){#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0}}
+.top .brand{margin-right:0}.top .brandname{order:1;margin-right:auto;font-family:'Unbounded',sans-serif;font-weight:600;font-size:14px;letter-spacing:-.01em;white-space:nowrap;color:#fff}.top .brandname[hidden]{display:none}@media(min-width:521px){.top .brandname[hidden]{display:inline}}
 /*ZOOM*//* без масштабирования: ни щипком двумя пальцами, ни двойным тапом */
 html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html{touch-action:pan-x pan-y}
@@ -234,7 +235,8 @@ dialog::backdrop{touch-action:none}
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand" id="brand">ЁШ</div>
+    <div class="brand" id="brand" aria-label="Ёвари Шахси">ЁШ</div>
+    <span class="brandname" id="brandname" hidden>Ёвари Шахси</span>
     <span class="chip wait" id="chip-wait" hidden>Проверяем оплату</span>
     <span class="chip ok" id="chip-ok" hidden></span>
     <span class="brk" id="brk" hidden></span>
@@ -636,7 +638,7 @@ function render_top(){
   $('chip-ok').hidden = MODE !== 'user';
   $('b-menu').hidden = MODE !== 'user';
   $('b-team').hidden = !(MODE === 'user' && !isStaff());
-  $('b-dev').hidden = MODE !== 'user'; $('brk').hidden = MODE !== 'user';
+  $('b-dev').hidden = MODE !== 'user'; $('brk').hidden = MODE !== 'user'; $('brandname').hidden = MODE !== 'user';
   $('hint').hidden = MODE === 'user';
   if (MODE !== 'user' || isStaff()) $('alertbar').hidden = true;
   $('hint').textContent = MODE === 'pending'
