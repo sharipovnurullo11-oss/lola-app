@@ -570,11 +570,11 @@ var PAUSED = {}, PZ_LOADED = false;
 function pz_key(c){ var d = String(c.id||'').replace(/[^0-9]/g,''); if (!d) return ''; return c.kanal==='messenger' ? 'fb_'+d : (c.kanal==='telegram' ? 'tgb_'+d : ((c.kanal==='instagram' || c.kanal==='whatsapp') ? d : '')); }
 function lola_state(c){ if (c.comment) return ''; var k = pz_key(c); if (!k || !PZ_LOADED) return ''; return PAUSED[k] ? 'off' : 'on'; }
 function lola_counts(){ var on = 0, off = 0; (CHATS||[]).forEach(function(c){ var st = lola_state(c); if (st==='on') on++; else if (st==='off') off++; }); return {on:on, off:off}; }
-function pz_post(action, c){ var b = isStaff() ? { sid: store('ew_sid')||'', action: action } : { code: store('ew_cab')||'', action: action }; if (c) { b.contact = c.id; b.kanal = c.kanal; } return post('/cabinet-ig-pause', b); }
+function pz_post(action, c, ts){ var b = isStaff() ? { sid: store('ew_sid')||'', action: action } : { code: store('ew_cab')||'', action: action }; if (c) { b.contact = c.id; b.kanal = c.kanal; } if (ts) b.ts = ts; return post('/cabinet-ig-pause', b); }
 function load_pauses(){
   if (MODE !== 'user') return;
   pz_post('list').then(function(x){
-    if (x.s === 200 && x.j && x.j.ok && Array.isArray(x.j.list)) { PAUSED = {}; x.j.list.forEach(function(k){ PAUSED[k] = 1; }); PZ_LOADED = true; render_list(); }
+    if (x.s === 200 && x.j && x.j.ok && Array.isArray(x.j.list)) { PAUSED = {}; x.j.list.forEach(function(k){ PAUSED[k] = 1; }); PZ_LOADED = true; var sn = x.j.seen || {}, ch = false; Object.keys(sn).forEach(function(k0){ var k = k0.replace('_', ':'), v = Number(sn[k0])||0; if (v > (SEEN[k]||0)) { SEEN[k] = v; ch = true; } }); if (ch) { lstore('ew_seen', JSON.stringify(SEEN)); } render_list(); }
   }).catch(function(){});
 }
 /* Красная цифра на значках и в списке: сообщения клиентов, которые человек ещё не открыл, плюс те, на которые никто не ответил.
@@ -582,7 +582,7 @@ function load_pauses(){
 var RESET_AT = Date.parse('2026-10-17T01:10:00+05:00'), RESET_CH = { instagram:1, messenger:1, facebook:1 };
 var BASE_AT = Date.parse('2026-10-17T10:30:00+05:00');
 var SEEN = {}; try { SEEN = JSON.parse(lstore('ew_seen') || '{}') || {}; } catch(e) { SEEN = {}; }
-function ckey(c){ return c.kanal + ':' + c.id; }
+function ckey(c){ var d = String(c.id||'').replace(/[^0-9]/g,''); return c.kanal + ':' + (d || c.id); }
 function mts(x){ var t = Date.parse(x && x.v); return isNaN(t) ? 0 : t; }
 function mark_seen(c){
   if (MODE !== 'user' || !c) return;
@@ -590,6 +590,8 @@ function mark_seen(c){
   if (!mx) return;
   var k = ckey(c); if ((SEEN[k]||0) >= mx) return;
   SEEN[k] = mx; lstore('ew_seen', JSON.stringify(SEEN));
+  /* общая отметка: сохраняем на сервере, чтобы другие устройства и сотрудники видели то же */
+  try { pz_post('seen', c, mx).catch(function(){}); } catch(e) {}
 }
 function unread_of(c){
   var m = c.messages||[], trail = 0, unseen = 0, seen = Math.max(SEEN[ckey(c)]||0, BASE_AT), i, t;
@@ -703,7 +705,7 @@ function pz_show(c){
 }
 function pz_set(paused, c){
   var bar = $('pz-bar'); bar.dataset.p = paused ? '1' : '0';
-  if (c) { var k = pz_key(c); if (k) { if (paused) PAUSED[k] = 1; else delete PAUSED[k]; PZ_LOADED = true; render_list(); } }
+  if (c) { var k = pz_key(c); if (k) { if (paused) PAUSED[k] = 1; else delete PAUSED[k]; PZ_LOADED = true; var sn = x.j.seen || {}, ch = false; Object.keys(sn).forEach(function(k0){ var k = k0.replace('_', ':'), v = Number(sn[k0])||0; if (v > (SEEN[k]||0)) { SEEN[k] = v; ch = true; } }); if (ch) { lstore('ew_seen', JSON.stringify(SEEN)); } render_list(); } }
   $('pz-t').textContent = paused ? '⏸ Лола молчит в этом диалоге: отвечаете вы.' : '🤖 В этом диалоге отвечает Лола. Если напишете сами, она замолчит на час.';
   var b = $('pz-b'); b.hidden = false; b.disabled = false; b.textContent = paused ? 'Вернуть Лолу' : 'Поставить Лолу на паузу';
 }
