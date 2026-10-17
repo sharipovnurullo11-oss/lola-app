@@ -78,6 +78,7 @@ button{font:inherit;color:inherit}
 .snd input{flex:1;min-width:0;height:46px;border:1px solid var(--line);border-radius:23px;padding:0 16px;font:inherit;font-size:16px}
 .snd button{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--amber);color:var(--amberText);font-weight:700;font-size:17px;cursor:pointer}
 .noch{flex:1;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:14.5px}
+@media(max-width:859px){body.inchat #b-dev,body.inchat #b-menu{display:none!important}}
 @media(min-width:860px){
   .work{grid-template-columns:360px 1fr}
   .work .list{display:flex!important;border-right:1px solid var(--line)}
@@ -215,7 +216,6 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
     <button class="tb pri" id="b-reg" type="button">Зарегистрироваться</button>
     <button class="tb" id="b-team" type="button" hidden>Команда</button>
     <button class="tb" id="b-dev" type="button" hidden>Развивай агента</button>
-    <button class="tb" id="b-kb" type="button" hidden>База знаний</button>
     <button class="menu" id="b-menu" type="button" aria-label="Меню" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </header>
   <div class="addbar inapp" id="inapp" hidden><span id="inapp-t"></span><button class="sm" id="b-ext" type="button" hidden>Открыть в Chrome</button></div>
@@ -305,6 +305,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
   <h2 style="padding-right:36px">Кабинет</h2>
   <p id="menu-paid"></p>
   <div class="mi">
+    <button class="btn sec" id="m-kbbtn" type="button">База знаний</button>
     <button class="btn sec" id="m-addbtn" type="button">Добавить на экран телефона</button>
     <button class="btn sec" id="m-chcode" type="button">Сменить код</button>
     <button class="btn sec" id="m-logout" type="button">Выйти</button>
@@ -592,7 +593,6 @@ function render_top(){
   $('b-menu').hidden = MODE !== 'user';
   $('b-team').hidden = !(MODE === 'user' && !isStaff());
   $('b-dev').hidden = MODE !== 'user';
-  $('b-kb').hidden = MODE !== 'user';
   $('hint').hidden = MODE === 'user';
   if (MODE !== 'user' || isStaff()) $('alertbar').hidden = true;
   $('hint').textContent = MODE === 'pending'
@@ -756,6 +756,7 @@ function pz_toggle(){
   }).catch(function(){ $('pz-b').disabled = false; });
 }
 
+try{ new MutationObserver(function(){ document.body.classList.toggle('inchat', $('work').classList.contains('open')); }).observe($('work'),{attributes:true,attributeFilter:['class']}); }catch(e){}
 $('back').addEventListener('click', function(){ $('work').classList.remove('open'); });
 
 /* Гость: показываем пример, но ничего не отправляется */
@@ -882,7 +883,7 @@ function kb_load(){
 }
 function open_kb(q){ showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(); }
 function last_in(c){ var m = (c && c.messages) || []; for (var i = m.length - 1; i >= 0; i--) if (m[i].d === 'in' && m[i].t) return String(m[i].t); return ''; }
-$('b-kb').addEventListener('click', function(){ open_kb(''); });
+$('m-kbbtn').addEventListener('click', function(){ $('m-menu').close(); open_kb(''); });
 $('b-kbq').addEventListener('click', function(){ open_kb(last_in(CUR)); });
 $('f-kb').addEventListener('submit', function(e){
   e.preventDefault(); var q = $('kb-q').value.trim(), a = $('kb-a').value.trim(), btn = $('kb-btn');
