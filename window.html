@@ -247,6 +247,8 @@ body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
     <div class="f"><label for="kb-a">Как отвечать</label><textarea class="in2" id="kb-a" rows="4" maxlength="3000"></textarea></div>
     <p class="err" id="kb-err" hidden></p>
     <button class="btn" id="kb-btn" type="submit">Сохранить</button>
+    <button class="btn" id="kb-send" type="button" hidden style="background:#2E9E5B;color:#fff;border:0">Сохранить и отправить клиенту</button>
+    <p class="hint" id="kb-sendnote" hidden style="margin:0;font-size:12.5px">Клиент ещё не написал после этого ответа, значит мог не увидеть его. Исправленный ответ можно сразу отправить клиенту.</p>
     <button class="btn sec" data-close type="button">Закрыть</button>
   </form>
   <h3>Уже в базе</h3>
@@ -886,7 +888,8 @@ function kb_load(){
     box.querySelectorAll('.del').forEach(function(b){ b.addEventListener('click', function(){ if (!confirm('Удалить запись из базы знаний?')) return; b.disabled = true; kb_post({ action:'delete', id: b.getAttribute('data-id') }).then(function(j){ if (!j.ok) { showErr('kb-err', j.error || 'Не удалось удалить'); b.disabled = false; } else kb_load(); }).catch(function(){ showErr('kb-err','Нет связи'); b.disabled = false; }); }); });
   }).catch(function(){ box.textContent = 'Нет связи'; });
 }
-function open_kb(q){ showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(); }
+var KBFIX = null;
+function open_kb(q){ KBFIX = null; $('kb-send').hidden = true; $('kb-sendnote').hidden = true; showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(); }
 function last_in(c){ var m = (c && c.messages) || []; for (var i = m.length - 1; i >= 0; i--) if (m[i].d === 'in' && m[i].t) return String(m[i].t); return ''; }
 $('m-kbbtn').addEventListener('click', function(){ $('m-menu').close(); open_kb(''); });
 (function(){ var lt = 0, lb = null;
@@ -894,7 +897,7 @@ $('m-kbbtn').addEventListener('click', function(){ $('m-menu').close(); open_kb(
     if (MODE !== 'user' || !CUR) return;
     var b = e.target.closest && e.target.closest('.bub.in,.bub.out'); if (!b) { lb = null; return; }
     var now = Date.now();
-    if (lb === b && now - lt < 450) { lb = null; var all = CUR.messages || [], ix = +b.getAttribute('data-i'), m = all[ix]; if (m && m.t) { try { window.getSelection().removeAllRanges(); } catch(_){} if (m.d === 'in') open_kb(String(m.t)); else { var q = ''; for (var j = ix - 1; j >= 0; j--) if (all[j].d === 'in') { q = String(all[j].t || ''); break; } open_kb(q); $('kb-a').value = String(m.t); } setTimeout(function(){ var a = $('kb-a'); if (a) a.focus(); }, 80); } return; }
+    if (lb === b && now - lt < 450) { lb = null; var all = CUR.messages || [], ix = +b.getAttribute('data-i'), m = all[ix]; if (m && m.t) { try { window.getSelection().removeAllRanges(); } catch(_){} if (m.d === 'in') open_kb(String(m.t)); else { var q = ''; for (var j = ix - 1; j >= 0; j--) if (all[j].d === 'in') { q = String(all[j].t || ''); break; } open_kb(q); $('kb-a').value = String(m.t); var later = false; for (var j2 = ix + 1; j2 < all.length; j2++) if (all[j2].d === 'in') { later = true; break; } if (!later) { KBFIX = { chat: CUR }; $('kb-send').hidden = false; $('kb-sendnote').hidden = false; } } setTimeout(function(){ var a = $('kb-a'); if (a) a.focus(); }, 80); } return; }
     lb = b; lt = now;
   });
 })();
@@ -908,6 +911,22 @@ $('f-kb').addEventListener('submit', function(e){
     if (!j.ok) return showErr('kb-err', j.error || 'Не удалось сохранить');
     $('kb-q').value = ''; $('kb-a').value = ''; btn.textContent = 'Сохранено ✓'; setTimeout(function(){ btn.textContent = 'Сохранить'; }, 1800); kb_load();
   }).catch(function(){ btn.disabled = false; btn.textContent = 'Сохранить'; showErr('kb-err','Нет связи, попробуйте ещё раз'); });
+});
+
+function send_to_client(c, t){
+  var req = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: c.kanal, contact: c.id, text: t }) : post(c.kanal==='whatsapp' ? '/cabinet-wa-send' : (c.kanal==='instagram' ? '/cabinet-ig-send' : ((c.kanal==='messenger' || c.kanal==='facebook') ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: c.id, text: t, kanal: c.kanal });
+  return req.then(function(x){ if (x.s===200 && x.j && x.j.ok) { c.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); c.last=t; if (CUR === c) open_chat(c); return true; } return false; });
+}
+$('kb-send').addEventListener('click', function(){
+  var fix = KBFIX, q = $('kb-q').value.trim(), a = $('kb-a').value.trim(), btn = $('kb-send');
+  if (!fix) return; if (!q) return showErr('kb-err','Напишите вопрос'); if (!a) return showErr('kb-err','Напишите, как отвечать');
+  showErr('kb-err',''); btn.disabled = true; btn.textContent = 'Сохраняю и отправляю…';
+  kb_post({ action:'add', q:q, a:a }).then(function(j){
+    if (!j.ok) throw new Error(j.error || 'Не удалось сохранить');
+    kb_load();
+    return send_to_client(fix.chat, a).then(function(ok){ if (!ok) throw new Error('В базу знаний сохранено, но клиенту отправить не получилось. Отправьте сами в чате.'); });
+  }).then(function(){ btn.disabled = false; btn.textContent = 'Сохранить и отправить клиенту'; $('m-kb').close(); })
+  .catch(function(e){ btn.disabled = false; btn.textContent = 'Сохранить и отправить клиенту'; showErr('kb-err', (e && e.message) || 'Нет связи, попробуйте ещё раз'); });
 });
 var DEV = { q:'', skip:[], n:0 };
 function dev_busy(on){ $('dev-send').disabled = on; $('dev-skip').disabled = on; $('dev-a').disabled = on; }
