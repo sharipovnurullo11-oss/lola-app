@@ -741,12 +741,12 @@ function pz_show(c){
   $('pz-t').textContent = 'Проверяем, отвечает ли Лола…'; $('pz-b').hidden = true; bar.dataset.p = '';
   pz_post('status', c).then(function(x){
     if (CUR !== c) return;
-    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused, c); else { $('pz-t').textContent = 'Не удалось узнать, отвечает ли Лола. Обновите страницу.'; $('pz-b').hidden = true; }
+    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused, c, x); else { $('pz-t').textContent = 'Не удалось узнать, отвечает ли Лола. Обновите страницу.'; $('pz-b').hidden = true; }
   }).catch(function(){ if (CUR === c) { $('pz-t').textContent = 'Не удалось узнать, отвечает ли Лола. Нет связи.'; $('pz-b').hidden = true; } });
 }
-function pz_set(paused, c){
+function pz_set(paused, c, x){
   var bar = $('pz-bar'); bar.dataset.p = paused ? '1' : '0';
-  if (c) { var k = pz_key(c); if (k) { if (paused) PAUSED[k] = 1; else delete PAUSED[k]; PZ_LOADED = true; var sn = x.j.seen || {}, ch = false; Object.keys(sn).forEach(function(k0){ var k = k0.replace('_', ':'), v = Number(sn[k0])||0; if (v > (SEEN[k]||0)) { SEEN[k] = v; ch = true; } }); if (ch) { lstore('ew_seen', JSON.stringify(SEEN)); } render_list(); } }
+  if (c) { var k = pz_key(c); if (k) { if (paused) PAUSED[k] = 1; else delete PAUSED[k]; PZ_LOADED = true; var sn = (x && x.j && x.j.seen) || {}, ch = false; Object.keys(sn).forEach(function(k0){ var k = k0.replace('_', ':'), v = Number(sn[k0])||0; if (v > (SEEN[k]||0)) { SEEN[k] = v; ch = true; } }); if (ch) { lstore('ew_seen', JSON.stringify(SEEN)); } render_list(); } }
   $('pz-t').textContent = paused ? '⏸ Лола молчит в этом диалоге: отвечаете вы.' : '🤖 В этом диалоге отвечает Лола. Если напишете сами, она замолчит на час.';
   var b = $('pz-b'); b.hidden = false; b.disabled = false; b.textContent = paused ? 'Вернуть Лолу' : 'Поставить Лолу на паузу';
 }
@@ -756,7 +756,7 @@ function pz_toggle(){
   $('pz-b').disabled = true;
   pz_post(want, c).then(function(x){
     if (CUR !== c) return;
-    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused, c); else { $('pz-b').disabled = false; $('pz-t').textContent = 'Не получилось. Попробуйте ещё раз.'; }
+    if (x.s === 200 && x.j && x.j.ok) pz_set(!!x.j.paused, c, x); else { $('pz-b').disabled = false; $('pz-t').textContent = 'Не получилось. Попробуйте ещё раз.'; }
   }).catch(function(){ $('pz-b').disabled = false; });
 }
 
