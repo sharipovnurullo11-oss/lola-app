@@ -6,10 +6,15 @@
 <title>Ёвари Шахси 24/7</title>
 <meta name="theme-color" content="#16224F">
 <script>
+/* настоящее описание приложения и иконки с того же сервера (нужны Android для ярлыка и установки); пока файлов на сервере нет, остаются запасные ссылки ниже */
 (function(){ try {
-  var ic = [{ src:'https://raw.githubusercontent.com/sharipovnurullo11-oss/lola-app/main/icons/ys-192.png', sizes:'192x192', type:'image/png', purpose:'any' }, { src:'https://raw.githubusercontent.com/sharipovnurullo11-oss/lola-app/main/icons/ys-512.png', sizes:'512x512', type:'image/png', purpose:'any maskable' }];
-  var m = { name:'Ёвари Шахси 24/7', short_name:'Ёвари Шахси', start_url: location.href.split('#')[0], scope: location.href.split('#')[0].replace(/[^\/]*$/, ''), display:'standalone', background_color:'#16224F', theme_color:'#16224F', icons: ic };
-  var l = document.createElement('link'); l.rel = 'manifest'; l.href = URL.createObjectURL(new Blob([JSON.stringify(m)], { type:'application/manifest+json' })); document.head.appendChild(l);
+  if (location.protocol === 'file:') return;
+  fetch('/ys.webmanifest', { cache:'no-store', redirect:'manual' }).then(function(r){
+    if (!r.ok || !/manifest|json/i.test(r.headers.get('content-type') || '')) return;
+    var l = document.createElement('link'); l.rel = 'manifest'; l.href = '/ys.webmanifest'; document.head.appendChild(l);
+    document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(x){ x.href = (x.getAttribute('sizes') === '512x512') ? '/ys-512.png' : '/ys-192.png'; });
+    var a = document.querySelector('link[rel="apple-touch-icon"]'); if (a) a.href = '/ys-apple-180.png';
+  }).catch(function(){});
 } catch(e) {} })();
 </script>
 <meta name="mobile-web-app-capable" content="yes">
