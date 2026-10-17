@@ -204,7 +204,7 @@ input[type=file]{width:100%;border:1px solid var(--line);border-radius:12px;padd
 .gs small{font-size:13px;line-height:1.4;opacity:.85}
 .gnote{font-size:13.5px;line-height:1.45;border-radius:12px;padding:10px 12px;background:rgba(245,166,35,.14)}
 body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
-#m-kb .dbody,#m-dev .dbody{padding-top:0}#m-kb .dbody::before,#m-dev .dbody::before{content:'';position:sticky;top:0;z-index:1;flex:none;height:56px;margin:0 -20px -14px;background:#fff;border-bottom:1px solid rgba(0,0,0,.12);box-shadow:0 2px 6px rgba(0,0,0,.05)}#m-kb .dbody>.x,#m-dev .dbody>.x{z-index:2;top:6px;margin:-36px 8px 0 0}#m-kb .dbody>h2,#m-dev .dbody>h2{margin-top:-4px}
+#m-kb .dbody,#m-sup .dbody,#m-dev .dbody{padding-top:0}#m-kb .dbody,#m-sup .dbody::before,#m-dev .dbody::before{content:'';position:sticky;top:0;z-index:1;flex:none;height:56px;margin:0 -20px -14px;background:#fff;border-bottom:1px solid rgba(0,0,0,.12);box-shadow:0 2px 6px rgba(0,0,0,.05)}#m-kb .dbody,#m-sup .dbody>.x,#m-dev .dbody>.x{z-index:2;top:6px;margin:-36px 8px 0 0}#m-kb .dbody,#m-sup .dbody>h2,#m-dev .dbody>h2{margin-top:-4px}
 @media (max-width:520px){#m-kb .dbody,#m-dev .dbody{padding-top:0}#m-kb .dbody>.x,#m-dev .dbody>.x{width:44px;height:44px;font-size:24px;top:4px}}
 </style>
 </head>
@@ -238,6 +238,18 @@ body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
   </main>
 </div>
 
+<dialog id="m-sup"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Поддержка</h2>
+  <p>Спросите, как пользоваться «Единым окном». Отвечает ИИ, который знает всё про систему.</p>
+  <div id="sup-log" style="display:flex;flex-direction:column;gap:8px;min-height:80px"></div>
+  <p class="err" id="sup-err" hidden></p>
+  <form id="f-sup" novalidate style="display:flex;flex-direction:column;gap:10px">
+    <textarea class="in2" id="sup-q" rows="3" maxlength="1000" placeholder="Ваш вопрос"></textarea>
+    <button class="btn" id="sup-btn" type="submit">Отправить</button>
+    <button class="btn sec" data-close type="button">Закрыть</button>
+  </form>
+</div></dialog>
 <dialog id="m-kb"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
   <button class="x" data-close type="button" aria-label="Закрыть">×</button>
   <h2 style="padding-right:36px">База знаний</h2>
@@ -313,6 +325,7 @@ body.inchat .bub.in,.bub.in,.bub.out{user-select:none;-webkit-user-select:none}
   <p id="menu-paid"></p>
   <div class="mi">
     <button class="btn sec" id="m-kbbtn" type="button">База знаний</button>
+    <button class="btn sec" id="m-supbtn" type="button">Поддержка</button>
     <button class="btn sec" id="m-addbtn" type="button">Добавить на экран телефона</button>
     <button class="btn sec" id="m-chcode" type="button">Сменить код</button>
     <button class="btn sec" id="m-logout" type="button">Выйти</button>
@@ -927,6 +940,19 @@ $('kb-send').addEventListener('click', function(){
     return send_to_client(fix.chat, a).then(function(ok){ if (!ok) throw new Error('В базу знаний сохранено, но клиенту отправить не получилось. Отправьте сами в чате.'); });
   }).then(function(){ btn.disabled = false; btn.textContent = 'Сохранить и отправить клиенту'; $('m-kb').close(); })
   .catch(function(e){ btn.disabled = false; btn.textContent = 'Сохранить и отправить клиенту'; showErr('kb-err', (e && e.message) || 'Нет связи, попробуйте ещё раз'); });
+});
+
+var SUP = [];
+function sup_render(){ var l = $('sup-log'); l.innerHTML = SUP.map(function(m){ return '<div class="bub ' + (m.r==='u' ? 'out' : 'in') + '" style="max-width:92%">' + esc(m.t) + '</div>'; }).join(''); l.parentNode.scrollTop = l.parentNode.scrollHeight; }
+$('m-supbtn').addEventListener('click', function(){ $('m-menu').close(); showErr('sup-err',''); sup_render(); open_dlg('m-sup'); setTimeout(function(){ $('sup-q').focus(); }, 80); });
+$('f-sup').addEventListener('submit', function(e){
+  e.preventDefault(); var q = $('sup-q').value.trim(), btn = $('sup-btn'); if (!q || btn.disabled) return;
+  SUP.push({ r:'u', t:q }); $('sup-q').value = ''; sup_render(); showErr('sup-err',''); btn.disabled = true; btn.textContent = 'Отвечаю…';
+  post('/cabinet-support', { code: store('ew_cab') || '', messages: SUP.slice(-12) }).then(function(x){
+    btn.disabled = false; btn.textContent = 'Отправить';
+    if (x.s === 200 && x.j && x.j.ok && x.j.reply) { SUP.push({ r:'a', t:String(x.j.reply) }); sup_render(); }
+    else showErr('sup-err', (x.j && x.j.error) || (isStaff() ? 'Поддержка доступна владельцу кабинета' : 'Не получилось, попробуйте ещё раз'));
+  }).catch(function(){ btn.disabled = false; btn.textContent = 'Отправить'; showErr('sup-err','Нет связи, попробуйте ещё раз'); });
 });
 var DEV = { q:'', skip:[], n:0 };
 function dev_busy(on){ $('dev-send').disabled = on; $('dev-skip').disabled = on; $('dev-a').disabled = on; }
