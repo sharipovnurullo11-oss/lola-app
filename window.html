@@ -923,7 +923,7 @@ function load_chats(){
     CHATS = (x.j && x.j.chats) || [];
     render_list();
     load_pauses();
-    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) open_chat(f, true); else CUR = f; } }
+    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var ms = $('msgs'), au = ms ? ms.querySelectorAll('audio') : [], busy = false; for (var ai = 0; ai < au.length; ai++) if (!au[ai].paused || au[ai].currentTime > 0) busy = true; var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (busy && sg(f) === sg(CUR)) CUR = f; else open_chat(f, true); } else CUR = f; } }
   }).catch(function(){});
 }
 
