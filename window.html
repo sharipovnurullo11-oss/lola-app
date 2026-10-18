@@ -268,7 +268,7 @@ dialog::backdrop{touch-action:none}
     <section class="list" id="list" aria-label="Переписки"></section>
     <section class="dlg" id="dlg" aria-label="Диалог">
       <div class="noch">Выберите переписку</div>
-      <div class="dh"><button class="back" id="back" type="button" aria-label="К списку">←</button><div class="av" id="d-av"></div><div><b id="d-name"></b><small id="d-ch"></small></div><button class="ord kbq" id="b-kbq" type="button">База знаний</button><button class="ord" id="b-order" type="button" hidden>Оформлен заказ</button></div>
+      <div class="dh"><button class="back" id="back" type="button" aria-label="К списку">←</button><div class="av" id="d-av"></div><div><b id="d-name"></b><small id="d-ch"></small></div><span id="d-call" hidden style="display:flex;gap:4px;margin-left:auto"><a class="ord" id="d-wa" title="Позвонить в WhatsApp" target="_blank" rel="noopener" style="text-decoration:none">📞 WA</a><a class="ord" id="d-tel" title="Обычный звонок" style="text-decoration:none">☎</a></span><button class="ord kbq" id="b-kbq" type="button">База знаний</button><button class="ord" id="b-order" type="button" hidden>Оформлен заказ</button></div>
       <div class="msgs" id="msgs"></div>
       <form class="snd" id="f-send" novalidate><input id="c-text" type="text" autocomplete="off" placeholder="Ответить клиенту" aria-label="Ответ клиенту"><button type="submit" aria-label="Отправить">&#10148;</button></form>
     </section>
@@ -782,6 +782,8 @@ function open_chat(c, quiet){ mark_seen(c);
   $('d-ch').textContent = ch ? ch.name : c.kanal;
   $('msgs').innerHTML = msgs_html(c);
   $('b-kbq').hidden = MODE !== 'user';
+  var dg = String(c.id||'').replace(/\D/g,''), cl = $('d-call');
+  if (c.kanal === 'whatsapp' && dg.length >= 9 && dg.length <= 15) { cl.hidden = false; cl.style.display = 'flex'; $('d-wa').href = 'https://wa.me/' + dg; $('d-tel').href = 'tel:+' + dg; } else { cl.hidden = true; cl.style.display = 'none'; }
   var ob = $('b-order'); ob.hidden = !(MODE==='user' && isStaff());
   if (!ob.hidden) { var dn = ORDERED.indexOf(c.kanal+':'+c.id) >= 0; ob.textContent = dn ? '✓ Заказ оформлен' : 'Оформлен заказ'; ob.className = 'ord' + (dn ? ' done' : ''); ob.disabled = dn; }
   var fs = $('f-send'), rn = $('ro-note');
