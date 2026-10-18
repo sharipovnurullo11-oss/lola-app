@@ -84,7 +84,7 @@ button{font:inherit;color:inherit}
 .tabs{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:2}.tabs button{flex:1;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 10px;font:inherit;font-size:13.5px;cursor:pointer}.tabs button.on{background:var(--soft);font-weight:600}.ronote{padding:12px 14px;text-align:center;color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);background:#fff}
 .empty{padding:28px 20px;text-align:center;color:var(--muted);font-size:14.5px;line-height:1.5}
 .dh{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
-.dh b{font-size:13px;line-height:1.25;word-break:break-word}.dh small{display:inline-block;vertical-align:middle;margin-left:6px;color:var(--muted);font-size:12px}.dh .av{width:32px;height:32px;font-size:14px}.dh .cbtn,.dh .cbtn.del{width:30px;height:30px}.dh .cbtn svg{width:16px;height:16px}.dh small svg{width:16px;height:16px;display:block}
+.dh b{font-size:13px;line-height:1.25;word-break:break-word}.dh small{display:inline-block;vertical-align:middle;margin-left:6px;color:var(--muted);font-size:12px}.dh .av{width:26px;height:26px;font-size:12px}.dh .cbtn,.dh .cbtn.del{width:24px;height:24px}.dh .cbtn svg{width:13px;height:13px}.dh{padding:6px 12px}.dh small svg{width:16px;height:16px;display:block}
 .back{border:0;background:var(--soft);width:40px;height:40px;border-radius:12px;cursor:pointer;font-size:18px}
 .msgs{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:8px}
 .bub{max-width:82%;padding:9px 13px;border-radius:16px;font-size:15px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -844,7 +844,7 @@ function open_chat(c, quiet){ mark_seen(c);
   if (!ob.hidden) { var dn = ORDERED.indexOf(c.kanal+':'+c.id) >= 0; ob.textContent = dn ? '✓ Заказ оформлен' : 'Оформлен заказ'; ob.className = 'ord' + (dn ? ' done' : ''); ob.disabled = dn; }
   var fs = $('f-send'), rn = $('ro-note');
   if (!rn) { rn = document.createElement('div'); rn.id = 'ro-note'; rn.className = 'ronote'; fs.parentNode.insertBefore(rn, fs); }
-  var canr = !c.ro || (c.kanal === 'instagram' && !c.comment && MODE === 'user' && !isStaff() && INFO.channels.instagram === 'on') || (c.kanal === 'facebook' && c.comment && !c.ro && MODE === 'user' && !isStaff() && INFO.channels.messenger === 'on');
+  var canr = !c.ro || (c.kanal === 'telegram' && /^l:/.test(String(c.id)) && !c.comment && MODE === 'user' && !isStaff()) || (c.kanal === 'instagram' && !c.comment && MODE === 'user' && !isStaff() && INFO.channels.instagram === 'on') || (c.kanal === 'facebook' && c.comment && !c.ro && MODE === 'user' && !isStaff() && INFO.channels.messenger === 'on');
   fs.hidden = !canr; rn.hidden = canr;
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
   pz_show(c);
@@ -894,7 +894,7 @@ $('f-send').addEventListener('submit', function(ev){
   if (MODE !== 'user') return;
   if (SENDING) return;
   SENDING = true; $('c-text').value = '';
-  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : ((CUR.kanal==='messenger' || CUR.kanal==='facebook') ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: CUR.id, text: t, kanal: CUR.kanal });
+  var sreq = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: CUR.kanal, contact: CUR.id, text: t }) : post(CUR.kanal==='whatsapp' ? '/cabinet-wa-send' : (CUR.kanal==='instagram' ? '/cabinet-ig-send' : ((CUR.kanal==='messenger' || CUR.kanal==='facebook') ? '/cabinet-fb-send' : (/^l:/.test(String(CUR.id)) ? '/tgb-send' : '/cabinet-send'))), { code: store('ew_cab')||'', contact: CUR.id, text: t, kanal: CUR.kanal });
   sreq.then(function(x){
     SENDING = false;
     if (x.s===200 && x.j && x.j.ok) { CUR.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); CUR.last=t; open_chat(CUR); }
@@ -1035,7 +1035,7 @@ $('f-kb').addEventListener('submit', function(e){
 });
 
 function send_to_client(c, t){
-  var req = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: c.kanal, contact: c.id, text: t }) : post(c.kanal==='whatsapp' ? '/cabinet-wa-send' : (c.kanal==='instagram' ? '/cabinet-ig-send' : ((c.kanal==='messenger' || c.kanal==='facebook') ? '/cabinet-fb-send' : '/cabinet-send')), { code: store('ew_cab')||'', contact: c.id, text: t, kanal: c.kanal });
+  var req = isStaff() ? post('/staff', { action:'send', sid: store('ew_sid')||'', kanal: c.kanal, contact: c.id, text: t }) : post(c.kanal==='whatsapp' ? '/cabinet-wa-send' : (c.kanal==='instagram' ? '/cabinet-ig-send' : ((c.kanal==='messenger' || c.kanal==='facebook') ? '/cabinet-fb-send' : (/^l:/.test(String(c.id)) ? '/tgb-send' : '/cabinet-send'))), { code: store('ew_cab')||'', contact: c.id, text: t, kanal: c.kanal });
   return req.then(function(x){ if (x.s===200 && x.j && x.j.ok) { c.messages.push({d:'out',a:'human',t:t,v:new Date().toISOString()}); c.last=t; if (CUR === c) open_chat(c); return true; } return false; });
 }
 $('kb-send').addEventListener('click', function(){
