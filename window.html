@@ -45,7 +45,7 @@ button{font:inherit;color:inherit}
 .chip.wait{background:var(--warnbg);color:var(--warn)}
 .chip.ok{background:var(--okbg);color:var(--ok)}
 .menu{flex:none;margin-left:auto;width:36px;height:36px;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.top .brand{order:1}.top .chip,.top #b-code,.top #b-login,.top #b-reg{order:2}.top .brk{order:3;flex:0 0 100%;height:0;margin:-10px 0 0}.top #b-team,.top #b-dev,.top .menu{order:4}.top #b-dev{margin-left:auto}.top #b-team~.menu{margin-left:0}.top .chip{margin-left:auto}.top .brk[hidden]{display:none}
+.top .brand{order:1}.top .chip,.top #b-code,.top #b-login,.top #b-reg{order:2}.top .brk{order:3;flex:0 0 100%;height:0;margin:-10px 0 0}.top #b-team,.top #b-slots,.top #b-dev,.top .menu{order:4}.top #b-dev{margin-left:auto}.top #b-team~.menu{margin-left:0}.top .chip{margin-left:auto}.top .brk[hidden]{display:none}
 /* узкие экраны: шапка не должна быть шире телефона */
 @media (max-width:420px){.chs.chs{gap:8px;padding-left:10px;padding-right:10px}.chs .ch,.chs .plus{width:40px;height:40px}.chs .ch svg{width:24px;height:24px}.chs .tot{padding:5px 8px;gap:6px;font-size:12px}.chs .tot b{min-width:24px;height:24px;font-size:13px}.pay b{font-size:15px;white-space:nowrap}.top{gap:6px;padding-left:10px;padding-right:10px;flex-wrap:wrap}.brand{font-size:14px}.tb{padding:0 10px;font-size:13px}}
 /* полоса каналов */
@@ -95,7 +95,7 @@ button{font:inherit;color:inherit}
 .snd input{flex:1;min-width:0;height:46px;border:1px solid var(--line);border-radius:23px;padding:0 16px;font:inherit;font-size:16px}
 .snd button{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--amber);color:var(--amberText);font-weight:700;font-size:17px;cursor:pointer}
 .noch{flex:1;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:14.5px}
-@media(max-width:859px){body.inchat #b-dev,body.inchat #b-menu,body.inchat #b-team,body.inchat #lbar,body.inchat #alertbar,body.inchat #chs,body.inchat #hint,body.inchat #addbar,body.inchat #inapp{display:none!important}}
+@media(max-width:859px){body.inchat #b-dev,body.inchat #b-slots,body.inchat #b-menu,body.inchat #b-team,body.inchat #lbar,body.inchat #alertbar,body.inchat #chs,body.inchat #hint,body.inchat #addbar,body.inchat #inapp{display:none!important}}
 @media(min-width:860px){
   .work{grid-template-columns:360px 1fr}
   .work .list{display:flex!important;border-right:1px solid var(--line)}
@@ -229,6 +229,11 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adju
 html{touch-action:pan-x pan-y}
 dialog{touch-action:pan-y}
 /* окна не двигаются при свайпе: страница под ними заморожена, внутри только вертикальная прокрутка */
+
+.sl-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 10px}.sl-nav b{font-size:.95rem}.sl-nav button{border:1px solid var(--line,#d9dde6);background:#fff;border-radius:10px;padding:6px 12px;font-size:1rem}
+.sl-day{border-top:1px solid #eceff4;padding:8px 0}.sl-dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600;font-size:.9rem}.sl-dh button{border:0;background:none;color:#2f6fed;font-size:.8rem}
+.sl-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.sl-c{border:1px solid #dfe3ea;background:#f6f7fa;color:#8a93a6;border-radius:10px;padding:8px 0;font-size:.85rem}.sl-c.free{background:#e3f6ea;border-color:#8fd3a8;color:#17713a;font-weight:600}.sl-c.busy{background:#fdeaea;border-color:#e6aaaa;color:#a33;text-decoration:line-through}.sl-c:disabled{opacity:.45}
+.sl-leg{display:flex;gap:12px;font-size:.78rem;color:#6b7488;margin:2px 0 6px;flex-wrap:wrap}
 html.dlgopen,html.dlgopen body{overflow:hidden;overscroll-behavior:none}
 body.dlglock{position:fixed;left:0;right:0;width:100%}
 dialog{overflow-x:hidden;max-width:calc(100vw - 24px);touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -249,6 +254,7 @@ dialog::backdrop{touch-action:none}
     <button class="tb" id="b-login" type="button">Войти</button>
     <button class="tb pri" id="b-reg" type="button">Зарегистрироваться</button>
     <button class="tb" id="b-team" type="button" hidden>Команда</button>
+    <button class="tb" id="b-slots" type="button" hidden>Свободные часы</button>
     <button class="tb" id="b-dev" type="button" hidden>Развивай агента</button>
     <button class="menu" id="b-menu" type="button" aria-label="Меню" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </header>
@@ -296,6 +302,16 @@ dialog::backdrop{touch-action:none}
   </form>
   <h3>Уже в базе</h3>
   <div class="kbl" id="kb-list"></div>
+</div></dialog>
+<dialog id="m-slots"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 style="padding-right:36px">Свободные часы психолога</h2>
+  <p id="sl-hint">Загрузка…</p>
+  <div class="sl-leg"><span>🟩 свободно</span><span>🟥 занято</span><span>⬜ не принимает</span></div>
+  <div class="sl-nav"><button id="sl-prev" type="button" aria-label="Назад">‹</button><b id="sl-week"></b><button id="sl-next" type="button" aria-label="Вперёд">›</button></div>
+  <div id="sl-days"></div>
+  <p class="err" id="sl-err" hidden></p>
+  <button class="btn sec" data-close type="button">Закрыть</button>
 </div></dialog>
 <dialog id="m-dev"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
   <button class="x" data-close type="button" aria-label="Закрыть">×</button>
@@ -643,6 +659,7 @@ function render_top(){
   $('chip-ok').hidden = MODE !== 'user';
   $('b-menu').hidden = MODE !== 'user';
   $('b-team').hidden = !(MODE === 'user' && !isStaff());
+  $('b-slots').hidden = MODE !== 'user';
   $('b-dev').hidden = MODE !== 'user'; $('brk').hidden = MODE !== 'user'; $('brandname').hidden = MODE !== 'user';
   $('hint').hidden = MODE === 'user';
   if (MODE !== 'user' || isStaff()) $('alertbar').hidden = true;
@@ -984,6 +1001,60 @@ $('f-sup').addEventListener('submit', function(e){
     if (x.s === 200 && x.j && x.j.ok && x.j.reply) { SUP.push({ r:'a', t:String(x.j.reply) }); sup_render(); }
     else showErr('sup-err', (x.j && x.j.error) || (isStaff() ? 'Поддержка доступна владельцу кабинета' : 'Не получилось, попробуйте ещё раз'));
   }).catch(function(){ btn.disabled = false; btn.textContent = 'Отправить'; showErr('sup-err','Нет связи, попробуйте ещё раз'); });
+});
+
+/* Свободные часы психолога */
+var SL = { slots:{}, role:'owner', today:'', off:0 };
+var SL_H = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+var SL_MN = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'], SL_DN = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+function sl_post(a){ var b = isStaff() ? { sid: store('ew_sid')||'' } : { code: store('ew_cab')||'' }; for (var k in a) b[k] = a[k]; return post('/slots', b).then(function(x){ return x.j || {}; }); }
+function sl_iso(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function sl_start(){ var p = (SL.today || sl_iso(new Date())).split('-'); var d = new Date(+p[0], +p[1]-1, +p[2] + SL.off*7); return d; }
+function sl_load(){
+  sl_post({ action:'list' }).then(function(j){
+    if (!j.ok) { $('sl-hint').textContent = j.error || 'Не удалось загрузить'; return; }
+    SL.role = j.role; SL.today = j.today; SL.slots = {};
+    (j.slots || []).forEach(function(r){ SL.slots[r.d+' '+r.t] = r.s; });
+    sl_render();
+  }).catch(function(){ $('sl-hint').textContent = 'Нет связи, попробуйте ещё раз'; });
+}
+function sl_render(){
+  var owner = SL.role === 'owner', st = sl_start();
+  $('sl-hint').textContent = owner ? 'Нажимайте на часы: свободно → занято → не принимает. «Весь день» — сразу все часы.' : 'Зелёные часы свободны. Когда клиент записан, нажмите на час — он станет занятым.';
+  var end = new Date(st.getFullYear(), st.getMonth(), st.getDate()+6);
+  $('sl-week').textContent = st.getDate()+' '+SL_MN[st.getMonth()]+' — '+end.getDate()+' '+SL_MN[end.getMonth()];
+  $('sl-prev').disabled = SL.off <= 0;
+  var h = '';
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(st.getFullYear(), st.getMonth(), st.getDate()+i), iso = sl_iso(d), past = iso < SL.today;
+    h += '<div class="sl-day"><div class="sl-dh"><span>'+SL_DN[d.getDay()]+', '+d.getDate()+' '+SL_MN[d.getMonth()]+'</span>'+((owner && !past) ? '<button type="button" data-all="'+iso+'">Весь день</button>' : '')+'</div><div class="sl-g">';
+    SL_H.forEach(function(t){ var s = SL.slots[iso+' '+t] || ''; var dis = past || (!owner && !s); h += '<button type="button" class="sl-c '+s+'" data-d="'+iso+'" data-t="'+t+'"'+(dis ? ' disabled' : '')+'>'+t+'</button>'; });
+    h += '</div></div>';
+  }
+  $('sl-days').innerHTML = h;
+}
+function sl_set(d, times, status, back){
+  showErr('sl-err','');
+  times.forEach(function(t){ if (status === 'none') delete SL.slots[d+' '+t]; else SL.slots[d+' '+t] = status; });
+  sl_render();
+  sl_post({ action:'set', data:d, times:times, status:status }).then(function(j){ if (!j.ok) throw new Error(j.error || 'Не сохранилось'); })
+  .catch(function(e){ showErr('sl-err', (e && e.message) || 'Нет связи'); back(); sl_render(); });
+}
+$('b-slots').addEventListener('click', function(){ SL.off = 0; $('sl-hint').textContent = 'Загрузка…'; $('sl-days').innerHTML = ''; showErr('sl-err',''); open_dlg('m-slots'); sl_load(); });
+$('sl-prev').addEventListener('click', function(){ if (SL.off > 0) { SL.off--; sl_render(); } });
+$('sl-next').addEventListener('click', function(){ if (SL.off < 8) { SL.off++; sl_render(); } });
+$('sl-days').addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.all) {
+    var d = b.dataset.all, any = SL_H.some(function(t){ return SL.slots[d+' '+t]; }), prev = {};
+    SL_H.forEach(function(t){ prev[t] = SL.slots[d+' '+t]; });
+    sl_set(d, SL_H, any ? 'none' : 'free', function(){ SL_H.forEach(function(t){ if (prev[t]) SL.slots[d+' '+t] = prev[t]; else delete SL.slots[d+' '+t]; }); });
+    return;
+  }
+  if (!b.dataset.d) return;
+  var k = b.dataset.d+' '+b.dataset.t, cur = SL.slots[k] || '', next;
+  if (SL.role === 'owner') next = cur === '' ? 'free' : (cur === 'free' ? 'busy' : 'none'); else next = cur === 'free' ? 'busy' : 'free';
+  sl_set(b.dataset.d, [b.dataset.t], next, function(){ if (cur) SL.slots[k] = cur; else delete SL.slots[k]; });
 });
 var DEV = { q:'', skip:[], n:0 };
 function dev_busy(on){ $('dev-send').disabled = on; $('dev-skip').disabled = on; $('dev-a').disabled = on; }
