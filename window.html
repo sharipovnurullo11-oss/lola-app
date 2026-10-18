@@ -792,10 +792,10 @@ function mark_of(c){ // отметка для списка: кто ответи�
   var r = answeredBy(m)[last];
   return r === undefined ? '<em class="who wait">ждёт ответа</em>' : '<em class="who' + (r==='ai' ? ' ai' : '') + '">✓ ' + esc(whoName(r)) + '</em>';
 }
-var MEDIA_RE = /^\[(audio|image|video)\]\s+(https?:\/\/\S+)$/;
+var MEDIA_RE = /^\[(audio|image|video)\]\s+(https?:\/\/\S+)(?:\s+([\s\S]+))?$/;
 function prev_text(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return t; return m[1]==='audio' ? '🎤 Голосовое сообщение' : (m[1]==='image' ? '🖼 Фото' : '🎞 Видео'); }
 function media_html(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return ''; var u = esc(m[2]);
-  if (m[1]==='audio') return '<div class="vm"><button type="button" class="vplay" data-u="' + u + '">▶ Голосовое сообщение</button></div>';
+  if (m[1]==='audio') return '<div class="vm"><button type="button" class="vplay" data-u="' + u + '">▶ Голосовое сообщение</button>' + (m[3] ? '<div style="font-size:12px;opacity:.75;margin-top:4px;white-space:pre-wrap">' + esc(m[3]) + '</div>' : '') + '</div>';
   if (m[1]==='image') return '<a class="vm" href="' + u + '" target="_blank" rel="noopener"><img class="vimg" src="' + u + '" alt="Фото" loading="lazy"></a>';
   return '<video class="vm vvid" controls preload="none" src="' + u + '"></video>'; }
 function vplay(b){ var u = b.getAttribute('data-u'); b.disabled = true; b.textContent = 'Загрузка…';
