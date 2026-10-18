@@ -231,6 +231,7 @@ dialog{touch-action:pan-y}
 /* окна не двигаются при свайпе: страница под ними заморожена, внутри только вертикальная прокрутка */
 
 #b-kbq{display:none!important}
+.vplay{border:0;border-radius:18px;background:#2f6fed;color:#fff;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;min-height:36px}.vplay:disabled{opacity:.7}.vimg{max-width:240px;max-height:300px;border-radius:10px;display:block}.vvid{max-width:260px;border-radius:10px;display:block}.bub .vm{margin:2px 0}
 .cbtn.del{background:#d64545;border:0;cursor:pointer;width:36px;height:36px;flex:none;padding:0}
 .ar-it{border:1px solid #dde3ef;border-radius:10px;margin-bottom:8px;overflow:hidden}.ar-h{display:block;width:100%;text-align:left;background:#f6f8fc;border:0;padding:10px 12px;font:inherit;cursor:pointer}.ar-h small{display:block;color:#5a6580;margin-top:2px}.ar-b{padding:8px 10px;max-height:50vh;overflow:auto}.ar-m{margin:0 0 8px;padding:6px 9px;border-radius:9px;background:#eef1f7;font-size:14px;white-space:pre-wrap;word-break:break-word}.ar-m.out{background:#e3f0ff}.ar-m small{display:block;color:#5a6580;font-size:11px;margin-bottom:2px}
 .sl-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 10px}.sl-nav b{font-size:.95rem}.sl-nav button{border:1px solid var(--line,#d9dde6);background:#fff;border-radius:10px;padding:6px 12px;font-size:1rem}
@@ -767,7 +768,7 @@ function render_list(){
     if (showTabs && !!c.comment !== (TAB==='com')) return '';
     shown++;
     var ch = chan(c.kanal);
-    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</i></b><span>' + esc(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : '')) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
+    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</i></b><span>' + esc(prev_text(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : ''))) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
   }).join('');
   if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
   wire_fbar(box);
@@ -791,10 +792,23 @@ function mark_of(c){ // отметка для списка: кто ответи�
   var r = answeredBy(m)[last];
   return r === undefined ? '<em class="who wait">ждёт ответа</em>' : '<em class="who' + (r==='ai' ? ' ai' : '') + '">✓ ' + esc(whoName(r)) + '</em>';
 }
+var MEDIA_RE = /^\[(audio|image|video)\]\s+(https?:\/\/\S+)$/;
+function prev_text(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return t; return m[1]==='audio' ? '🎤 Голосовое сообщение' : (m[1]==='image' ? '🖼 Фото' : '🎞 Видео'); }
+function media_html(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return ''; var u = esc(m[2]);
+  if (m[1]==='audio') return '<div class="vm"><button type="button" class="vplay" data-u="' + u + '">▶ Голосовое сообщение</button></div>';
+  if (m[1]==='image') return '<a class="vm" href="' + u + '" target="_blank" rel="noopener"><img class="vimg" src="' + u + '" alt="Фото" loading="lazy"></a>';
+  return '<video class="vm vvid" controls preload="none" src="' + u + '"></video>'; }
+function vplay(b){ var u = b.getAttribute('data-u'); b.disabled = true; b.textContent = 'Загрузка…';
+  function mount(src){ var a = document.createElement('audio'); a.controls = true; a.autoplay = true; a.src = src; a.className = 'vm'; a.style.cssText = 'width:100%;max-width:260px;display:block'; b.parentNode.replaceChild(a, b); var p = a.play(); if (p && p.catch) p.catch(function(){}); }
+  if (u.indexOf('/webhook/voice?') >= 0) {
+    fetch(u).then(function(r){ return r.json(); }).then(function(j){ if (!j || !j.ok) throw new Error('x'); var bin = atob(j.b64), n = bin.length, arr = new Uint8Array(n); for (var i = 0; i < n; i++) arr[i] = bin.charCodeAt(i); mount(URL.createObjectURL(new Blob([arr], { type: j.mime || 'audio/mp4' }))); })
+      .catch(function(){ b.disabled = false; b.textContent = '⚠ Не удалось загрузить. Нажмите ещё раз'; });
+  } else mount(u);
+}
 function msgs_html(c){
   var m = c.messages||[], ans = answeredBy(m);
   return m.map(function(x,i){
-    var t = esc(MODE==='user' ? hm(x.v) : x.v), body = esc(x.t);
+    var t = esc(MODE==='user' ? hm(x.v) : x.v), body = esc(x.t); var mh = media_html(x.t); if (mh) body = mh;
     if (x.d === 'in') {
       var r = ans[i];
       var chk = r === undefined ? '<span class="chk wait">ждёт ответа</span>' : '<span class="chk' + (r==='ai' ? ' ai' : '') + '">✓ ответил: ' + esc(whoName(r)) + '</span>';
@@ -988,6 +1002,8 @@ function last_in(c){ var m = (c && c.messages) || []; for (var i = m.length - 1;
 $('m-kbbtn').addEventListener('click', function(){ $('m-menu').close(); open_kb(''); });
 (function(){ var lt = 0, lb = null;
   $('msgs').addEventListener('click', function(e){
+    var vb = e.target.closest && e.target.closest('.vplay'); if (vb) { e.stopPropagation(); vplay(vb); return; }
+    if (e.target.closest && e.target.closest('.vm')) return;
     if (MODE !== 'user' || !CUR) return;
     var b = e.target.closest && e.target.closest('.bub.in,.bub.out'); if (!b) { lb = null; return; }
     var now = Date.now();
