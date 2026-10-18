@@ -239,6 +239,8 @@ dialog{touch-action:pan-y}
 @media(max-width:480px){.top #b-team,.top #b-slots,.top #b-dev{flex:1 1 auto;padding:0 6px;font-size:12.5px;margin-left:0}.top #b-team~.menu{flex:0 0 36px;width:36px;padding:0}}
 @media(max-width:380px){.top{gap:6px}.top #b-team,.top #b-slots,.top #b-dev{padding:0 3px;font-size:12px}}
 .cbtn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)}.cbtn.wa{background:#25d366}.cbtn.tel{background:#2f6fed}.cbtn:active{transform:scale(.94)}
+#m-slots{margin-top:max(56px,calc(env(safe-area-inset-top,0px) + 40px));max-height:calc(100dvh - 72px)}#m-slots .dbody{max-height:calc(100dvh - 72px)!important;padding-top:26px}#m-slots .dbody>.x{top:0;margin-top:-6px}
+.sl-c.g{cursor:default}
 html.dlgopen,html.dlgopen body{overflow:hidden;overscroll-behavior:none}
 body.dlglock{position:fixed;left:0;right:0;width:100%}
 dialog{overflow-x:hidden;max-width:calc(100vw - 24px);touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -1011,7 +1013,7 @@ $('f-sup').addEventListener('submit', function(e){
 });
 
 /* Свободные часы психолога */
-var SL = { slots:{}, role:'owner', today:'', off:0 };
+var SL = { slots:{}, gl:{}, role:'owner', today:'', off:0 };
 var SL_H = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
 var SL_MN = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'], SL_DN = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
 function sl_post(a){ var b = isStaff() ? { sid: store('ew_sid')||'' } : { code: store('ew_cab')||'' }; for (var k in a) b[k] = a[k]; return post('/slots', b).then(function(x){ return x.j || {}; }); }
@@ -1020,14 +1022,14 @@ function sl_start(){ var p = (SL.today || sl_iso(new Date())).split('-'); var d 
 function sl_load(){
   sl_post({ action:'list' }).then(function(j){
     if (!j.ok) { $('sl-hint').textContent = j.error || 'Не удалось загрузить'; return; }
-    SL.role = j.role; SL.today = j.today; SL.slots = {};
-    (j.slots || []).forEach(function(r){ SL.slots[r.d+' '+r.t] = r.s; });
+    SL.role = j.role; SL.today = j.today; SL.slots = {}; SL.gl = {};
+    (j.slots || []).forEach(function(r){ SL.slots[r.d+' '+r.t] = r.s; if (r.g && r.s === 'busy') SL.gl[r.d+' '+r.t] = 1; });
     sl_render();
   }).catch(function(){ $('sl-hint').textContent = 'Нет связи, попробуйте ещё раз'; });
 }
 function sl_render(){
   var owner = SL.role === 'owner', st = sl_start();
-  $('sl-hint').textContent = owner ? 'Нажимайте на часы: свободно → занято → не принимает. «Весь день» — сразу все часы.' : 'Зелёные часы свободны. Когда клиент записан, нажмите на час — он станет занятым.';
+  $('sl-hint').textContent = owner ? 'Часы берутся из вашего Google Календаря: событие «Свободно» — зелёный час, любое другое событие — занято. Можно поправить и здесь нажатием.' : 'Зелёные часы свободны. Когда клиент записан, нажмите на час — он станет занятым.';
   var end = new Date(st.getFullYear(), st.getMonth(), st.getDate()+6);
   $('sl-week').textContent = st.getDate()+' '+SL_MN[st.getMonth()]+' — '+end.getDate()+' '+SL_MN[end.getMonth()];
   $('sl-prev').disabled = SL.off <= 0;
@@ -1035,7 +1037,7 @@ function sl_render(){
   for (var i = 0; i < 7; i++) {
     var d = new Date(st.getFullYear(), st.getMonth(), st.getDate()+i), iso = sl_iso(d), past = iso < SL.today;
     h += '<div class="sl-day"><div class="sl-dh"><span>'+SL_DN[d.getDay()]+', '+d.getDate()+' '+SL_MN[d.getMonth()]+'</span>'+((owner && !past) ? '<button type="button" data-all="'+iso+'">Весь день</button>' : '')+'</div><div class="sl-g">';
-    SL_H.forEach(function(t){ var s = SL.slots[iso+' '+t] || ''; var dis = past || (!owner && !s); h += '<button type="button" class="sl-c '+s+'" data-d="'+iso+'" data-t="'+t+'"'+(dis ? ' disabled' : '')+'>'+t+'</button>'; });
+    SL_H.forEach(function(t){ var s = SL.slots[iso+' '+t] || ''; var gl = SL.gl[iso+' '+t], dis = past || gl || (!owner && !s); h += '<button type="button" class="sl-c '+s+(gl ? ' g' : '')+'"'+(gl ? ' title="Занято в Google Календаре"' : '')+' data-d="'+iso+'" data-t="'+t+'"'+(dis ? ' disabled' : '')+'>'+t+'</button>'; });
     h += '</div></div>';
   }
   $('sl-days').innerHTML = h;
@@ -1053,9 +1055,9 @@ $('sl-next').addEventListener('click', function(){ if (SL.off < 8) { SL.off++; s
 $('sl-days').addEventListener('click', function(e){
   var b = e.target.closest('button'); if (!b || b.disabled) return;
   if (b.dataset.all) {
-    var d = b.dataset.all, any = SL_H.some(function(t){ return SL.slots[d+' '+t]; }), prev = {};
-    SL_H.forEach(function(t){ prev[t] = SL.slots[d+' '+t]; });
-    sl_set(d, SL_H, any ? 'none' : 'free', function(){ SL_H.forEach(function(t){ if (prev[t]) SL.slots[d+' '+t] = prev[t]; else delete SL.slots[d+' '+t]; }); });
+    var d = b.dataset.all, HH = SL_H.filter(function(t){ return !SL.gl[d+' '+t]; }), any = HH.some(function(t){ return SL.slots[d+' '+t]; }), prev = {};
+    HH.forEach(function(t){ prev[t] = SL.slots[d+' '+t]; });
+    sl_set(d, HH, any ? 'none' : 'free', function(){ HH.forEach(function(t){ if (prev[t]) SL.slots[d+' '+t] = prev[t]; else delete SL.slots[d+' '+t]; }); });
     return;
   }
   if (!b.dataset.d) return;
