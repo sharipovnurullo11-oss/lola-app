@@ -774,12 +774,13 @@ function render_list(){
     if (showTabs && !!c.comment !== (TAB==='com')) return '';
     shown++;
     var ch = chan(c.kanal);
-    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</i></b><span>' + esc(prev_text(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : ''))) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
+    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av" data-avk="' + avkey(c) + '">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</i></b><span>' + esc(prev_text(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : ''))) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
   }).join('');
   if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
   wire_fbar(box);
   box.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ TAB = b.getAttribute('data-tab'); render_list(); }); });
   box.querySelectorAll('.row').forEach(function(b){ b.addEventListener('click', function(){ open_chat(CHATS[+b.getAttribute('data-i')]); }); });
+  av_fill();
 }
 function wire_fbar(box){
   var a = box.querySelector('[data-fclr]'); if (a) a.addEventListener('click', function(){ CHF = null; render_list(); });
@@ -829,10 +830,36 @@ function msgs_html(c){
     return '<div class="bub out' + (ai ? ' ai' : '') + '" data-i="' + i + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + '</small></div>';
   }).join('');
 }
+/* Настоящие фото контактов (Instagram, WhatsApp, Telegram) */
+var AV = {}, AVREQ = {}, AVQ = [], AVRUN = 0;
+function avkey(c){ var d = String(c.id||'').replace(/\D/g,''); return (MODE==='user' && !c.comment && d.length>=5 && (c.kanal==='instagram'||c.kanal==='whatsapp'||c.kanal==='telegram')) ? (c.kanal+':'+d) : ''; }
+function av_apply(el, v){ if (v && el) { el.style.backgroundImage = 'url(' + v + ')'; el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; el.style.color = 'transparent'; } else if (el) { el.style.backgroundImage = ''; el.style.color = ''; } }
+function av_pump(){
+  while (AVRUN < 3 && AVQ.length) {
+    (function(k){
+      AVRUN++;
+      var p = k.split(':');
+      fetch(API + '/avatar?kanal=' + p[0] + '&id=' + p[1] + '&code=' + encodeURIComponent(store('ew_cab')||'')).then(function(r){ return r.json(); }).then(function(j){
+        if (j && j.ok && j.b64) { var m = /^image\//.test(j.mime||'') ? j.mime : 'image/jpeg'; AV[k] = 'data:' + m + ';base64,' + j.b64; try { localStorage.setItem('ew_av_' + k, AV[k]); } catch(e){} } else { AV[k] = 0; }
+      }).catch(function(){ delete AVREQ[k]; }).then(function(){ AVRUN--; av_fill(); av_pump(); });
+    })(AVQ.shift());
+  }
+}
+function av_fill(){
+  var els = document.querySelectorAll('[data-avk]');
+  for (var i = 0; i < els.length; i++) {
+    var k = els[i].getAttribute('data-avk'); if (!k) { av_apply(els[i], null); continue; }
+    if (AV[k] === undefined) { try { var s = localStorage.getItem('ew_av_' + k); if (s) AV[k] = s; } catch(e){} }
+    if (AV[k]) av_apply(els[i], AV[k]);
+    else { av_apply(els[i], null); if (AV[k] === undefined && !AVREQ[k]) { AVREQ[k] = 1; AVQ.push(k); } }
+  }
+  av_pump();
+}
 function open_chat(c, quiet){ mark_seen(c);
   CUR = c;
   var ch = chan(c.kanal);
   $('d-av').innerHTML = esc((c.imya||'?').charAt(0).toUpperCase());
+  $('d-av').setAttribute('data-avk', avkey(c)); av_fill();
   $('d-name').textContent = c.imya || 'Клиент';
   $('d-ch').innerHTML = ch && ch.svg ? ch.svg : esc(c.kanal||''); $('d-ch').title = ch ? ch.name : c.kanal;
   $('msgs').innerHTML = msgs_html(c);
