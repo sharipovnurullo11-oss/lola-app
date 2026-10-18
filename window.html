@@ -798,14 +798,14 @@ function media_html(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return '';
   if (m[1]==='audio') return '<div class="vm"><button type="button" class="vplay" data-u="' + u + '">▶ Голосовое сообщение</button>' + (m[3] ? '<div style="font-size:12px;opacity:.75;margin-top:4px;white-space:pre-wrap">' + esc(m[3]) + '</div>' : '') + '</div>';
   if (m[1]==='image') return '<a class="vm" href="' + u + '" target="_blank" rel="noopener"><img class="vimg" src="' + u + '" alt="Фото" loading="lazy"></a>';
   return '<video class="vm vvid" controls preload="none" src="' + u + '"></video>'; }
-var VAC = null, VSRC = null, VBTN = null, VBUSY = false;
+var VEL = null, VAC = null, VSRC = null, VBTN = null, VBUSY = false;
 function vstop(){ try { if (VSRC) { VSRC.onended = null; VSRC.stop(); } } catch(e){} VSRC = null; VBUSY = false; if (VBTN) { VBTN.textContent = '▶ Голосовое сообщение'; VBTN.disabled = false; } }
 function vplay(b){ var u = b.getAttribute('data-u');
   if (VBTN === b && VSRC) { vstop(); return; }
   vstop(); VBTN = b; b.disabled = true; b.textContent = 'Загрузка…';
   var AC = window.AudioContext || window.webkitAudioContext;
   function fail(){ VBTN = null; b.disabled = false; b.textContent = '⚠ Не удалось. Нажмите ещё раз'; }
-  function playBuf(buf){ if (!VAC) VAC = new AC(); VAC.resume(); VAC.decodeAudioData(buf, function(dec){ var src = VAC.createBufferSource(); src.buffer = dec; src.connect(VAC.destination); VSRC = src; VBUSY = true; b.disabled = false; b.textContent = '⏸ Остановить'; src.onended = function(){ if (VSRC === src) { VSRC = null; VBUSY = false; b.textContent = '▶ Ещё раз'; } }; src.start(0); }, function(){ fail(); }); }
+  function playBuf(buf){ if (!VAC) VAC = new AC(); VAC.resume(); VAC.decodeAudioData(buf, function(dec){ var src = VAC.createBufferSource(); src.buffer = dec; var el = VEL; if (!el) { el = VEL = new Audio(); el.setAttribute('playsinline', ''); } try { var ds = VAC.createMediaStreamDestination(); src.connect(ds); el.srcObject = ds.stream; el.volume = 1; var pp = el.play(); if (pp && pp.catch) pp.catch(function(){ try { src.disconnect(); src.connect(VAC.destination); } catch(e){} }); } catch(e) { src.connect(VAC.destination); } VSRC = src; VBUSY = true; b.disabled = false; b.textContent = '⏸ Остановить'; src.onended = function(){ if (VSRC === src) { VSRC = null; VBUSY = false; b.textContent = '▶ Ещё раз'; } }; src.start(0); }, function(){ fail(); }); }
   if (u.indexOf('/webhook/voice?') >= 0) {
     fetch(u).then(function(r){ return r.json(); }).then(function(j){ if (!j || !j.ok) throw new Error('x'); var bin = atob(j.b64), n = bin.length, arr = new Uint8Array(n); for (var i = 0; i < n; i++) arr[i] = bin.charCodeAt(i); playBuf(arr.buffer); }).catch(fail);
   } else fetch(u).then(function(r){ return r.arrayBuffer(); }).then(playBuf).catch(fail);
