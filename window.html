@@ -1884,6 +1884,51 @@ $('ar-list').addEventListener('click', function(e){
     });
   }
 
+  /* Экран руководителя: кто и на сколько выходил (в диалоге «Команда»). */
+  var STATE = { away: ['bad', 'Отошёл'], present: ['ok', 'На месте'], off: ['off', 'Камера выключена'], paused: ['off', 'Пауза'], problem: ['bad', 'Камера не работает'] };
+  function dur(sec) { sec = Math.round(sec || 0); if (sec < 60) return sec + ' с'; var m = Math.floor(sec / 60); return m < 60 ? m + ' мин' : Math.floor(m / 60) + ' ч ' + (m % 60) + ' мин'; }
+  function ownerBox() {
+    var dlg = document.getElementById('m-staff'), list = document.getElementById('s-list');
+    if (!dlg || !list) return null;
+    var b = document.getElementById('s-pres');
+    if (!b) { b = document.createElement('div'); b.id = 's-pres'; b.style.cssText = 'margin-top:14px'; list.parentNode.insertBefore(b, list.nextSibling); }
+    return b;
+  }
+  function renderOwner(r) {
+    var b = ownerBox(); if (!b) return;
+    if (!r || !r.ok || !r.staff) { b.innerHTML = ''; return; }
+    var rows = r.staff.map(function (s) {
+      var st = STATE[s.state] || STATE.off;
+      var cut = s.list.slice(-5).reverse().map(function (x) {
+        return '<li>' + hm(x.from) + '–' + (x.to ? hm(x.to) : '…') + ' · ' + dur(x.sec) + (x.cut ? ' (смена закрыта)' : '') + '</li>';
+      }).join('');
+      return '<div style="border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:10px;margin-bottom:8px">'
+        + '<b>' + esc(s.name || s.phone) + '</b> · <span>' + st[1] + '</span><br>'
+        + '<small>Выходов: ' + s.exits + ' · вне места: ' + dur(s.awaySec) + (s.longest ? ' · самый долгий: ' + dur(s.longest) : '') + (s.problems ? ' · сбоев камеры: ' + s.problems : '') + '</small>'
+        + (s.ongoing ? '<br><small>Сейчас отсутствует с ' + hm(s.ongoing.from) + ' (' + dur(s.ongoing.sec) + ')</small>' : '')
+        + (cut ? '<ul style="margin:6px 0 0;padding-left:18px"><small>' + cut + '</small></ul>' : '')
+        + '</div>';
+    }).join('');
+    b.innerHTML = '<h4 style="margin:0 0 8px">Присутствие у компьютера</h4>' + (rows || '<p><small>Данных пока нет</small></p>');
+  }
+  var ownerBusy = false;
+  function loadOwner() {
+    var dlg = document.getElementById('m-staff');
+    if (ownerBusy || !dlg || !dlg.open || document.hidden) return;
+    var code = ''; try { code = store('ew_cab') || ''; } catch (e) {}
+    if (!code) return;
+    ownerBusy = true;
+    post('/presence-report', { code: code, days: typeof SDAYS === 'number' ? SDAYS : 1 }).then(function (x) {
+      ownerBusy = false; renderOwner(x && x.j);
+    }, function () { ownerBusy = false; });
+  }
+  setInterval(loadOwner, 15000);
+  setTimeout(function () {
+    var d = document.getElementById('m-staff');
+    if (d && window.MutationObserver) new MutationObserver(function () { if (d.open) loadOwner(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+  }, 0);
+  root.EWPresenceOwner = { render: renderOwner, load: loadOwner };
+
   /* Не трогаем остальной код окна: сами следим, вошёл ли сотрудник. */
   setInterval(function () {
     var staff = false; try { staff = isStaff(); } catch (e) {}
