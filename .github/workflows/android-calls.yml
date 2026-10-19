@@ -24,3 +24,10 @@ jobs:
         with:
           name: yovari-calls-apk
           path: android-calls/app/build/outputs/apk/debug/app-debug.apk
+      - name: Публикация ссылки для скачивания
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android-calls/app/build/outputs/apk/debug/app-debug.apk yovari-zvonki.apk
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest yovari-zvonki.apk --target "$GITHUB_SHA" --title "Ёвари Звонки (сборка ${{ github.run_number }})" --notes "Скачать yovari-zvonki.apk и установить на телефон" --prerelease
