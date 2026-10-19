@@ -2091,12 +2091,12 @@ $('ar-list').addEventListener('click', function(e){
   }
   setInterval(function () {
     ensure();
-    var b = $s('b-shop'), has = false; try { has = !!(store('ew_cab') || store('ew_sid')); } catch (e) {}
+    var b = $s('b-shop'), has = false; try { has = !!(store('ew_cab') || store('ew_sid')) && store('ew_mod_shop') === '1'; } catch (e) {}
     if (b) b.hidden = !has;
     var d = $s('m-shop'); if (d && d.open && !document.hidden && !SEL) load();
   }, 15000);
   setTimeout(ensure, 0);
-  setTimeout(function () { var b = $s('b-shop'), has = false; try { has = !!(store('ew_cab') || store('ew_sid')); } catch (e) {} if (b) b.hidden = !has; }, 1500);
+  setTimeout(function () { var b = $s('b-shop'), has = false; try { has = !!(store('ew_cab') || store('ew_sid')) && store('ew_mod_shop') === '1'; } catch (e) {} if (b) b.hidden = !has; }, 1500);
   root.EWShop = { open: openShop };
 })(typeof window !== 'undefined' ? window : globalThis);
 

@@ -16,7 +16,7 @@ try:
     pg.route('**/webhook/**',h)
     pg.goto('http://localhost:8125/window.html');pg.wait_for_timeout(500)
     pg.evaluate("localStorage.setItem('ew_sid','sidtest123456')");pg.wait_for_timeout(300)
-    pg.wait_for_timeout(2500);pg.evaluate("localStorage.setItem('ew_cam_declined','1');document.querySelectorAll('dialog[open]').forEach(d=>d.close())");pg.evaluate("EWShop.open()");pg.wait_for_timeout(1200)
+    pg.wait_for_timeout(2500);pg.evaluate("localStorage.setItem('ew_cam_declined','1');localStorage.setItem('ew_mod_shop','1');document.querySelectorAll('dialog[open]').forEach(d=>d.close())");pg.evaluate("EWShop.open()");pg.wait_for_timeout(1200)
     print(pg.evaluate("document.getElementById('m-shop').innerText")[:300])
     pg.click('[data-pick="t1"]');pg.wait_for_timeout(200)
     pg.fill('#sh-q','2');pg.click('[data-do="sale"]');pg.wait_for_timeout(800)
