@@ -377,7 +377,7 @@ dialog::backdrop{touch-action:none}
     <button class="btn" id="l-btn" type="submit">Войти</button>
   </form>
   <p style="margin-top:2px"><button class="link" id="l-forgot" type="button" style="min-height:0" aria-expanded="false">Забыли код?</button></p>
-  <p id="l-forgot-t" hidden style="font-size:14px;color:var(--muted)"></p>
+  <div id="l-forgot-t" hidden style="font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:10px"><span id="l-forgot-m"></span><button class="btn" id="l-forgot-go" type="button">Прислать новый код в WhatsApp</button></div>
   <p>Нет доступа? <button class="link" id="to-reg" type="button" style="min-height:0">Зарегистрироваться</button></p>
 </div></dialog>
 
@@ -993,7 +993,18 @@ function enter_mode(){
 }
 function logout(quiet){ if (isStaff() && !quiet) { post('/staff', { action:'logout', sid: store('ew_sid') }).catch(function(){}); } store('ew_sid',null); store('ew_sname',null); ORDERED=[]; var ph = store('ew_login'); store('ew_cab',null); store('ew_paid',null); if (lstore('ew_remember')==='1' && ph) lstore('ew_phone',ph); else lstore('ew_phone',null); store('ew_login',null); INFO = {channels:{},bot:'',paidUntil:''}; enter_mode(); }
 
-$('l-forgot').addEventListener('click', function(){ var ft = $('l-forgot-t'), open = ft.hidden; ft.hidden = !open; ft.textContent = forgot_text(); this.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+$('l-forgot').addEventListener('click', function(){ var ft = $('l-forgot-t'), open = ft.hidden; ft.hidden = !open; ft.style.display = open ? 'flex' : 'none'; $('l-forgot-m').textContent = forgot_text(); this.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+$('l-forgot-go').addEventListener('click', function(){
+  showErr('l-err','');
+  var login = fullPhone('l-cc','l-phone');
+  if (!login) return showErr('l-err','Выберите страну и введите номер без кода страны.');
+  var btn = this; btn.disabled = true; btn.textContent = 'Отправляем…';
+  post('/forgot-code', { role: LROLE === 'staff' ? 'staff' : 'owner', phone: login }).then(function(x){
+    if (x.s === 200 && x.j && x.j.ok) { $('l-forgot-m').textContent = 'Если этот номер есть в системе, новый код отправлен в WhatsApp. Подождите минуту и введите его выше. Повторно можно запросить через 15 минут.'; }
+    else showErr('l-err','Не получилось отправить код. Попробуйте ещё раз.');
+  }).catch(function(){ showErr('l-err','Нет связи с сервером. Проверьте интернет.'); })
+  .then(function(){ btn.disabled = false; btn.textContent = 'Прислать новый код в WhatsApp'; });
+});
 document.querySelectorAll('.eye').forEach(function(b){
   b.addEventListener('click', function(){
     var inp = $(b.getAttribute('data-eye')), show = inp.type === 'password';
@@ -1016,8 +1027,8 @@ document.querySelectorAll('.dvb').forEach(function(b){b.addEventListener('click'
 $('b-reg').addEventListener('click', function(){ $('reg-form').hidden=false; $('reg-done').hidden=true; deliver='whatsapp'; document.querySelectorAll('.dvb').forEach(function(x){x.classList.remove('on');x.setAttribute('aria-checked','false');x.parentNode.classList.remove('on');x.parentNode.querySelector('.dvc').textContent='';}); showErr('r-err',''); open_dlg('m-reg'); });
 $('b-login').addEventListener('click', function(){ $('l-err').classList.remove('info'); if (PENDTIMER) { clearTimeout(PENDTIMER); PENDTIMER = null; } showErr('l-err',''); set_role(lstore('ew_role')==='staff' ? 'staff' : 'owner'); if (lstore('ew_remember')==='1' && lstore('ew_phone')) { setPhone('l-cc','l-phone', lstore('ew_phone')); $('l-remember').checked = true; } open_dlg('m-login'); });
 $('b-code').addEventListener('click', function(){ showErr('l-err',''); setPhone('l-cc','l-phone', lstore('ew_pending') || ''); open_dlg('m-login'); });
-function forgot_text(){ return LROLE==='staff' ? 'Код сотруднику выдаёт руководитель. Пусть он откроет «Команда», найдёт ваше имя и нажмёт «Новый код», затем передаст вам новый код.' : 'Код руководителя нельзя восстановить автоматически, это защита вашего кабинета. Напишите тому, кто подключал вам систему: он подтвердит, что это вы, и выдаст новый код.'; }
-function set_role(r){ LROLE = r; document.querySelectorAll('#l-role button').forEach(function(b){ var on = b.getAttribute('data-r')===r; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); $('l-pass').placeholder = r==='staff' ? 'Код от руководителя' : 'Код для входа'; $('to-reg').parentNode.hidden = r==='staff'; var ft = $('l-forgot-t'); if (ft && !ft.hidden) ft.textContent = forgot_text(); }
+function forgot_text(){ return 'Введите номер телефона выше. Мы пришлём новый код в WhatsApp на этот номер. Старый код перестанет работать.'; }
+function set_role(r){ LROLE = r; document.querySelectorAll('#l-role button').forEach(function(b){ var on = b.getAttribute('data-r')===r; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); $('l-pass').placeholder = r==='staff' ? 'Код от руководителя' : 'Код для входа'; $('to-reg').parentNode.hidden = r==='staff'; var ft = $('l-forgot-t'); if (ft && !ft.hidden) $('l-forgot-m').textContent = forgot_text(); }
 document.querySelectorAll('#l-role button').forEach(function(b){ b.addEventListener('click', function(){ set_role(b.getAttribute('data-r')); }); });
 $('to-reg').addEventListener('click', function(){ $('m-login').close(); $('b-reg').click(); });
 $('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
