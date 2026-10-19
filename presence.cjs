@@ -1,6 +1,6 @@
 /* Присутствие оператора за рабочим местом.
    Камера ноутбука определяет только одно: есть ли в кадре лицо. Видео не пишется,
-   не сохраняется и не уходит с устройства. На сервер уходят только события:
+   не сохраняется и не уходит с устройства. На сервер (вебхук /presence) уходят только события:
    «вышел» (лицо пропало на 30+ секунд), «вернулся» (с длительностью), «камера выключена»,
    «учёт приостановлен». Источник этого файла вшивается в window.html скриптом build-presence.js. */
 (function (root) {
@@ -54,6 +54,7 @@
       if (!a.length) { busy = false; return Promise.resolve(); }
       var ev = a[0];
       return Promise.resolve().then(function () { return send(ev); }).then(function (ok) {
+        if (ok === null) { busy = false; return; }   // сервер недоступен: событие остаётся, попытки не тратятся
         var b = load().filter(function (x) { return x.id !== ev.id; });
         if (ok) { save(b); return step(); }
         ev.tries = (ev.tries || 0) + 1;
@@ -92,9 +93,13 @@
     queue.flush();
   }
 
+  /* true — записано; false — сервер ответил отказом; null — сервер недоступен (повторим позже) */
   function sendEvent(ev) {
-    return post('/staff', { action: 'presence', sid: ev.sid, event: ev.type, at: ev.at, since: ev.since || null, seconds: ev.seconds || 0, reason: ev.reason || '', eid: ev.id })
-      .then(function (x) { return !!(x && x.j && x.j.ok); }, function () { return false; });
+    return post('/presence', { sid: ev.sid, event: ev.type, at: ev.at, since: ev.since || null, seconds: ev.seconds || 0, reason: ev.reason || '', eid: ev.id })
+      .then(function (x) {
+        if (!x || !x.j || typeof x.j.ok !== 'boolean' || x.s >= 500 || x.s === 404) return null;
+        return x.j.ok;
+      }, function () { return null; });
   }
 
   function showBadge(kind, text) {

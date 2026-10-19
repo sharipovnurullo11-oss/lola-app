@@ -35,4 +35,9 @@ const S = 1000;
   const q = createQueue(st, 'q', async () => true, 5); for (let i = 0; i < 9; i++) q.push({ id: 'e' + i }); assert.equal(q.size(), 5); ok('очередь не растёт сверх потолка'); }
 { const mem = {}; const st = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
   const q = createQueue(st, 'q', async () => false); q.push({ id: 'x' }); for (let i = 0; i < 25; i++) await q.flush(); assert.equal(q.size(), 0); ok('событие, которое сервер не принимает, не блокирует очередь вечно'); }
+
+/* 7. сервер недоступен (null): событие не теряется и попытки не тратятся */
+{ const mem = {}; const st = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
+  const q = createQueue(st, 'q', async () => null); q.push({ id: 'n1' }); for (let i = 0; i < 60; i++) await q.flush(); assert.equal(q.size(), 1);
+  let got = []; const q2 = createQueue(st, 'q', async (ev) => { got.push(ev.id); return true; }); await q2.flush(); assert.deepEqual(got, ['n1']); ok('нет связи: событие ждёт и уходит, когда связь вернулась'); }
 console.log('presence: всё прошло');
