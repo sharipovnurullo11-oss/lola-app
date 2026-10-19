@@ -1929,10 +1929,55 @@ $('ar-list').addEventListener('click', function(e){
   }, 0);
   root.EWPresenceOwner = { render: renderOwner, load: loadOwner };
 
+  /* Камера включается только в кабинетах, где её разрешили на сервере (таблица «Кабинет — функции»). */
+  var cfgAt = 0, cfgOn = false, cfgBusy = false;
+  function checkEnabled() {
+    if (Date.now() - cfgAt < 300000) return Promise.resolve(cfgOn);
+    if (cfgBusy) return Promise.resolve(false);
+    cfgBusy = true;
+    return post('/presence', { sid: store('ew_sid') || '', action: 'config' }).then(function (x) {
+      cfgBusy = false;
+      if (!x || !x.j || typeof x.j.ok !== 'boolean' || x.s >= 500) return false;
+      cfgOn = !!(x.j.ok && x.j.enabled); cfgAt = Date.now(); return cfgOn;
+    }, function () { cfgBusy = false; return false; });
+  }
+
+  /* Сигнал руководителю: оператор вышел из кадра или камера не работает. */
+  var alertBusy = false, baseTitle = null;
+  function alertBox() {
+    var a = document.getElementById('pres-alert');
+    if (!a) {
+      a = document.createElement('div'); a.id = 'pres-alert'; a.hidden = true; a.setAttribute('role', 'alert');
+      a.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:2147483000;background:#c0392b;color:#fff;padding:10px 14px;border-radius:12px;font:600 15px system-ui;box-shadow:0 6px 24px rgba(0,0,0,.35);cursor:pointer';
+      a.addEventListener('click', function () { var b = document.getElementById('b-team'); if (b) b.click(); });
+      document.body.appendChild(a);
+    }
+    return a;
+  }
+  function pollAlert() {
+    var code = '', sid = ''; try { code = store('ew_cab') || ''; sid = store('ew_sid') || ''; } catch (e) {}
+    if (!code || sid || alertBusy || document.hidden) return;
+    alertBusy = true;
+    post('/presence-report', { code: code, days: 1 }).then(function (x) {
+      alertBusy = false;
+      var r = x && x.j, a = alertBox();
+      var bad = (r && r.ok && r.staff || []).filter(function (s) { return s.state === 'away' || s.state === 'problem'; });
+      if (baseTitle === null) baseTitle = document.title;
+      if (!bad.length) { a.hidden = true; document.title = baseTitle; return; }
+      a.innerHTML = bad.slice(0, 3).map(function (s) {
+        var t = s.state === 'away' ? ('отсутствует ' + (s.ongoing ? dur(s.ongoing.sec) : '')) : 'камера не работает';
+        return esc(s.name || s.phone) + ': ' + t;
+      }).join('<br>');
+      a.hidden = false; document.title = '⚠ ' + baseTitle;
+    }, function () { alertBusy = false; });
+  }
+  setInterval(pollAlert, 30000);
+  setTimeout(pollAlert, 3000);
+
   /* Не трогаем остальной код окна: сами следим, вошёл ли сотрудник. */
   setInterval(function () {
     var staff = false; try { staff = isStaff(); } catch (e) {}
-    if (staff && !running && !starting && !lstore('ew_cam_declined')) start();
+    if (staff && !running && !starting && !lstore('ew_cam_declined')) checkEnabled().then(function (on) { if (on && !running && !starting) start(); });
     if (!staff && (running || starting)) stop('logout');
     if (queue && queue.size()) queue.flush();
   }, 2000);
