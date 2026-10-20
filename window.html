@@ -669,6 +669,9 @@ function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; }
 function post(path,body){ return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return 'только что'; if (h<1) return min+' мин назад'; if (days<1) return h+' ч'+(min%60 ? ' '+(min%60)+' мин' : '')+' назад'; return days+' д'+(h%24 ? ' '+(h%24)+' ч' : '')+' назад'; }
+function when_txt(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); var n=new Date(), s=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2); if (d.getFullYear()!==n.getFullYear()) s+='.'+d.getFullYear(); return s+' · '+ago_txt(v); }
+function list_when(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); var n=new Date(); if (d.toDateString()===n.toDateString()) return hm(v); var s=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2); if (d.getFullYear()!==n.getFullYear()) s+='.'+d.getFullYear(); return s+' '+hm(v); }
 
 var TAB = 'msg', MODE = 'guest', CHATS = DEMO, CUR = null, INFO = { channels:{}, bot:'', paidUntil:'' };
 
@@ -776,7 +779,7 @@ function render_list(){
     if (showTabs && !!c.comment !== (TAB==='com')) return '';
     shown++;
     var ch = chan(c.kanal);
-    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av" data-avk="' + avkey(c) + '">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? hm(c.time) : c.time) : '') + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</i></b><span>' + esc(prev_text(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : ''))) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
+    return '<button type="button" class="row' + (CUR && CUR.id===c.id && CUR.kanal===c.kanal ? ' sel' : '') + '" data-i="' + i + '"><span class="av" data-avk="' + avkey(c) + '">' + esc((c.imya||'?').charAt(0).toUpperCase()) + '<span class="b">' + (ch ? ch.svg : '') + '</span></span><span class="rt"><b>' + esc(c.imya||'Клиент') + '<i>' + esc(c.time ? (MODE==='user' ? list_when(c.time) : c.time) : '') + (MODE==='user' && unread_of(c) ? '<span class="rb">' + unread_of(c) + '</span>' : '') + '</i></b><span>' + esc(prev_text(c.last || (c.messages && c.messages.length ? c.messages[c.messages.length-1].t : ''))) + '</span>' + mark_of(c) + lola_badge(c) + '</span></button>';
   }).join('');
   if (showTabs && !shown) box.insertAdjacentHTML('beforeend', '<div class="empty">Здесь пока ничего нет.</div>');
   wire_fbar(box);
@@ -806,7 +809,7 @@ function prev_text(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return t; r
 function media_html(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return ''; var u = esc(m[2]);
   if (m[1]==='audio') return '<div class="vm"><button type="button" class="vplay" data-u="' + u + '">▶ Голосовое сообщение</button>' + (m[3] ? '<div style="font-size:12px;opacity:.75;margin-top:4px;white-space:pre-wrap">' + esc(m[3]) + '</div>' : '') + '</div>';
   if (m[1]==='image') return '<a class="vm" href="' + u + '" target="_blank" rel="noopener"><img class="vimg" src="' + u + '" alt="Фото" loading="lazy"></a>';
-  return '<video class="vm vvid" controls preload="none" src="' + u + '"></video>'; }
+  return '<video class="vm vvid" controls preload="metadata" src="' + u + '#t=0.1"></video>'; }
 var VEL = null, VAC = null, VSRC = null, VBTN = null, VBUSY = false;
 function vstop(){ try { if (VSRC) { VSRC.onended = null; VSRC.stop(); } } catch(e){} VSRC = null; VBUSY = false; if (VBTN) { VBTN.textContent = '▶ Голосовое сообщение'; VBTN.disabled = false; } }
 function vplay(b){ var u = b.getAttribute('data-u');
@@ -822,7 +825,7 @@ function vplay(b){ var u = b.getAttribute('data-u');
 function msgs_html(c){
   var m = c.messages||[], ans = answeredBy(m);
   return m.map(function(x,i){
-    var t = esc(MODE==='user' ? hm(x.v) : x.v), body = esc(x.t); var mh = media_html(x.t); if (mh) body = mh;
+    var t = esc(MODE==='user' ? when_txt(x.v) : x.v), body = esc(x.t); var mh = media_html(x.t); if (mh) body = mh;
     if (x.d === 'in') {
       var r = ans[i];
       var chk = r === undefined ? '<span class="chk wait">ждёт ответа</span>' : '<span class="chk' + (r==='ai' ? ' ai' : '') + '">✓ ответил: ' + esc(whoName(r)) + '</span>';
@@ -864,7 +867,7 @@ function open_chat(c, quiet){ mark_seen(c);
   $('d-av').setAttribute('data-avk', avkey(c)); av_fill();
   $('d-name').textContent = c.imya || 'Клиент';
   $('d-ch').innerHTML = ch && ch.svg ? ch.svg : esc(c.kanal||''); $('d-ch').title = ch ? ch.name : c.kanal;
-  $('msgs').innerHTML = msgs_html(c);
+  var _scm=$('msgs'), _sct=_scm.scrollTop, _sckeep=!!quiet && (_scm.scrollHeight-_scm.scrollTop-_scm.clientHeight>80); $('msgs').innerHTML = msgs_html(c);
   $('b-kbq').hidden = MODE !== 'user';
   var dg = String(c.id||'').replace(/\D/g,''), cl = $('d-call');
   var tgb = $('d-tg'); var tgIsUser = c.kanal === 'telegram' && /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(String(c.imya||'')); var tgOk = c.kanal === 'telegram' && (tgIsUser || dg.length >= 5);
@@ -880,7 +883,7 @@ function open_chat(c, quiet){ mark_seen(c);
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
   pz_show(c);
   $('work').classList.add('hasdlg'); if (!quiet) $('work').classList.add('open');
-  $('msgs').scrollTop = $('msgs').scrollHeight;
+  if (_sckeep) $('msgs').scrollTop = _sct; else $('msgs').scrollTop = $('msgs').scrollHeight;
   render_list();
 }
 
