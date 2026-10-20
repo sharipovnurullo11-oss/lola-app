@@ -884,7 +884,7 @@ function open_chat(c, quiet){ mark_seen(c);
   rn.textContent = c.comment ? 'Комментарий: отвечает Лола. Ответ из окна пока недоступен.' : 'Переписка Лолы: сейчас только просмотр. Ответы из окна подключим следующим шагом.';
   pz_show(c);
   $('work').classList.add('hasdlg'); if (!quiet) $('work').classList.add('open');
-  if (_sckeep) $('msgs').scrollTop = _sct; else $('msgs').scrollTop = $('msgs').scrollHeight;
+  if (_sckeep) $('msgs').scrollTop = _sct; else { $('msgs').scrollTop = $('msgs').scrollHeight; [].forEach.call($('msgs').querySelectorAll('img.vimg, video.vvid'), function (el) { var f = function () { $('msgs').scrollTop = $('msgs').scrollHeight; }; el.addEventListener('load', f, { once: true }); el.addEventListener('loadedmetadata', f, { once: true }); }); }
   render_list();
 }
 
@@ -960,6 +960,7 @@ function load_all(){
   }).catch(function(){});
   load_chats();
 }
+function tick_times(c){ if (MODE !== 'user') return; var m = c.messages || [], bs = $('msgs').querySelectorAll('.bub[data-i]'); for (var k = 0; k < bs.length; k++) { var x = m[+bs[k].getAttribute('data-i')], sm = bs[k].querySelector('small'); if (x && sm) sm.textContent = when_txt(x.v); } }
 function load_chats(){
   if (MODE !== 'user') return;
   var creq = isStaff() ? post('/staff', { action:'chats', sid: store('ew_sid') || '' }) : post('/cabinet-chats', { code: store('ew_cab') || '' });
@@ -969,7 +970,7 @@ function load_chats(){
     CHATS = (x.j && x.j.chats) || [];
     render_list();
     load_pauses();
-    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (VBUSY && sg(f) === sg(CUR)) CUR = f; else { vstop(); open_chat(f, true); } } else CUR = f; } }
+    if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (sg(f) === sg(CUR)) { CUR = f; try { tick_times(f); pz_show(f); } catch (e) {} } else { vstop(); open_chat(f, true); } } else CUR = f; } }
   }).catch(function(){});
 }
 
