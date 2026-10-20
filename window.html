@@ -345,23 +345,39 @@ dialog::backdrop{touch-action:none}
     <h2 style="margin-bottom:14px;padding-right:36px">Регистрация</h2>
     <form id="f-reg" novalidate style="display:flex;flex-direction:column;gap:14px">
       <div class="pay">
-        <span class="sum">Переведите на номер</span>
-        <div class="r"><b>+992 907 52 19 86</b><button class="sm" id="copy" type="button">Копировать</button></div>
-        <div class="banks" id="banks" aria-label="Куда можно перевести"></div>
-        <span class="sum">Сумма: <strong id="price-sum">350 сомони</strong></span>
-        <span class="sum" id="price-note" style="font-size:13px;opacity:.8">Скидка для новых подключений. Со следующего месяца — 500 сомони.</span>
+        <span class="sum"><strong>14 дней бесплатно.</strong> Платить сейчас не нужно.</span>
+        <span class="sum" style="font-size:13px;opacity:.8">После пробного периода — 500 сомони в месяц.</span>
       </div>
       <div class="f"><label for="r-phone">Ваш номер телефона</label><div class="ph"><select class="cc" id="r-cc" aria-label="Страна"></select><input class="in2" id="r-phone" type="tel" inputmode="numeric" placeholder="900 00 00 00"></div><p class="hint" style="margin:12px 0 0;font-size:14px;color:var(--muted)">Код для входа придёт вам в WhatsApp на этот номер.</p></div>
-      <div class="f"><label for="r-file">Чек (фото или скриншот)</label><input id="r-file" type="file" accept="image/*,application/pdf"></div>
       <p class="err" id="r-err" hidden></p>
-      <button class="btn" id="r-btn" type="submit">Отправить чек</button>
+      <button class="btn" id="r-btn" type="submit">Получить код</button>
     </form>
   </div>
   <div id="reg-done" hidden>
-    <h2 style="margin-bottom:14px;padding-right:36px">Чек отправлен</h2>
-    <div class="okb">Мы проверим перевод. Код для входа придёт в <span id="done-app">WhatsApp</span> на <b id="done-phone"></b>.</div>
+    <h2 style="margin-bottom:14px;padding-right:36px">Код отправлен</h2>
+    <div class="okb">Код для входа придёт в <span id="done-app">WhatsApp</span> на <b id="done-phone"></b>. Пробный период — 14 дней, платить сейчас не нужно.</div>
     <button class="btn" data-close type="button" style="margin-top:14px;width:100%">Понятно</button>
   </div>
+</div></dialog>
+
+<!-- Пробный период: напоминание и окончание -->
+<dialog id="m-trial"><div class="dbody" style="position:relative">
+  <button class="x" data-close type="button" aria-label="Закрыть">×</button>
+  <h2 id="trial-h" style="margin-bottom:14px;padding-right:36px">Пробный период</h2>
+  <div class="okb" id="trial-t"></div>
+  <button class="btn" data-close type="button" style="margin-top:14px;width:100%">Понятно</button>
+</div></dialog>
+<dialog id="m-exp"><div class="dbody" style="position:relative">
+  <h2 style="margin-bottom:14px">Пробный период закончился</h2>
+  <p>Ваши данные и настройки сохранены 7 дней. Чтобы продолжить работу, оплатите 500 сомони за месяц.</p>
+  <div class="pay">
+    <span class="sum">Переведите на номер</span>
+    <div class="r"><b>+992 907 52 19 86</b><button class="sm" id="copy" type="button">Копировать</button></div>
+    <div class="banks" id="banks" aria-label="Куда можно перевести"></div>
+    <span class="sum">Сумма: <strong id="price-sum">500 сомони</strong> в месяц</span>
+  </div>
+  <p class="hint" style="margin:12px 0 0;font-size:14px;color:var(--muted)">После перевода отправьте чек на этот же номер в WhatsApp, и доступ откроют.</p>
+  <button class="btn sec" id="exp-out" type="button" style="margin-top:14px;width:100%">Выйти</button>
 </div></dialog>
 
 <!-- Вход -->
@@ -673,7 +689,7 @@ function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.ma
 function when_txt(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); var n=new Date(), s=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2); if (d.getFullYear()!==n.getFullYear()) s+='.'+d.getFullYear(); return s+' · '+ago_txt(v); }
 function list_when(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); var n=new Date(); if (d.toDateString()===n.toDateString()) return hm(v); var s=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2); if (d.getFullYear()!==n.getFullYear()) s+='.'+d.getFullYear(); return s+' '+hm(v); }
 
-var TAB = 'msg', MODE = 'guest', CHATS = DEMO, CUR = null, INFO = { channels:{}, bot:'', paidUntil:'' };
+var TAB = 'msg', MODE = 'guest', CHATS = DEMO, CUR = null, INFO = { channels:{}, bot:'', paidUntil:'', tarif:'' };
 
 function isStaff(){ return !!store('ew_sid'); }
 function devId(){ var v = lstore('ew_did'); if (!v) { var a = new Uint8Array(12); try { crypto.getRandomValues(a); } catch(e) { for (var i=0;i<12;i++) a[i] = Math.floor(Math.random()*256); } v = Array.prototype.map.call(a, function(x){ return ('0'+x.toString(16)).slice(-2); }).join(''); lstore('ew_did', v); } return v; }
@@ -704,9 +720,10 @@ function render_top(){
   $('hint').hidden = MODE === 'user';
   if (MODE !== 'user' || isStaff()) $('alertbar').hidden = true;
   $('hint').textContent = MODE === 'pending'
-    ? 'Мы проверяем ваш чек. Когда придёт сообщение с кодом, нажмите «Ввести код».'
+    ? 'Код придёт в WhatsApp. Когда получите его, нажмите «Ввести код».'
     : 'Это пример окна: так выглядит работа внутри. Войдите или зарегистрируйтесь, чтобы подключить свои каналы.';
-  if (MODE === 'user') $('chip-ok').textContent = isStaff() ? 'Сотрудник: ' + (store('ew_sname')||'') : (INFO.paidUntil ? 'Оплачено до ' + INFO.paidUntil : 'Доступ открыт');
+  if (MODE === 'user') $('chip-ok').textContent = isStaff() ? 'Сотрудник: ' + (store('ew_sname')||'') : (trial_days() !== null ? trial_chip() : (INFO.paidUntil ? 'Оплачено до ' + INFO.paidUntil : 'Доступ открыт'));
+  if (MODE === 'user' && !isStaff()) trial_check();
   render_channels();
 }
 var CHF = null; /* фильтр списка: id канала или '*' (все непринятые) */
@@ -954,8 +971,8 @@ function load_all(){
   post('/cabinet', { code: code }).then(function(x){
     if (x.s === 401) { logout(); return; }
     var d = x.j || {};
-    INFO = { channels: d.channels || {}, bot: d.bot || '', paidUntil: d.paidUntil || '' };
-    store('ew_paid', INFO.paidUntil);
+    INFO = { channels: d.channels || {}, bot: d.bot || '', paidUntil: d.paidUntil || '', tarif: d.tarif || '' };
+    store('ew_paid', INFO.paidUntil); store('ew_tarif', INFO.tarif);
     render_top();
   }).catch(function(){});
   load_chats();
@@ -993,10 +1010,10 @@ function staff_login(login, pass, remember, done){
 function enter_mode(){
   MODE = mode(); CUR = null;
   $('work').classList.remove('open','hasdlg');
-  if (MODE === 'user') { CHATS = []; INFO.paidUntil = store('ew_paid') || ''; render_top(); render_list(); load_all(); if (!isStaff()) owner_seen(); }
+  if (MODE === 'user') { CHATS = []; INFO.paidUntil = store('ew_paid') || ''; INFO.tarif = store('ew_tarif') || ''; render_top(); render_list(); load_all(); if (!isStaff()) owner_seen(); }
   else { CHATS = DEMO; render_top(); render_list(); }
 }
-function logout(quiet){ if (isStaff() && !quiet) { post('/staff', { action:'logout', sid: store('ew_sid') }).catch(function(){}); } store('ew_sid',null); store('ew_sname',null); ORDERED=[]; var ph = store('ew_login'); store('ew_cab',null); store('ew_paid',null); if (lstore('ew_remember')==='1' && ph) lstore('ew_phone',ph); else lstore('ew_phone',null); store('ew_login',null); INFO = {channels:{},bot:'',paidUntil:''}; enter_mode(); }
+function logout(quiet){ if (isStaff() && !quiet) { post('/staff', { action:'logout', sid: store('ew_sid') }).catch(function(){}); } store('ew_sid',null); store('ew_sname',null); ORDERED=[]; var ph = store('ew_login'); store('ew_cab',null); store('ew_paid',null); store('ew_tarif',null); if (lstore('ew_remember')==='1' && ph) lstore('ew_phone',ph); else lstore('ew_phone',null); store('ew_login',null); INFO = {channels:{},bot:'',paidUntil:'',tarif:''}; enter_mode(); }
 
 $('l-forgot').addEventListener('click', function(){ var ft = $('l-forgot-t'), open = ft.hidden; ft.hidden = !open; ft.style.display = open ? 'flex' : 'none'; $('l-forgot-m').textContent = forgot_text(); this.setAttribute('aria-expanded', open ? 'true' : 'false'); });
 $('l-forgot-go').addEventListener('click', function(){
@@ -1039,10 +1056,32 @@ $('to-reg').addEventListener('click', function(){ $('m-login').close(); $('b-reg
 $('b-menu').addEventListener('click', function(){ var st = isStaff(); $('m-chcode').hidden = st; $('menu-paid').textContent = st ? 'Вы вошли как сотрудник: ' + (store('ew_sname')||'') + '. Время работы записывается.' : (INFO.paidUntil ? 'Доступ оплачен до ' + INFO.paidUntil + '.' : 'Доступ открыт.'); open_dlg('m-menu'); });
 $('m-logout').addEventListener('click', function(){ $('m-menu').close(); logout(); });
 $('m-chcode').addEventListener('click', function(){ $('m-menu').close(); showErr('k-err',''); $('f-code').reset(); open_dlg('m-code'); });
-/* Цена: 350 до конца октября 2026 (Душанбе), потом 500 */
-function price_now(){ return Date.now() < Date.UTC(2026,9,31,19,0,0) ? 350 : 500; }
-function price_show(){ var p = price_now(); var a=$('price-sum'), n=$('price-note'); if (a) a.textContent = p + ' сомони'; if (n) n.hidden = p !== 350; }
+/* Цена: 500 сомони в месяц. Пробный период: 14 дней с регистрации, дата окончания приходит с сервера (paidUntil, тариф trial) */
+function price_now(){ return 500; }
+function price_show(){ var a=$('price-sum'); if (a) a.textContent = price_now() + ' сомони'; }
 price_show();
+function dsh_today(){ return new Date(Date.now() + 5*3600000).toISOString().slice(0,10); }
+/* сколько календарных дней осталось до конца пробного периода (0 = сегодня последний день, меньше 0 = закончился); null, если это не пробный период */
+function trial_days(){
+  if (INFO.tarif !== 'trial' || !/^\d{4}-\d{2}-\d{2}$/.test(INFO.paidUntil || '')) return null;
+  return Math.round((Date.parse(INFO.paidUntil + 'T00:00:00Z') - Date.parse(dsh_today() + 'T00:00:00Z')) / 86400000);
+}
+function days_word(n){ var a = Math.abs(n) % 100, b = a % 10; if (a > 10 && a < 20) return 'дней'; if (b === 1) return 'день'; if (b >= 2 && b <= 4) return 'дня'; return 'дней'; }
+function trial_chip(){ var n = trial_days(); if (n < 0) return 'Пробный период закончился'; if (n === 0) return 'Пробный период: последний день'; return 'Пробный период: осталось ' + n + ' ' + days_word(n); }
+function trial_check(){
+  var n = trial_days(); if (n === null) return;
+  if (n < 0) { open_dlg('m-exp'); return; }
+  if (n <= 3) {
+    var key = dsh_today() + '|' + n;
+    if (lstore('ew_trial_seen') === key) return;
+    lstore('ew_trial_seen', key);
+    $('trial-h').textContent = n === 0 ? 'Сегодня последний день пробного периода' : 'Осталось ' + n + ' ' + days_word(n);
+    $('trial-t').textContent = (n === 0 ? 'После сегодняшнего дня доступ закроется. ' : 'Пробный период заканчивается ' + INFO.paidUntil + '. ') + 'Чтобы не потерять доступ, переведите 500 сомони на +992 907 52 19 86 и отправьте чек на этот номер в WhatsApp.';
+    open_dlg('m-trial');
+  }
+}
+$('m-exp').addEventListener('cancel', function(e){ e.preventDefault(); });
+$('exp-out').addEventListener('click', function(){ $('m-exp').close(); logout(); });
 /* База знаний и развитие агента */
 function kb_post(a){ var b = isStaff() ? { sid: store('ew_sid')||'' } : { code: store('ew_cab')||'' }; for (var k in a) b[k] = a[k]; return post('/kb', b).then(function(x){ return x.j || {}; }); }
 function kb_date(v){ var d = new Date(v); return isNaN(d) ? '' : ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+hm(v); }
@@ -1340,19 +1379,16 @@ $('copy').addEventListener('click', function(){
 
 $('f-reg').addEventListener('submit', function(ev){
   ev.preventDefault(); showErr('r-err','');
-  var ph = fullPhone('r-cc','r-phone'), file = $('r-file').files[0];
+  var ph = fullPhone('r-cc','r-phone');
   if (!ph) return showErr('r-err','Выберите страну и введите номер телефона без кода страны.');
-  if (!file) return showErr('r-err','Приложите фото или скриншот чека.');
-  if (file.size > 10*1024*1024) return showErr('r-err','Файл больше 10 МБ. Приложите скриншот поменьше.');
-  var fd = new FormData(); fd.append('phone','+'+ph); fd.append('platforms',deliver); fd.append('receipt',file,file.name);
   var btn=$('r-btn'); btn.disabled=true; btn.textContent='Отправляем…';
-  fetch(API+'/registration',{method:'POST',body:fd}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); })
+  post('/registration-trial', { phone:'+'+ph, platforms:'whatsapp', lang:'ru' })
   .then(function(x){
     if (x.s===200 && x.j && x.j.ok) { lstore('ew_pending',ph); $('done-phone').textContent=prettyPhone(ph); $('done-app').textContent='WhatsApp'; $('reg-form').hidden=true; $('reg-done').hidden=false; render_top(); }
     else if (x.s===409 && x.j && x.j.error==='exists') showErr('r-err','Этот номер уже зарегистрирован. Закройте окно, нажмите «Войти» и введите код.');
-    else showErr('r-err','Не удалось отправить чек. Проверьте номер и файл.');
+    else showErr('r-err','Не удалось зарегистрироваться. Проверьте номер и попробуйте ещё раз.');
   }).catch(function(){ showErr('r-err','Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'); })
-  .then(function(){ btn.disabled=false; btn.textContent='Отправить чек'; });
+  .then(function(){ btn.disabled=false; btn.textContent='Получить код'; });
 });
 
 $('f-login').addEventListener('submit', function(ev){
