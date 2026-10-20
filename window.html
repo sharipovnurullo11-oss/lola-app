@@ -806,7 +806,8 @@ function mark_of(c){ // отметка для списка: кто ответи�
 }
 var MEDIA_RE = /^\[(audio|image|video)\]\s+(https?:\/\/\S+)(?:\s+([\s\S]+))?$/;
 function prev_text(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return t; return m[1]==='audio' ? '🎤 Голосовое сообщение' : (m[1]==='image' ? '🖼 Фото' : '🎞 Видео'); }
-function media_html(t){ var m = MEDIA_RE.exec(String(t||'')); if (!m) return ''; var u = esc(m[2]);
+var REEL_RE = /^🎬 Reels(?: · ([^\n]*))?\n(https:\/\/(?:www\.)?instagram\.com\/\S+)\s*$/;
+function media_html(t){ var rm = REEL_RE.exec(String(t||'')); if (rm) { var ru = esc(rm[2].split('?')[0]); return '<div class="vm vreel" style="min-width:200px"><div style="font-weight:600">🎬 Reels</div>' + (rm[1] ? '<div style="font-size:13px;opacity:.85;margin:4px 0;white-space:pre-wrap">' + esc(rm[1]) + '</div>' : '') + '<a href="' + ru + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.08);font-size:13px;text-decoration:none;color:inherit">Открыть в Instagram ↗</a></div>'; } var m = MEDIA_RE.exec(String(t||'')); if (!m) return ''; var u = esc(m[2]);
   if (m[1]==='audio') return '<div class="vm"><button type="button" class="vplay" data-u="' + u + '">▶ Голосовое сообщение</button>' + (m[3] ? '<div style="font-size:12px;opacity:.75;margin-top:4px;white-space:pre-wrap">' + esc(m[3]) + '</div>' : '') + '</div>';
   if (m[1]==='image') return '<a class="vm" href="' + u + '" target="_blank" rel="noopener"><img class="vimg" src="' + u + '" alt="Фото" loading="lazy"></a>';
   return '<video class="vm vvid" controls preload="metadata" src="' + u + '#t=0.1"></video>'; }
