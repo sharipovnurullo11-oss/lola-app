@@ -1527,6 +1527,9 @@ setInterval(function(){ if ($('m-staff').open && !document.hidden && SDATA) rend
 
 /* живое обновление: каждые 6 секунд и сразу при возвращении в приложение (телефон усыпляет таймеры в фоне) */
 var LCLAST = 0;
+/* Закрыли вкладку или браузер — смена сотрудника закрывается сразу (сигнал pause). Не дошёл сигнал — смену закроет автозакрытие через 1 минуту без активности. */
+function staff_pause(){ try { if (MODE !== 'user' || !isStaff()) return; var sid = store('ew_sid') || ''; if (!sid) return; var data = new URLSearchParams({ action: 'pause', sid: sid }); if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/staff', data))) { fetch(API + '/staff', { method: 'POST', body: data, keepalive: true }); } } catch (e) {} }
+window.addEventListener('pagehide', staff_pause);
 function live_refresh(){ if (document.hidden || MODE !== 'user') return; var n = Date.now(); if (n - LCLAST < 2500) return; LCLAST = n; load_chats(); }
 setInterval(live_refresh, 6000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) live_refresh(); });
