@@ -10,7 +10,7 @@
     { id: 'seller', name: 'Продавец-ассистент', about: 'Отвечает клиентам в Instagram, WhatsApp, Telegram и Messenger', ready: true, ico: '💬' },
     { id: 'buh', name: 'Бухгалтер', about: 'Приход, расход и остатки товара. Показывает прибыль за месяц', ready: true, ico: '📒' },
     { id: 'smm', name: 'SMM-специалист', about: 'План недели, подписи к постам и разбор профиля по вашему Instagram', ready: true, ico: '📣' },
-    { id: 'target', name: 'Маркетолог-таргетолог', about: 'Куда вложить деньги в рекламу и какой оффер сделать', ready: false, ico: '🎯' },
+    { id: 'mkt', name: 'Маркетолог', about: 'Контент-план, где теряются клиенты, ваши цифры и тексты для возврата', ready: true, ico: '🎯' },
     { id: 'manager', name: 'Менеджер по клиентам', about: 'Напоминает о повторных покупках и возвращает пропавших клиентов', ready: false, ico: '🤝' },
     { id: 'lawyer', name: 'Юрист', about: 'Договоры, условия и ответы на юридические вопросы бизнеса', ready: false, ico: '⚖️' }
   ];
@@ -91,13 +91,14 @@
       d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
-      d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; });
+      d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; });
+d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'mk-in' && !/Mobi|Android|iPhone/i.test(navigator.userAgent)) { e.preventDefault(); mktClick('send'); } });
     }
     return true;
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else { S.view = id; render(); }
+    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
 
@@ -146,6 +147,7 @@
     var el = $s('sp-body'); if (!el) return;
     if (S.view === 'buh') return renderBuh(el);
     if (S.view === 'smm') return renderSmm(el);
+if (S.view === 'mkt') return renderMkt(el);
     if (S.view !== 'list') return renderSoon(el, S.view);
     el.innerHTML = '<h2 style="padding-right:36px">' + esc(TX('Специалисты')) + '</h2><p>' + esc(TX('Выберите специалиста. Каждый работает в своём окне.')) + '</p><div class="sp-list" style="display:grid;gap:10px">' +
       LIST.map(function (s) {
@@ -214,7 +216,72 @@
     if (a === 'plan' || a === 'caption' || a === 'profile') return runSmm(a);
   }
 
-  /* ---------- Бухгалтер ---------- */
+  /* ---------- Маркетолог ---------- */
+var MK = { st: null, busy: false, msgs: [], draft: '', err: '', copied: false };
+var MKT = {
+plan: ['📅', 'План на неделю', 'Составь контент-план на неделю'],
+funnel: ['🔻', 'Где теряются клиенты', 'Разбери мою воронку: где теряются люди и что исправить'],
+stats: ['📊', 'Мои цифры', 'Объясни мои цифры простыми словами'],
+winback: ['💌', 'Вернуть замолчавших', 'Напиши тексты, чтобы вернуть тех, кто замолчал'],
+offer: ['🏷️', 'Оффер и тексты услуг', 'Помоги с оффером, текстами услуг и ответами на «дорого» и «подумаю»'],
+report: ['📝', 'Отчёт за неделю', 'Сделай отчёт за неделю: что сработало, что нет и что делать дальше']
+};
+var MKCH = { instagram: 'Instagram', whatsapp: 'WhatsApp', telegram: 'Telegram', messenger: 'Messenger' };
+function mkKey() { return 'ew_mkt_' + hsh(code().code || ''); }
+function mkLoad() { try { var v = JSON.parse(lstore(mkKey()) || 'null'); if (Array.isArray(v)) return v.filter(function (m) { return m && (m.r === 'u' || m.r === 'a') && typeof m.t === 'string'; }).slice(-30); } catch (e) {} return []; }
+function mkSave() { try { lstore(mkKey(), JSON.stringify(MK.msgs.slice(-30))); } catch (e) {} }
+function openMkt() {
+S.view = 'mkt'; MK.st = null; MK.err = ''; MK.busy = false; MK.copied = false; MK.draft = ''; MK.msgs = mkLoad(); render();
+callTo('/marketolog', { action: 'status' }).then(function (r) {
+MK.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
+if (S.view === 'mkt') render();
+});
+}
+function bubble(m) {
+var u = m.r === 'u';
+return '<div style="white-space:pre-wrap;word-break:break-word;border-radius:14px;padding:10px 12px;max-width:92%;font-size:14px;line-height:1.45;justify-self:' + (u ? 'end;background:#fdebc8' : 'start;border:1px solid var(--line,#ddd)') + '">' + esc(m.t) + '</div>';
+}
+function renderMkt(el) {
+var h = backBtn() + '<h2 style="padding-right:36px">🎯 ' + esc(TX('Маркетолог')) + '</h2>';
+if (!MK.st) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+if (MK.st.error) { el.innerHTML = h + '<p class="err">' + esc(MK.st.error) + '</p><button class="btn" data-mkt="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
+var chs = (MK.st.channels || []).map(function (c) { return MKCH[c] || c; }), dis = MK.busy ? ' disabled' : '';
+h += '<p style="margin:4px 0">' + (chs.length ? '✅ ' + esc(TX('Считаю обращения по каналам')) + ': ' + esc(chs.join(', ')) : '⚠️ ' + esc(TX('Каналы не подключены. Подключите их в меню, тогда я смогу считать обращения.'))) + '</p>' +
+'<p style="margin:4px 0 10px"><small>' + esc(TX('Запросов сегодня осталось')) + ': <b>' + esc(MK.st.left) + '</b> ' + esc(TX('из')) + ' ' + esc(MK.st.limit || 20) + '</small></p>';
+h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' + Object.keys(MKT).map(function (k) {
+return '<button type="button" class="btn sec" data-mkt="task:' + k + '" style="height:auto;min-height:34px;padding:6px 10px;font-size:13px"' + dis + '>' + MKT[k][0] + ' ' + esc(TX(MKT[k][1])) + '</button>';
+}).join('') + '</div>';
+var list = MK.msgs.length ? MK.msgs : [{ r: 'a', t: TX('Здравствуйте! Я маркетолог. Могу составить план публикаций, показать, где теряются клиенты, объяснить ваши цифры, написать тексты для тех, кто замолчал, и подготовить оффер. Нажмите кнопку или напишите свой вопрос.') }];
+h += '<div id="mk-chat" style="display:grid;gap:8px;max-height:46dvh;overflow:auto;padding:4px 2px;margin-bottom:8px">' + list.map(bubble).join('') + (MK.busy ? '<div style="justify-self:start;opacity:.75">⏳ ' + esc(TX('Печатаю, это до минуты…')) + '</div>' : '') + '</div>';
+if (MK.err) h += '<p class="err">' + esc(MK.err) + '</p>';
+h += '<div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end"><textarea class="in2" id="mk-in" rows="2" maxlength="1500" placeholder="' + esc(TX('Напишите маркетологу…')) + '">' + esc(MK.draft) + '</textarea><button class="btn" data-mkt="send" type="button"' + dis + '>' + esc(TX('Отправить')) + '</button></div>';
+h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">' + (MK.msgs.length ? '<button class="btn sec" data-mkt="copy" type="button" style="height:32px;padding:0 10px;font-size:13px">' + esc(TX(MK.copied ? 'Скопировано ✓' : 'Скопировать последний ответ')) + '</button><button class="btn sec" data-mkt="clear" type="button" style="height:32px;padding:0 10px;font-size:13px">' + esc(TX('Очистить чат')) + '</button>' : '') + '</div>';
+h += '<p><small>' + esc(TX('Я ничего не публикую и никому не пишу сам. Переписок ваших клиентов я не вижу: только цифры.')) + '</small></p>';
+el.innerHTML = h;
+var c = $s('mk-chat'); if (c) c.scrollTop = c.scrollHeight;
+}
+function sendMkt(text, task) {
+text = String(text || '').trim();
+if (MK.busy) return;
+if (text.length < 2) { MK.err = TX('Напишите вопрос маркетологу'); return render(); }
+var hist = MK.msgs.slice(-8).map(function (m) { return { r: m.r, t: m.t }; });
+MK.msgs.push({ r: 'u', t: text }); MK.draft = ''; MK.busy = true; MK.err = ''; MK.copied = false; mkSave(); render();
+callTo('/marketolog', { action: 'chat', text: text, task: task || '', history: hist }).then(function (r) {
+MK.busy = false;
+if (r.ok) { MK.msgs.push({ r: 'a', t: r.text || '' }); if (MK.st && !MK.st.error) MK.st.left = r.left; mkSave(); }
+else MK.err = r.error || TX('Не получилось');
+if (S.view === 'mkt') render();
+});
+}
+function mktClick(a) {
+if (a === 'reload') return openMkt();
+if (a === 'send') { var f = $s('mk-in'); return sendMkt(f ? f.value : MK.draft, ''); }
+if (a.indexOf('task:') === 0) { var k = a.slice(5); if (MKT[k]) return sendMkt(MKT[k][2], k); return; }
+if (a === 'copy') { var t = ''; MK.msgs.forEach(function (m) { if (m.r === 'a') t = m.t; }); try { navigator.clipboard.writeText(t); MK.copied = true; render(); } catch (e) {} return; }
+if (a === 'clear') { MK.msgs = []; MK.copied = false; mkSave(); render(); return; }
+}
+
+/* ---------- Бухгалтер ---------- */
   /* Быстрое открытие: последние записи месяца хранятся в телефоне (ключ зависит от кабинета), свежие подтягиваются в фоне. */
   function hsh(x) { var h = 5381; x = String(x); for (var i = 0; i < x.length; i++) h = ((h << 5) + h + x.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
   function ckey(m) { return 'ew_buh_' + hsh(code().code || '') + '_' + m; }
@@ -409,6 +476,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
+if (b.dataset.mkt) return mktClick(b.dataset.mkt);
     var a = b.dataset.buh; if (!a) return;
     if (a === 'reload') { S.buh = readCache(S.month); load(); return render(); }
     if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = readCache(S.month); load(); return render(); }
