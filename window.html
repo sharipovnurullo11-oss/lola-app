@@ -2548,7 +2548,7 @@ $('ar-list').addEventListener('click', function(e){
     op.id = oid(); err('');
     call({ action: 'add', op: op }).then(function (r) {
       if (!r.ok) return err(r.error || TX('Не удалось записать'));
-      op.ts = Date.now(); S.buh.ops.push(op); if (monthOf(op.date) !== S.month) S.month = monthOf(op.date); render();
+      op.ts = Date.now(); if (monthOf(op.date) !== S.month) { S.month = monthOf(op.date); S.buh = null; render(); return load(); } S.buh.ops.push(op); render();
     });
   }
   function stock(name, delta) {
@@ -2563,7 +2563,7 @@ $('ar-list').addEventListener('click', function(e){
     if (b.dataset.sp) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     var a = b.dataset.buh; if (!a) return;
     if (a === 'reload') { S.buh = null; render(); return load(); }
-    if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); return render(); }
+    if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = null; render(); return load(); }
     if (a === 'text') { var p = parseText($s('bh-text').value); if (!p) return err(TX('Напишите так: расход 150 такси или приход 500 продажа')); p.date = today(); return addOp(p); }
     if (a === 'add') return addOp({ type: $s('bh-type').value === 'in' ? 'in' : 'out', amount: $s('bh-sum').value.trim().replace(',', '.'), note: $s('bh-note').value.trim(), date: $s('bh-date').value });
     if (a === 'del') { var id = b.dataset.id; return call({ action: 'del', id: id }).then(function (r) { if (!r.ok) return err(r.error || TX('Не удалось удалить')); S.buh.ops = S.buh.ops.filter(function (p) { return p.id !== id; }); render(); }); }
