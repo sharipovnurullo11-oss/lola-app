@@ -2416,7 +2416,7 @@ $('ar-list').addEventListener('click', function(e){
 <script>
 /*specialists:start*/
 // Раздел «Специалисты»: отдельный экран со списком специалистов (бухгалтер работает, остальные скоро).
-// Кнопка «Специалисты» — в меню кабинета, только у владельца (у сотрудников её нет).
+// Главный экран кабинета владельца — ряд специалистов (у сотрудников его нет). Продавец-ассистент открывает окно переписок.
 // Бухгалтер: приход, расход, остатки товара; данные хранит n8n по адресу /buhgalter (код кабинета, как у /kb).
 (function (root) {
   'use strict';
@@ -2469,16 +2469,54 @@ $('ar-list').addEventListener('click', function(e){
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
     }
-    if (!$s('m-specbtn')) {
-      var menu = document.querySelector('#m-menu .mi'), ref = $s('m-kbbtn');
-      if (!menu) return false;
-      var btn = document.createElement('button'); btn.className = 'btn sec'; btn.id = 'm-specbtn'; btn.type = 'button'; btn.textContent = TX('Специалисты');
-      if (ref && ref.parentNode === menu) menu.insertBefore(btn, ref.nextSibling); else menu.insertBefore(btn, menu.firstChild);
-      btn.addEventListener('click', function () { var m = $s('m-menu'); if (m && m.open) m.close(); openSpec(); });
-    }
     return true;
   }
-  function openSpec() { if (!owner()) return; S.view = 'list'; render(); open_dlg('m-spec'); }
+  function openOne(id) {
+    if (!owner()) return; ensure();
+    if (id === 'buh') openBuh(); else { S.view = id; render(); }
+    open_dlg('m-spec');
+  }
+
+  /* ---------- Главный экран: ряд специалистов ---------- */
+  var HOME = true, prevUser = false;
+  function injectHome() {
+    if ($s('sp-home')) return true;
+    var app = document.querySelector('.app'), ref = $s('chs'); if (!app || !ref) return false;
+    var st = document.createElement('style');
+    st.textContent = '.app.sp-on>.chs,.app.sp-on>.lbar,.app.sp-on>.work,.app.sp-on>.alertbar,.app.sp-on>.hint{display:none!important}' +
+      '#sp-home{padding:16px;overflow:auto;flex:1;min-height:0}#sp-home h2{margin:0 0 4px;font-size:20px}#sp-home p{margin:0 0 14px;opacity:.75}' +
+      '#sp-home .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}' +
+      '#sp-home .sp-tile{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:16px 10px;border:1px solid var(--line,#ddd);border-radius:16px;background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer}' +
+      '#sp-home .sp-tile.soon{opacity:.6}#sp-home .sp-tile .ic{font-size:36px;line-height:1}#sp-home .sp-tile b{font-size:15px}#sp-home .sp-tile small{opacity:.75;font-size:12px}' +
+      '#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
+    document.head.appendChild(st);
+    var home = document.createElement('section'); home.id = 'sp-home'; home.hidden = true; home.setAttribute('aria-label', TX('Специалисты'));
+    home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p><div class="sp-grid">' +
+      LIST.map(function (x) {
+        return '<button type="button" class="sp-tile' + (x.ready ? '' : ' soon') + '" data-home="' + x.id + '"><span class="ic" aria-hidden="true">' + x.ico + '</span><b>' + esc(TX(x.name)) + '</b><small>' + esc(TX(x.ready ? x.about : 'Скоро')) + '</small></button>';
+      }).join('') + '</div>';
+    app.insertBefore(home, ref);
+    var back = document.createElement('div'); back.id = 'sp-back'; back.hidden = true;
+    back.innerHTML = '<button type="button">← ' + esc(TX('Специалисты')) + '</button>';
+    app.insertBefore(back, ref);
+    home.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-home]'); if (!b) return;
+      if (b.dataset.home === 'seller') { HOME = false; return applyHome(); }
+      openOne(b.dataset.home);
+    });
+    back.addEventListener('click', function () { HOME = true; applyHome(); });
+    return true;
+  }
+  function applyHome() {
+    if (!injectHome()) return;
+    var user = false; try { user = mode() === 'user' && owner(); } catch (e) {}
+    if (!user) HOME = true;
+    prevUser = user;
+    var show = user && HOME;
+    var app = document.querySelector('.app'); if (app) app.classList.toggle('sp-on', show);
+    $s('sp-home').hidden = !show;
+    $s('sp-back').hidden = !(user && !HOME);
+  }
 
   function render() {
     var el = $s('sp-body'); if (!el) return;
@@ -2559,8 +2597,8 @@ $('ar-list').addEventListener('click', function(e){
   }
   function onClick(e) {
     var b = e.target.closest('button'); if (!b) return;
-    if (b.hasAttribute('data-sp-back')) { S.view = 'list'; return render(); }
-    if (b.dataset.sp) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
+    if (b.hasAttribute('data-sp-back')) { $s('m-spec').close(); return; }
+    if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     var a = b.dataset.buh; if (!a) return;
     if (a === 'reload') { S.buh = null; render(); return load(); }
     if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = null; render(); return load(); }
@@ -2572,7 +2610,13 @@ $('ar-list').addEventListener('click', function(e){
   }
 
   var tries = 0;
-  (function wait() { if (ensure()) { if (typeof document !== 'undefined') { var mb = $s('b-menu'); if (mb) mb.addEventListener('click', function () { var x = $s('m-specbtn'); if (x) x.hidden = !owner(); }); } return; } if (++tries < 50) setTimeout(wait, 200); })();
+  (function wait() {
+    if (ensure() && injectHome()) {
+      if (typeof render_top === 'function') { var o = render_top; render_top = function () { var r = o.apply(this, arguments); applyHome(); return r; }; }
+      applyHome(); return;
+    }
+    if (++tries < 50) setTimeout(wait, 200);
+  })();
   root.EWSpecialists = { parseText: parseText, money: money, cents: cents };
 })(typeof window !== 'undefined' ? window : globalThis);
 
