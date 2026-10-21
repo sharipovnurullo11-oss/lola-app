@@ -2594,12 +2594,19 @@ $('ar-list').addEventListener('click', function(e){
   }
 
   /* ---------- Бухгалтер ---------- */
-  function openBuh() { S.view = 'buh'; S.month = S.month || today().slice(0, 7); S.buh = null; render(); load(); }
+  /* Быстрое открытие: последние записи месяца хранятся в телефоне (ключ зависит от кабинета), свежие подтягиваются в фоне. */
+  function hsh(x) { var h = 5381; x = String(x); for (var i = 0; i < x.length; i++) h = ((h << 5) + h + x.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+  function ckey(m) { return 'ew_buh_' + hsh(code().code || '') + '_' + m; }
+  function readCache(m) { try { var v = JSON.parse(lstore(ckey(m)) || 'null'); if (v && Array.isArray(v.ops) && Array.isArray(v.stock)) return { ops: v.ops, stock: v.stock, cached: true }; } catch (e) {} return null; }
+  function writeCache() { try { if (S.buh && !S.buh.error) lstore(ckey(S.month), JSON.stringify({ ops: S.buh.ops, stock: S.buh.stock })); } catch (e) {} }
+  function openBuh() { S.view = 'buh'; S.month = S.month || today().slice(0, 7); S.buh = readCache(S.month); load(); render(); }
   function load() {
-    if (S.busy) return; S.busy = true;
+    var my = S.req = (S.req || 0) + 1; S.busy = true;
     call({ action: 'list', month: S.month }).then(function (r) {
+      if (my !== S.req) return;
       S.busy = false;
-      if (!r.ok) { S.buh = { error: r.error || TX('не удалось загрузить') }; } else { S.buh = { ops: r.ops || [], stock: r.stock || [] }; }
+      if (!r.ok) { if (S.buh && S.buh.cached) S.buh.offline = true; else S.buh = { error: r.error || TX('не удалось загрузить') }; }
+      else { S.buh = { ops: r.ops || [], stock: r.stock || [] }; writeCache(); }
       if (S.view === 'buh') render();
     });
   }
@@ -2611,6 +2618,8 @@ $('ar-list').addEventListener('click', function(e){
     var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухгалтер')) + '</h2>';
     if (!S.buh) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (S.buh.error) { el.innerHTML = h + '<p class="err">' + esc(S.buh.error) + '</p><button class="btn" data-buh="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
+    writeCache();
+    if (S.buh.offline) h += '<p><small>' + esc(TX('Нет связи: показаны сохранённые записи.')) + '</small></p>'; else if (S.busy && S.buh.cached) h += '<p><small>' + esc(TX('Обновляем…')) + '</small></p>';
     var t = sums(), ops = S.buh.ops.filter(function (p) { return monthOf(p.date) === S.month; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.ts < b.ts ? 1 : -1); });
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0"><button class="btn sec" data-buh="prev" type="button" aria-label="' + esc(TX('Прошлый месяц')) + '">‹</button><b>' + esc(monthName(S.month)) + '</b><button class="btn sec" data-buh="next" type="button" aria-label="' + esc(TX('Следующий месяц')) + '">›</button></div>';
     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-bottom:10px">' +
@@ -2643,7 +2652,7 @@ $('ar-list').addEventListener('click', function(e){
     op.id = oid(); err('');
     call({ action: 'add', op: op }).then(function (r) {
       if (!r.ok) return err(r.error || TX('Не удалось записать'));
-      op.ts = Date.now(); if (monthOf(op.date) !== S.month) { S.month = monthOf(op.date); S.buh = null; render(); return load(); } S.buh.ops.push(op); render();
+      op.ts = Date.now(); if (monthOf(op.date) !== S.month) { S.month = monthOf(op.date); S.buh = readCache(S.month); load(); return render(); } S.buh.ops.push(op); render();
     });
   }
   function stock(name, delta) {
@@ -2658,8 +2667,8 @@ $('ar-list').addEventListener('click', function(e){
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     if (b.dataset.smm) return smmClick(b.dataset.smm);
     var a = b.dataset.buh; if (!a) return;
-    if (a === 'reload') { S.buh = null; render(); return load(); }
-    if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = null; render(); return load(); }
+    if (a === 'reload') { S.buh = readCache(S.month); load(); return render(); }
+    if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = readCache(S.month); load(); return render(); }
     if (a === 'text') { var p = parseText($s('bh-text').value); if (!p) return err(TX('Напишите так: расход 150 такси или приход 500 продажа')); p.date = today(); return addOp(p); }
     if (a === 'add') return addOp({ type: $s('bh-type').value === 'in' ? 'in' : 'out', amount: $s('bh-sum').value.trim().replace(',', '.'), note: $s('bh-note').value.trim(), date: $s('bh-date').value });
     if (a === 'del') { var id = b.dataset.id; return call({ action: 'del', id: id }).then(function (r) { if (!r.ok) return err(r.error || TX('Не удалось удалить')); S.buh.ops = S.buh.ops.filter(function (p) { return p.id !== id; }); render(); }); }
