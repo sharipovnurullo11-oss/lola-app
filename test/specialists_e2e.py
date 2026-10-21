@@ -2,12 +2,14 @@
 import subprocess, time, json
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8126'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
-calls = []; ops = [{"id": "x1", "type": "in", "amount": "500", "note": "Продажа <b>x</b>", "date": time.strftime('%Y-%m-') + '01', "ts": 1}]; stock = [{"name": "Крем", "qty": 7}]
+SLOW = [0]; HELD = []; calls = []; ops = [{"id": "x1", "type": "in", "amount": "500", "note": "Продажа <b>x</b>", "date": time.strftime('%Y-%m-') + '01', "ts": 1}]; stock = [{"name": "Крем", "qty": 7}]
 def h(route):
     u = route.request.url
     if u.endswith('/buhgalter'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
-        if a == 'list': return route.fulfill(json={"ok": True, "ops": ops, "stock": stock})
+        if a == 'list':
+            if SLOW[0]: HELD.append(route); return
+            return route.fulfill(json={"ok": True, "ops": ops, "stock": stock})
         if a == 'add': ops.append(dict(b['op'], ts=2)); return route.fulfill(json={"ok": True})
         if a == 'del':
             ops[:] = [o for o in ops if o['id'] != b['id']]; return route.fulfill(json={"ok": True})
@@ -54,6 +56,14 @@ try:
         pg.click('[data-buh="del"][data-id]:last-of-type'); pg.wait_for_timeout(400)
         pg.click('[data-buh="st+"]'); pg.wait_for_timeout(400); check(any(c['action'] == 'stock' and c['delta'] == 1 for c in calls), 'остаток +1')
         pg.fill('#bh-gname', 'Духи'); pg.fill('#bh-gqty', '3'); pg.click('[data-buh="gadd"]'); pg.wait_for_timeout(400); check('Духи' in pg.inner_text('#sp-body'), 'новый товар')
+        # быстрое открытие бухгалтера: записи из телефона сразу, сервер отвечает медленно
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); SLOW[0] = 1.5
+        pg.click('[data-home="buh"]'); pg.wait_for_timeout(150)
+        t = pg.inner_text('#sp-body'); check('Духи' in t and 'Загрузка' not in t, 'бухгалтер открывается сразу из сохранённого')
+        check('Обновляем' in t, 'пока идёт обновление, написано «Обновляем…»')
+        SLOW[0] = 0
+        for r_ in HELD: r_.fulfill(json={"ok": True, "ops": ops, "stock": stock})
+        HELD.clear(); pg.wait_for_timeout(400); check('Обновляем' not in pg.inner_text('#sp-body'), 'после ответа сервера пометка исчезла')
         # SMM
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="smm"]'); pg.wait_for_timeout(500)
         t = pg.inner_text('#sp-body'); check('@nurullo_psiholog' in t and 'осталось' in t and '5' in t, 'SMM: статус Instagram и остаток запросов')
