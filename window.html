@@ -2246,6 +2246,7 @@ $('ar-list').addEventListener('click', function(e){
 (function (root) {
   if (String(root.location.hash || '') !== '#admin') return;
   var API = root.ADM_TEST_API || 'https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api';
+  var API_RENAME = API.replace(/admin-api$/, 'admin-rename');
   var TOKEN = '', STEP = 'login', STATE = { q: '', filter: 'all', page: 1 }, CUR = null, TIMER = null;
   try { TOKEN = root.sessionStorage.getItem('adm_t') || ''; } catch (e) {}
   var d = root.document;
@@ -2272,9 +2273,9 @@ $('ar-list').addEventListener('click', function(e){
   var box = d.createElement('div'); box.id = 'adm'; d.body.appendChild(box);
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function $(id) { return d.getElementById(id); }
-  function call(body) {
+  function call(body, url) {
     body.token = body.token || TOKEN;
-    return root.fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    return root.fetch(url || API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.text().then(function (t) { var j = {}; try { j = JSON.parse(t); } catch (e) {} return { s: r.status, j: j }; }); });
   }
   function save(t) { TOKEN = t || ''; try { if (t) root.sessionStorage.setItem('adm_t', t); else root.sessionStorage.removeItem('adm_t'); } catch (e) {} }
@@ -2334,7 +2335,7 @@ $('ar-list').addEventListener('click', function(e){
         '<div class="k" style="cursor:default"><small>Сводка обновлена</small><b style="font-size:15px">' + esc(ago(k.updated)) + ' назад</b></div>';
       Array.prototype.forEach.call($('a-kpi').querySelectorAll('[data-f]'), function (e) { e.onclick = function () { STATE.filter = e.getAttribute('data-f'); $('a-f').value = STATE.filter; STATE.page = 1; loadList(); }; });
       $('a-list').innerHTML = j.items.length ? j.items.map(function (r, i) {
-        return '<div class="row" data-i="' + i + '"><span><b>' + esc(r.imya || r.telefon || 'без имени') + '</b><br><small>' + esc(r.imya ? r.telefon : '') + ' ' + esc(r.tarif) + ' ' + esc(r.do) + '</small></span><span>' + dots(r) + '</span><span>' + r.m24 + '<br><small>↓' + r.in24 + ' ↑' + r.out24 + '</small></span><span>' + (r.noans ? '<b style="color:#d93a3a">' + r.noans + '</b>' : '0') + '</span><span class="hide">' + esc(ago(r.last)) + '</span><span class="h ' + esc(r.h) + '">' + esc(HN[r.h] || r.h) + '</span></div>';
+        return '<div class="row" data-i="' + i + '"><span><b>' + esc(r.imya || r.telefon || 'без имени') + '</b><br><small>' + esc(r.imya ? r.telefon : 'имя не указано') + ' ' + esc(r.tarif) + ' ' + esc(r.do) + '</small></span><span>' + dots(r) + '</span><span>' + r.m24 + '<br><small>↓' + r.in24 + ' ↑' + r.out24 + '</small></span><span>' + (r.noans ? '<b style="color:#d93a3a">' + r.noans + '</b>' : '0') + '</span><span class="hide">' + esc(ago(r.last)) + '</span><span class="h ' + esc(r.h) + '">' + esc(HN[r.h] || r.h) + '</span></div>';
       }).join('') : '<div class="note">Ничего не найдено.</div>';
       Array.prototype.forEach.call($('a-list').querySelectorAll('[data-i]'), function (e) { e.onclick = function () { openCab(j.items[+e.getAttribute('data-i')]); }; });
       $('a-pg').innerHTML = j.pages > 1 ? '<button id="a-p1"' + (j.page <= 1 ? ' disabled' : '') + '>←</button><span>' + j.page + ' / ' + j.pages + '</span><button id="a-p2"' + (j.page >= j.pages ? ' disabled' : '') + '>→</button>' : '';
@@ -2342,10 +2343,31 @@ $('ar-list').addEventListener('click', function(e){
     }).catch(function () { $('a-list').innerHTML = '<div class="err">Нет связи с сервером.</div>'; });
   }
 
+  function renameCab(r) {
+    var v = root.prompt('Имя клиента (как показывать рядом с номером):', r.imya || '');
+    if (v === null) return;
+    v = String(v).replace(/\s+/g, ' ').trim().slice(0, 80);
+    call({ action: 'x', token: TOKEN, kod: r.kod, imya: v }, API_RENAME).then(function (x) {
+      if (x.s === 401) { save(''); showLogin(ERR.auth); return; }
+      if (!x.j || !x.j.ok) { root.alert(errText(x)); return; }
+      r.imya = x.j.imya || '';
+      var t = $('a-title'); if (t) t.textContent = r.imya || r.telefon || 'Кабинет';
+    }).catch(function () { root.alert('Нет связи с сервером.'); });
+  }
   function openCab(r) {
     CUR = r; clearInterval(TIMER);
-    box.innerHTML = '<div class="bar"><button id="a-back2">← Все кабинеты</button><b>' + esc(r.imya || r.telefon || 'Кабинет') + '</b><button id="a-out">Выйти</button></div><div class="wrap"><div class="note">Режим просмотра: писать от имени клиента нельзя. Ваш заход записан в журнал.</div><div id="a-ch" style="margin-bottom:10px"></div><div class="split"><div class="cl" id="a-cl">Загрузка…</div><div class="msgs" id="a-ms"><small>Выберите переписку</small></div></div></div>';
-    $('a-back2').onclick = showList; $('a-out').onclick = logout;
+    var chs = [['wa', 'WhatsApp'], ['ig', 'Instagram'], ['tg', 'Telegram'], ['fb', 'Facebook']];
+    box.innerHTML = '<div class="bar"><button id="a-back2">← Все кабинеты</button><b id="a-title">' + esc(r.imya || r.telefon || 'Кабинет') + '</b><button id="a-ren">Имя</button><button id="a-out">Выйти</button></div>' +
+      '<div class="wrap"><div class="note">Режим просмотра: писать от имени клиента нельзя. Переписки скрыты, пока вы не нажмёте кнопку; каждое открытие пишется в журнал.</div>' +
+      '<div class="cl" style="padding:12px;margin-bottom:10px"><div><b>' + esc(r.imya || 'Имя не указано') + '</b> · ' + esc(r.telefon) + '</div>' +
+      '<small style="color:#5c6785">Тариф: ' + esc(r.tarif || '—') + (r.do ? ' · оплачено до ' + esc(r.do) : '') + ' · состояние: ' + esc(HN[r.h] || r.h) + '</small>' +
+      '<div style="margin-top:8px">' + chs.map(function (c) { return '<span style="margin-right:14px"><span class="dot' + (r[c[0]] === 'on' ? ' on' : '') + '"></span>' + c[1] + '</span>'; }).join('') + '</div>' +
+      '<small style="color:#5c6785;display:block;margin-top:6px">Сообщений за сутки: ' + r.m24 + ' (↓' + r.in24 + ' ↑' + r.out24 + '), без ответа: ' + r.noans + '</small></div>' +
+      '<div id="a-ch" style="margin-bottom:10px"><button id="a-show">Показать переписки</button></div><div class="split" id="a-sp" hidden><div class="cl" id="a-cl">Загрузка…</div><div class="msgs" id="a-ms"><small>Выберите переписку</small></div></div></div>';
+    $('a-back2').onclick = showList; $('a-out').onclick = logout; $('a-ren').onclick = function () { renameCab(r); };
+    $('a-show').onclick = function () { $('a-show').disabled = true; $('a-sp').hidden = false; loadChats(r); };
+  }
+  function loadChats(r) {
     call({ action: 'view', kod: r.kod }).then(function (x) {
       if (x.s === 401) { save(''); showLogin(ERR.auth); return; }
       if (!x.j || !x.j.ok) { $('a-cl').innerHTML = '<div class="err" style="padding:12px">' + esc(errText(x)) + '</div>'; return; }
