@@ -5,3 +5,6 @@
 2. Traefik на сервере: websecure + certresolver letsencrypt (уже вписано в compose).
 3. `docker compose up -d --build`; открыть https://app.nurullo-sharipov.tech
 Позже: argon2 вместо scrypt, лимит регистраций, оплата (этап 2).
+
+
+Выкладка: после слияния в main GitHub Actions собирает образ, а Watchtower на сервере сам обновляет приложение (настроено 22.10.2026).
