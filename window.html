@@ -718,8 +718,12 @@ document.getElementById('banks').innerHTML = BANKS.map(function(b){
 
 var $ = function(id){ return document.getElementById(id); };
 function lstore(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){} return null; }
+/* Режим админа «как клиент»: #as=<код кабинета>, только при открытой админ-сессии. Ничего не пишет в хранилище браузера. */
+var AS_KOD = '', AS_TMP = {};
+try { var AS_M = /^#as=([A-Za-z0-9_-]{20,80})$/.exec(location.hash || ''); if (AS_M && sessionStorage.getItem('adm_t')) AS_KOD = AS_M[1]; } catch (e) {}
 /* Сессия: если человек согласился «запомнить», хранится на устройстве, иначе только до закрытия вкладки. Сам код не хранится нигде. */
 function store(k,v){
+  if (AS_KOD) { if (v===undefined) return k==='ew_cab' ? AS_KOD : (k==='ew_sid' ? null : (AS_TMP[k]||null)); AS_TMP[k]=v; return null; }
   try{
     if(v===undefined) return sessionStorage.getItem(k) || localStorage.getItem(k);
     sessionStorage.removeItem(k); localStorage.removeItem(k);
@@ -759,7 +763,8 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; }
-function post(path,body){ return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram'];
+function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
 function when_txt(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); var n=new Date(), s=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2); if (d.getFullYear()!==n.getFullYear()) s+='.'+d.getFullYear(); return s+' · '+ago_txt(v); }
@@ -1808,6 +1813,24 @@ $('ar-list').addEventListener('click', function(e){
 });
 </script>
 <script>
+/*as-client:start*/
+(function () {
+  if (!AS_KOD) return;
+  var nm = ''; try { nm = sessionStorage.getItem('adm_as_name') || ''; } catch (e) {}
+  var b = document.createElement('div');
+  b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#14234d;color:#fff;font:14px/1.3 system-ui,sans-serif;padding:8px 12px;display:flex;gap:10px;align-items:center';
+  b.innerHTML = '<span style="flex:1">Админ: кабинет клиента' + (nm ? ' «' + String(nm).replace(/[<>&"]/g, '') + '»' : '') + '. Отправка сообщений выключена; подключение каналов работает.</span><button id="as-back" style="border:0;border-radius:8px;padding:7px 12px;background:#ff8a1f;color:#fff;font:inherit;cursor:pointer">← К списку</button>';
+  document.body.appendChild(b);
+  document.body.style.paddingBottom = '48px';
+  document.getElementById('as-back').onclick = function () { location.hash = '#admin'; location.reload(); };
+  var t = ''; try { t = sessionStorage.getItem('adm_t') || ''; } catch (e) {}
+  fetch('https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'view', token: t, kod: AS_KOD }) })
+    .then(function (r) { if (r.status === 401) { try { sessionStorage.removeItem('adm_t'); } catch (e) {} location.hash = '#admin'; location.reload(); } })
+    .catch(function () {});
+})();
+/*as-client:end*/
+</script>
+<script>
 /*presence:start*/
 /* Присутствие оператора за рабочим местом.
    Камера ноутбука определяет только одно: есть ли в кадре лицо. Видео не пишется,
@@ -2358,7 +2381,7 @@ $('ar-list').addEventListener('click', function(e){
   function openCab(r) {
     CUR = r; clearInterval(TIMER);
     var chs = [['wa', 'WhatsApp'], ['ig', 'Instagram'], ['tg', 'Telegram'], ['fb', 'Facebook']];
-    box.innerHTML = '<div class="bar"><button id="a-back2">← Все кабинеты</button><b id="a-title">' + esc(r.imya || r.telefon || 'Кабинет') + '</b><button id="a-ren">Имя</button><button id="a-out">Выйти</button></div>' +
+    box.innerHTML = '<div class="bar"><button id="a-back2">← Все кабинеты</button><b id="a-title">' + esc(r.imya || r.telefon || 'Кабинет') + '</b><button id="a-as" class="pri">Открыть как у клиента</button><button id="a-ren">Имя</button><button id="a-out">Выйти</button></div>' +
       '<div class="wrap"><div class="note">Режим просмотра: писать от имени клиента нельзя. Переписки скрыты, пока вы не нажмёте кнопку; каждое открытие пишется в журнал.</div>' +
       '<div class="cl" style="padding:12px;margin-bottom:10px"><div><b>' + esc(r.imya || 'Имя не указано') + '</b> · ' + esc(r.telefon) + '</div>' +
       '<small style="color:#5c6785">Тариф: ' + esc(r.tarif || '—') + (r.do ? ' · оплачено до ' + esc(r.do) : '') + ' · состояние: ' + esc(HN[r.h] || r.h) + '</small>' +
@@ -2366,6 +2389,7 @@ $('ar-list').addEventListener('click', function(e){
       '<small style="color:#5c6785;display:block;margin-top:6px">Сообщений за сутки: ' + r.m24 + ' (↓' + r.in24 + ' ↑' + r.out24 + '), без ответа: ' + r.noans + '</small></div>' +
       '<div id="a-ch" style="margin-bottom:10px"><button id="a-show">Показать переписки</button></div><div class="split" id="a-sp" hidden><div class="cl" id="a-cl">Загрузка…</div><div class="msgs" id="a-ms"><small>Выберите переписку</small></div></div></div>';
     $('a-back2').onclick = showList; $('a-out').onclick = logout; $('a-ren').onclick = function () { renameCab(r); };
+    $('a-as').onclick = function () { try { root.sessionStorage.setItem('adm_as_name', r.imya || r.telefon || ''); } catch (e) {} root.location.hash = '#as=' + r.kod; root.location.reload(); };
     $('a-show').onclick = function () { $('a-show').disabled = true; $('a-sp').hidden = false; loadChats(r); };
   }
   function loadChats(r) {
