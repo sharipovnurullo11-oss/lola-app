@@ -2241,5 +2241,130 @@ $('ar-list').addEventListener('click', function(e){
 /*shop:end*/
 </script>
 <script>i18n_init();</script>
+<script>
+/*admin:start*/
+(function (root) {
+  if (String(root.location.hash || '') !== '#admin') return;
+  var API = root.ADM_TEST_API || 'https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api';
+  var TOKEN = '', STEP = 'login', STATE = { q: '', filter: 'all', page: 1 }, CUR = null, TIMER = null;
+  try { TOKEN = root.sessionStorage.getItem('adm_t') || ''; } catch (e) {}
+  var d = root.document;
+  var css = '#adm{position:fixed;inset:0;z-index:99999;background:#f4f6fb;color:#1b2540;font:15px/1.4 system-ui,sans-serif;overflow:auto}' +
+    '#adm *{box-sizing:border-box}#adm .bar{display:flex;gap:10px;align-items:center;padding:12px 16px;background:#14234d;color:#fff;position:sticky;top:0;z-index:2}' +
+    '#adm .bar b{font-size:17px;flex:1}#adm button{font:inherit;border:0;border-radius:10px;padding:9px 14px;background:#e3e8f5;color:#14234d;cursor:pointer}' +
+    '#adm button.pri{background:#ff8a1f;color:#fff}#adm input,#adm select{font:inherit;padding:9px 12px;border:1px solid #c9d1e6;border-radius:10px;background:#fff;min-width:0}' +
+    '#adm .wrap{max-width:1100px;margin:0 auto;padding:14px 16px 40px}#adm .box{max-width:380px;margin:12vh auto;background:#fff;padding:22px;border-radius:16px;display:grid;gap:12px;box-shadow:0 4px 24px #0001}' +
+    '#adm .kpis{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}#adm .k{background:#fff;border-radius:12px;padding:8px 12px;min-width:92px;cursor:pointer;border:2px solid transparent}' +
+    '#adm .k.on{border-color:#14234d}#adm .k small{display:block;color:#5c6785;font-size:12px}#adm .k b{font-size:20px}' +
+    '#adm .tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}#adm .tools input{flex:1;min-width:160px}' +
+    '#adm .row{display:grid;grid-template-columns:minmax(120px,2fr) 110px 70px 70px 90px 90px;gap:8px;align-items:center;background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer}' +
+    '#adm .row.head{background:none;cursor:default;color:#5c6785;font-size:12px;padding:0 12px}#adm .row small{color:#5c6785}' +
+    '#adm .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#c4cadb;margin-right:5px}#adm .dot.on{background:#1fa463}' +
+    '#adm .h{padding:3px 9px;border-radius:99px;font-size:12px;text-align:center;color:#fff}#adm .h.ok{background:#1fa463}#adm .h.bad{background:#d93a3a}#adm .h.quiet{background:#d99a1c}#adm .h.off{background:#8b93a8}#adm .h.expired{background:#7a4bd1}' +
+    '#adm .err{color:#d93a3a;min-height:1.2em}#adm .note{background:#fff4e0;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#7a4a00}' +
+    '#adm .pager{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:12px}' +
+    '#adm .split{display:grid;grid-template-columns:300px 1fr;gap:12px}#adm .cl{background:#fff;border-radius:12px;max-height:70vh;overflow:auto}' +
+    '#adm .ci{padding:10px 12px;border-bottom:1px solid #eef1f8;cursor:pointer}#adm .ci.sel{background:#eaf0ff}#adm .ci small{display:block;color:#5c6785;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '#adm .msgs{background:#fff;border-radius:12px;padding:12px;max-height:70vh;overflow:auto;display:flex;flex-direction:column;gap:6px}' +
+    '#adm .b{max-width:78%;padding:8px 11px;border-radius:12px;background:#eef1f8;white-space:pre-wrap;word-break:break-word}#adm .b.out{align-self:flex-end;background:#dff3e6}#adm .b small{display:block;color:#5c6785;font-size:11px}' +
+    '@media(max-width:720px){#adm .row{grid-template-columns:1fr 90px}#adm .row .hide{display:none}#adm .row.head{display:none}#adm .split{grid-template-columns:1fr}}';
+  var st = d.createElement('style'); st.textContent = css; d.head.appendChild(st);
+  var box = d.createElement('div'); box.id = 'adm'; d.body.appendChild(box);
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function $(id) { return d.getElementById(id); }
+  function call(body) {
+    body.token = body.token || TOKEN;
+    return root.fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.text().then(function (t) { var j = {}; try { j = JSON.parse(t); } catch (e) {} return { s: r.status, j: j }; }); });
+  }
+  function save(t) { TOKEN = t || ''; try { if (t) root.sessionStorage.setItem('adm_t', t); else root.sessionStorage.removeItem('adm_t'); } catch (e) {} }
+  var ERR = { bad: 'Пароль или код неверные.', limit: 'Слишком много попыток. Подождите 15 минут.', short: 'Пароль слишком короткий: нужно минимум 10 символов.', empty: 'Введите пароль.', expired: 'Код устарел. Войдите заново.', auth: 'Сессия закончилась. Войдите заново.' };
+  function errText(x) { return ERR[x.j && x.j.error] || (x.s === 0 ? 'Нет связи с сервером.' : 'Ошибка ' + x.s + '. Попробуйте ещё раз.'); }
+
+  function showLogin(msg) {
+    clearInterval(TIMER); STEP = 'login';
+    box.innerHTML = '<div class="box"><b style="font-size:19px">Админ-кабинет</b><div id="a-note" class="note" hidden></div><input id="a-pass" type="password" placeholder="Пароль" autocomplete="current-password"><button class="pri" id="a-go">Получить код в WhatsApp</button><div class="err" id="a-err">' + esc(msg || '') + '</div></div>';
+    $('a-go').onclick = doLogin; $('a-pass').onkeydown = function (e) { if (e.key === 'Enter') doLogin(); };
+  }
+  function doLogin() {
+    var p = $('a-pass').value; $('a-err').textContent = ''; $('a-go').disabled = true;
+    call({ action: 'login', pass: p, token: 'x' }).then(function (x) {
+      $('a-go').disabled = false;
+      if (x.j && x.j.ok && x.j.step === 'code') showCode(x.j.token, x.j.setup);
+      else $('a-err').textContent = errText(x);
+    }).catch(function () { $('a-go').disabled = false; $('a-err').textContent = 'Нет связи с сервером.'; });
+  }
+  function showCode(tok, setup) {
+    STEP = 'code';
+    box.innerHTML = '<div class="box"><b style="font-size:19px">Код из WhatsApp</b>' + (setup ? '<div class="note">Первый вход: введённый пароль станет вашим админ-паролем.</div>' : '') + '<input id="a-code" inputmode="numeric" maxlength="6" placeholder="6 цифр" autocomplete="one-time-code"><button class="pri" id="a-ok">Войти</button><button id="a-back">Назад</button><div class="err" id="a-err"></div></div>';
+    $('a-ok').onclick = function () {
+      $('a-err').textContent = ''; $('a-ok').disabled = true;
+      call({ action: 'verify', token: tok, code: $('a-code').value }).then(function (x) {
+        $('a-ok').disabled = false;
+        if (x.j && x.j.ok && x.j.token) { save(x.j.token); showList(); } else $('a-err').textContent = errText(x);
+      }).catch(function () { $('a-ok').disabled = false; $('a-err').textContent = 'Нет связи с сервером.'; });
+    };
+    $('a-code').onkeydown = function (e) { if (e.key === 'Enter') $('a-ok').click(); };
+    $('a-back').onclick = function () { showLogin(); };
+  }
+  function logout() { call({ action: 'logout' }).then(function () {}, function () {}); save(''); showLogin(); }
+
+  function ago(v) { var t = Date.parse(v); if (!v || isNaN(t)) return '—'; var m = Math.floor((Date.now() - t) / 60000); if (m < 1) return 'сейчас'; if (m < 60) return m + ' мин'; var h = Math.floor(m / 60); if (h < 48) return h + ' ч'; return Math.floor(h / 24) + ' д'; }
+  var HN = { ok: 'работает', bad: 'без ответа', quiet: 'тишина', off: 'нет каналов', expired: 'срок вышел' };
+  function dots(r) { return ['wa', 'ig', 'tg', 'fb'].map(function (k) { return '<span class="dot' + (r[k] === 'on' ? ' on' : '') + '" title="' + k + '"></span>'; }).join(''); }
+
+  function showList() {
+    CUR = null;
+    box.innerHTML = '<div class="bar"><b>Админ: все кабинеты</b><button id="a-out">Выйти</button></div><div class="wrap"><div class="kpis" id="a-kpi"></div><div class="tools"><input id="a-q" placeholder="Поиск по имени или телефону"><select id="a-f"><option value="all">Все</option><option value="bad">Без ответа</option><option value="quiet">Тишина за сутки</option><option value="off">Нет каналов</option><option value="expired">Срок вышел</option><option value="ok">Работают</option><option value="wa_off">Без WhatsApp</option><option value="ig_off">Без Instagram</option></select><button id="a-r">Обновить</button></div><div class="row head"><span>Клиент</span><span>Каналы WA IG TG FB</span><span>За сутки</span><span>Без ответа</span><span class="hide">Последнее</span><span>Состояние</span></div><div id="a-list"></div><div class="pager" id="a-pg"></div></div>';
+    $('a-out').onclick = logout; $('a-r').onclick = loadList;
+    $('a-q').value = STATE.q; $('a-f').value = STATE.filter;
+    var qt; $('a-q').oninput = function () { clearTimeout(qt); qt = setTimeout(function () { STATE.q = $('a-q').value; STATE.page = 1; loadList(); }, 350); };
+    $('a-f').onchange = function () { STATE.filter = $('a-f').value; STATE.page = 1; loadList(); };
+    loadList(); clearInterval(TIMER); TIMER = setInterval(function () { if (!CUR && !d.hidden) loadList(); }, 60000);
+  }
+  function loadList() {
+    call({ action: 'list', q: STATE.q, filter: STATE.filter, page: STATE.page }).then(function (x) {
+      if (x.s === 401) { save(''); showLogin(ERR.auth); return; }
+      if (!x.j || !x.j.ok) { $('a-list').innerHTML = '<div class="err">' + esc(errText(x)) + '</div>'; return; }
+      var j = x.j, k = j.kpi;
+      var kp = [['all', 'Всего', k.total], ['ok', 'Работают', k.ok], ['bad', 'Без ответа', k.bad], ['quiet', 'Тишина', k.quiet], ['off', 'Нет каналов', k.off], ['expired', 'Срок вышел', k.expired]];
+      $('a-kpi').innerHTML = kp.map(function (a) { return '<div class="k' + (STATE.filter === a[0] ? ' on' : '') + '" data-f="' + a[0] + '"><small>' + a[1] + '</small><b>' + a[2] + '</b></div>'; }).join('') +
+        '<div class="k" style="cursor:default"><small>Подключено</small><b style="font-size:15px">WA ' + k.wa + ' · IG ' + k.ig + ' · TG ' + k.tg + ' · FB ' + k.fb + '</b></div>' +
+        '<div class="k" style="cursor:default"><small>Сообщений за сутки</small><b>' + k.msg24 + '</b></div>' +
+        '<div class="k" style="cursor:default"><small>Сводка обновлена</small><b style="font-size:15px">' + esc(ago(k.updated)) + ' назад</b></div>';
+      Array.prototype.forEach.call($('a-kpi').querySelectorAll('[data-f]'), function (e) { e.onclick = function () { STATE.filter = e.getAttribute('data-f'); $('a-f').value = STATE.filter; STATE.page = 1; loadList(); }; });
+      $('a-list').innerHTML = j.items.length ? j.items.map(function (r, i) {
+        return '<div class="row" data-i="' + i + '"><span><b>' + esc(r.imya || r.telefon || 'без имени') + '</b><br><small>' + esc(r.imya ? r.telefon : '') + ' ' + esc(r.tarif) + ' ' + esc(r.do) + '</small></span><span>' + dots(r) + '</span><span>' + r.m24 + '<br><small>↓' + r.in24 + ' ↑' + r.out24 + '</small></span><span>' + (r.noans ? '<b style="color:#d93a3a">' + r.noans + '</b>' : '0') + '</span><span class="hide">' + esc(ago(r.last)) + '</span><span class="h ' + esc(r.h) + '">' + esc(HN[r.h] || r.h) + '</span></div>';
+      }).join('') : '<div class="note">Ничего не найдено.</div>';
+      Array.prototype.forEach.call($('a-list').querySelectorAll('[data-i]'), function (e) { e.onclick = function () { openCab(j.items[+e.getAttribute('data-i')]); }; });
+      $('a-pg').innerHTML = j.pages > 1 ? '<button id="a-p1"' + (j.page <= 1 ? ' disabled' : '') + '>←</button><span>' + j.page + ' / ' + j.pages + '</span><button id="a-p2"' + (j.page >= j.pages ? ' disabled' : '') + '>→</button>' : '';
+      if ($('a-p1')) { $('a-p1').onclick = function () { STATE.page = j.page - 1; loadList(); }; $('a-p2').onclick = function () { STATE.page = j.page + 1; loadList(); }; }
+    }).catch(function () { $('a-list').innerHTML = '<div class="err">Нет связи с сервером.</div>'; });
+  }
+
+  function openCab(r) {
+    CUR = r; clearInterval(TIMER);
+    box.innerHTML = '<div class="bar"><button id="a-back2">← Все кабинеты</button><b>' + esc(r.imya || r.telefon || 'Кабинет') + '</b><button id="a-out">Выйти</button></div><div class="wrap"><div class="note">Режим просмотра: писать от имени клиента нельзя. Ваш заход записан в журнал.</div><div id="a-ch" style="margin-bottom:10px"></div><div class="split"><div class="cl" id="a-cl">Загрузка…</div><div class="msgs" id="a-ms"><small>Выберите переписку</small></div></div></div>';
+    $('a-back2').onclick = showList; $('a-out').onclick = logout;
+    call({ action: 'view', kod: r.kod }).then(function (x) {
+      if (x.s === 401) { save(''); showLogin(ERR.auth); return; }
+      if (!x.j || !x.j.ok) { $('a-cl').innerHTML = '<div class="err" style="padding:12px">' + esc(errText(x)) + '</div>'; return; }
+      var names = { whatsapp: 'WhatsApp', instagram: 'Instagram', telegram: 'Telegram', messenger: 'Messenger', facebook: 'Facebook' };
+      $('a-ch').innerHTML = Object.keys(names).map(function (k) { var c = x.j.channels[k]; return '<span style="margin-right:14px"><span class="dot' + (c && c.status === 'on' ? ' on' : '') + '"></span>' + names[k] + (c && c.bot ? ' (' + esc(c.bot) + ')' : '') + '</span>'; }).join('') + '<small> · сообщений всего: ' + x.j.total + '</small>';
+      var chats = x.j.chats;
+      $('a-cl').innerHTML = chats.length ? chats.map(function (c, i) { return '<div class="ci" data-c="' + i + '"><b>' + esc(c.imya || c.id) + '</b> <small style="display:inline">' + esc(names[c.kanal] || c.kanal) + ' · ' + esc(ago(c.time)) + '</small><small>' + esc(c.last) + '</small></div>'; }).join('') : '<div style="padding:12px">Переписок нет.</div>';
+      Array.prototype.forEach.call($('a-cl').querySelectorAll('[data-c]'), function (e) { e.onclick = function () {
+        Array.prototype.forEach.call($('a-cl').querySelectorAll('.ci'), function (z) { z.classList.remove('sel'); }); e.classList.add('sel');
+        var c = chats[+e.getAttribute('data-c')];
+        $('a-ms').innerHTML = c.messages.map(function (m) { return '<div class="b ' + (m.d === 'out' ? 'out' : 'in') + '">' + esc(m.t) + '<small>' + (m.d === 'out' ? esc(m.a || 'ответ') : 'клиент') + ' · ' + esc(String(m.v).slice(5, 16).replace('T', ' ')) + '</small></div>'; }).join('');
+        $('a-ms').scrollTop = $('a-ms').scrollHeight;
+      }; });
+    }).catch(function () { $('a-cl').innerHTML = '<div class="err" style="padding:12px">Нет связи с сервером.</div>'; });
+  }
+
+  if (TOKEN) showList(); else showLogin();
+})(typeof window !== 'undefined' ? window : globalThis);
+/*admin:end*/
+</script>
 </body>
 </html>
