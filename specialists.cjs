@@ -44,6 +44,44 @@
     return { type: type, amount: m[2].replace(',', '.'), note: m[3].trim().slice(0, 120) };
   }
 
+  // Голос: «потратил сто пятьдесят на такси», «пришло 500 за консультацию»
+  var NW = { 'ноль': 0, 'один': 1, 'одна': 1, 'два': 2, 'две': 2, 'три': 3, 'четыре': 4, 'пять': 5, 'шесть': 6, 'семь': 7, 'восемь': 8, 'девять': 9, 'десять': 10, 'одиннадцать': 11, 'двенадцать': 12, 'тринадцать': 13, 'четырнадцать': 14, 'пятнадцать': 15, 'шестнадцать': 16, 'семнадцать': 17, 'восемнадцать': 18, 'девятнадцать': 19, 'двадцать': 20, 'тридцать': 30, 'сорок': 40, 'пятьдесят': 50, 'шестьдесят': 60, 'семьдесят': 70, 'восемьдесят': 80, 'девяносто': 90, 'сто': 100, 'двести': 200, 'триста': 300, 'четыреста': 400, 'пятьсот': 500, 'шестьсот': 600, 'семьсот': 700, 'восемьсот': 800, 'девятьсот': 900 };
+  function parseVoice(s) {
+    var t = String(s || '').toLowerCase().replace(/[.,!?]+$/g, '').replace(/(\d)\s+(\d{3})(?!\d)/g, '$1$2'), w = t.split(/\s+/).filter(Boolean);
+    var type = /(пришл|получил|получила|заработал|заработала|продал|продала|приход|доход|выручк|оплатил клиент)/.test(t) ? 'in' : 'out';
+    var amount = null, used = {}, i, cur = 0, total = 0, started = false, last = -1;
+    for (i = 0; i < w.length; i++) {
+      var x = w[i];
+      if (/^\d+([.,]\d+)?$/.test(x)) { if (amount === null && !started) { amount = x.replace(',', '.'); used[i] = 1; last = i; if (/^(тысяч|тысячи|тыс)/.test(w[i + 1] || '')) { amount = String(parseFloat(amount) * 1000); used[i + 1] = 1; } } continue; }
+      if (NW.hasOwnProperty(x)) { cur += NW[x]; started = true; used[i] = 1; last = i; continue; }
+      if (/^(тысяча|тысячи|тысяч|тыс)$/.test(x) && started) { total += (cur || 1) * 1000; cur = 0; used[i] = 1; continue; }
+      if (started && amount === null && last < i - 1) break;
+    }
+    if (amount === null && started) amount = String(total + cur);
+    if (amount === null || !(parseFloat(amount) > 0)) return null;
+    var skip = /^(потратил|потратила|потратили|расход|трата|заплатил|заплатила|пришло|пришли|получил|получила|приход|доход|сомони|сомон|рублей|руб|на|за|от|в|и|мне|я|сегодня|добавь|запиши|запись)$/;
+    var note = w.filter(function (_, k) { return !used[k]; }).filter(function (x) { return !skip.test(x); }).join(' ');
+    return { type: type, amount: amount, note: note.slice(0, 120) };
+  }
+  var REC = null;
+  function voice() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return err(TX('Голос не работает в этом браузере. Напишите текстом.'));
+    if (REC) { try { REC.stop(); } catch (e) {} return; }
+    var r = new SR(), btn = document.querySelector('[data-buh="mic"]'), got = false;
+    REC = r; r.lang = 'ru-RU'; r.interimResults = false; r.maxAlternatives = 1;
+    if (btn) { btn.textContent = '⏹ ' + TX('Слушаю… нажмите, когда закончите'); btn.classList.add('rec'); }
+    function done() { REC = null; var b = document.querySelector('[data-buh="mic"]'); if (b) { b.textContent = '🎤 ' + TX('Сказать голосом'); b.classList.remove('rec'); } }
+    r.onresult = function (e) {
+      got = true; var tx = e.results[0][0].transcript, f = $s('bh-text'); if (f) f.value = tx;
+      var p = parseVoice(tx); if (!p) return err(TX('Не расслышал сумму. Скажите так: потратил 150 на такси'));
+      p.date = today(); addOp(p);
+    };
+    r.onerror = function (e) { done(); err(e && e.error === 'not-allowed' ? TX('Разрешите микрофон в браузере') : TX('Не получилось услышать. Попробуйте ещё раз или напишите текстом.')); };
+    r.onend = function () { done(); if (!got) { /* тишина */ } };
+    try { r.start(); } catch (e) { done(); }
+  }
+
   function ensure() {
     if (!$s('m-spec')) {
       var d = document.createElement('dialog'); d.id = 'm-spec';
@@ -225,8 +263,9 @@
         '<label style="display:grid;gap:4px"><small>' + esc(TX('Дата')) + '</small><input class="in2" id="bh-date" type="date" value="' + today() + '"></label>' +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px"><button class="btn" data-buh="add" type="button">' + esc(TX('Сохранить')) + '</button><button class="btn sec" data-buh="close-form" type="button">' + esc(TX('Отмена')) + '</button></div></form>';
     } else {
-      h += '<div style="display:grid;gap:6px;margin:8px 0"><small style="opacity:.8">' + esc(TX('Или напишите одной строкой, например: расход 150 такси')) + '</small>' +
-        '<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input class="in2" id="bh-text" maxlength="160" placeholder="' + esc(TX('расход 150 такси')) + '" autocomplete="off"><button class="btn" data-buh="text" type="button">' + esc(TX('Записать')) + '</button></div></div>';
+      h += '<div style="display:grid;gap:6px;margin:8px 0"><small style="opacity:.8">' + esc(TX('Напишите одной строкой («расход 150 такси») или нажмите микрофон и скажите: «потратил 150 на такси»')) + '</small>' +
+        '<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input class="in2" id="bh-text" maxlength="160" placeholder="' + esc(TX('расход 150 такси')) + '" autocomplete="off"><button class="btn" data-buh="text" type="button">' + esc(TX('Записать')) + '</button></div>' +
+        '<button class="btn sec" data-buh="mic" type="button" style="height:44px">🎤 ' + esc(TX('Сказать голосом')) + '</button></div>';
     }
     h += '<p class="err" id="bh-err" hidden></p>';
     h += '<h3 style="margin:14px 0 4px">' + esc(TX('Записи за месяц')) + '</h3>' + (ops.length ? '<div>' + ops.map(function (p) {
@@ -279,6 +318,7 @@
     if (a === 'close-form') { S.form = null; render(); return; }
     if (a === 'open-g') { S.gform = true; render(); var gf = $s('bh-gname'); if (gf) gf.focus(); return; }
     if (a === 'close-g') { S.gform = false; render(); return; }
+    if (a === 'mic') return voice();
     if (a === 'text') { var p = parseText($s('bh-text').value); if (!p) return err(TX('Напишите так: расход 150 такси или приход 500 продажа')); p.date = today(); return addOp(p); }
     if (a === 'add') return addOp({ type: $s('bh-type').value === 'in' ? 'in' : 'out', amount: $s('bh-sum').value.trim().replace(',', '.'), note: $s('bh-note').value.trim(), date: $s('bh-date').value });
     if (a === 'del') { var id = b.dataset.id; if (S.delAsk !== id) { S.delAsk = id; render(); return; } S.delAsk = null; return call({ action: 'del', id: id }).then(function (r) { if (!r.ok) return err(r.error || TX('Не удалось удалить')); S.buh.ops = S.buh.ops.filter(function (p) { return p.id !== id; }); render(); }); }
