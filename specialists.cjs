@@ -1,5 +1,6 @@
 // Раздел «Специалисты»: отдельный экран со списком специалистов (бухгалтер работает, остальные скоро).
 // Главный экран кабинета владельца — ряд специалистов (у сотрудников его нет). Продавец-ассистент открывает окно переписок.
+// SMM: план недели, подпись, разбор профиля по данным Instagram клиента, данные и ИИ через n8n /smm.
 // Бухгалтер: приход, расход, остатки товара; данные хранит n8n по адресу /buhgalter (код кабинета, как у /kb).
 (function (root) {
   'use strict';
@@ -8,7 +9,7 @@
   var LIST = [
     { id: 'seller', name: 'Продавец-ассистент', about: 'Отвечает клиентам в Instagram, WhatsApp, Telegram и Messenger', ready: true, ico: '💬' },
     { id: 'buh', name: 'Бухгалтер', about: 'Приход, расход и остатки товара. Показывает прибыль за месяц', ready: true, ico: '📒' },
-    { id: 'smm', name: 'SMM-специалист', about: 'Идеи постов и Reels, подписи, план публикаций', ready: false, ico: '📣' },
+    { id: 'smm', name: 'SMM-специалист', about: 'План недели, подписи к постам и разбор профиля по вашему Instagram', ready: true, ico: '📣' },
     { id: 'target', name: 'Маркетолог-таргетолог', about: 'Куда вложить деньги в рекламу и какой оффер сделать', ready: false, ico: '🎯' },
     { id: 'manager', name: 'Менеджер по клиентам', about: 'Напоминает о повторных покупках и возвращает пропавших клиентов', ready: false, ico: '🤝' },
     { id: 'lawyer', name: 'Юрист', about: 'Договоры, условия и ответы на юридические вопросы бизнеса', ready: false, ico: '⚖️' }
@@ -28,10 +29,11 @@
   function money(c) { var neg = c < 0; c = Math.abs(c); var s = String(Math.floor(c / 100)).replace(/\B(?=(\d{3})+$)/g, ' '), r = c % 100; return (neg ? '−' : '') + s + (r ? ',' + pad(r) : ''); }
   function oid() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function code() { var b = {}; try { b.code = store('ew_cab') || ''; } catch (e) {} return b; }
-  function call(body) {
+  function callTo(path, body) {
     var b = code(); for (var k in body) b[k] = body[k];
-    return post('/buhgalter', b).then(function (x) { return (x && x.j) || { ok: false, error: TX('нет связи') }; }, function () { return { ok: false, error: TX('нет связи') }; });
+    return post(path, b).then(function (x) { return (x && x.j) || { ok: false, error: TX('нет связи') }; }, function () { return { ok: false, error: TX('нет связи') }; });
   }
+  function call(body) { return callTo('/buhgalter', body); }
   function owner() { try { return !isStaff(); } catch (e) { return false; } }
 
   // «расход 150 такси», «приход 500 продажа», «+500 ...», «-150 ...»
@@ -51,12 +53,13 @@
       d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
+      d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; });
     }
     return true;
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if (id === 'buh') openBuh(); else { S.view = id; render(); }
+    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
 
@@ -104,6 +107,7 @@
   function render() {
     var el = $s('sp-body'); if (!el) return;
     if (S.view === 'buh') return renderBuh(el);
+    if (S.view === 'smm') return renderSmm(el);
     if (S.view !== 'list') return renderSoon(el, S.view);
     el.innerHTML = '<h2 style="padding-right:36px">' + esc(TX('Специалисты')) + '</h2><p>' + esc(TX('Выберите специалиста. Каждый работает в своём окне.')) + '</p><div class="sp-list" style="display:grid;gap:10px">' +
       LIST.map(function (s) {
@@ -117,6 +121,59 @@
   function renderSoon(el, id) {
     var s = LIST.filter(function (x) { return x.id === id; })[0]; if (!s) { S.view = 'list'; return render(); }
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">' + s.ico + ' ' + esc(TX(s.name)) + '</h2><p>' + esc(TX(s.about)) + '.</p><p><b>' + esc(TX('Скоро.')) + '</b> ' + esc(TX('Этот специалист ещё готовится. Мы сообщим, когда он заработает.')) + '</p>';
+  }
+
+  /* ---------- SMM-специалист ---------- */
+  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', copied: false };
+  function openSmm() {
+    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; render();
+    callTo('/smm', { action: 'status' }).then(function (r) {
+      SM.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
+      if (S.view === 'smm') render();
+    });
+  }
+  function renderSmm(el) {
+    var h = backBtn() + '<h2 style="padding-right:36px">📣 ' + esc(TX('SMM-специалист')) + '</h2>';
+    var dis = SM.busy ? ' disabled' : '';
+    if (!SM.st) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+    if (SM.st.error) { el.innerHTML = h + '<p class="err">' + esc(SM.st.error) + '</p><button class="btn" data-smm="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
+    h += '<p style="margin:4px 0">' + (SM.st.connected
+      ? '✅ ' + esc(TX('Instagram подключён')) + (SM.st.username ? ': @' + esc(SM.st.username) : '')
+      : '⚠️ ' + esc(TX('Instagram не подключён. Подключите его в меню (каналы), тогда я буду опираться на ваши посты.'))) + '</p>' +
+      '<p style="margin:4px 0 10px"><small>' + esc(TX('Запросов сегодня осталось')) + ': <b>' + esc(SM.st.left) + '</b> ' + esc(TX('из')) + ' ' + esc(SM.st.limit || 5) + '</small></p>';
+    h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
+      '<b>' + esc(TX('План на неделю')) + '</b>' +
+      '<textarea class="in2" id="sm-plan" rows="2" maxlength="800" placeholder="' + esc(TX('Что было на этой неделе: вопросы клиентов, события (необязательно)')) + '">' + esc(SM.plan) + '</textarea>' +
+      '<button class="btn" data-smm="plan" type="button"' + dis + '>' + esc(TX('Составить план')) + '</button></div>';
+    h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
+      '<b>' + esc(TX('Подпись к посту или Reels')) + '</b>' +
+      '<textarea class="in2" id="sm-cap" rows="2" maxlength="800" placeholder="' + esc(TX('О чём пост или ролик?')) + '">' + esc(SM.cap) + '</textarea>' +
+      '<button class="btn" data-smm="caption" type="button"' + dis + '>' + esc(TX('Написать подпись')) + '</button></div>';
+    h += '<div style="display:grid;gap:8px;margin-bottom:10px"><b>' + esc(TX('Разбор профиля')) + '</b>' +
+      '<button class="btn sec" data-smm="profile" type="button"' + dis + '>' + esc(TX('Разобрать мой профиль')) + '</button></div>';
+    if (SM.busy) h += '<p>⏳ ' + esc(TX('Готовлю ответ, это до минуты…')) + '</p>';
+    if (SM.err) h += '<p class="err">' + esc(SM.err) + '</p>';
+    if (SM.res) h += '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;margin:8px 0;font-size:14px;line-height:1.45" id="sm-res">' + esc(SM.res) + '</div>' +
+      '<button class="btn sec" data-smm="copy" type="button">' + esc(TX(SM.copied ? 'Скопировано ✓' : 'Скопировать')) + '</button>' +
+      '<p><small>' + esc(TX('Я ничего не публикую сам: текст вставляете вы.')) + '</small></p>';
+    el.innerHTML = h;
+  }
+  function runSmm(act) {
+    if (SM.busy) return;
+    var text = act === 'plan' ? SM.plan : act === 'caption' ? SM.cap : '';
+    if (act === 'caption' && String(text).trim().length < 5) { SM.err = TX('Напишите, о чём пост или ролик'); SM.res = ''; return render(); }
+    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; render();
+    callTo('/smm', { action: act, text: String(text).trim() }).then(function (r) {
+      SM.busy = false;
+      if (r.ok) { SM.res = r.text || ''; if (SM.st && !SM.st.error) { SM.st.left = r.left; SM.st.connected = !!r.connected; } }
+      else SM.err = r.error || TX('Не получилось');
+      if (S.view === 'smm') render();
+    });
+  }
+  function smmClick(a) {
+    if (a === 'reload') return openSmm();
+    if (a === 'copy') { try { navigator.clipboard.writeText(SM.res); SM.copied = true; render(); } catch (e) {} return; }
+    if (a === 'plan' || a === 'caption' || a === 'profile') return runSmm(a);
   }
 
   /* ---------- Бухгалтер ---------- */
@@ -182,6 +239,7 @@
     var b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-sp-back')) { $s('m-spec').close(); return; }
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
+    if (b.dataset.smm) return smmClick(b.dataset.smm);
     var a = b.dataset.buh; if (!a) return;
     if (a === 'reload') { S.buh = null; render(); return load(); }
     if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = null; render(); return load(); }
