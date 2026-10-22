@@ -534,10 +534,23 @@ if (S.view === 'mkt') return renderMkt(el);
   }
 
   /* ---------- Менеджер по клиентам: что он делает и что уже работает ---------- */
-  function openMgr() { S.view = 'mgr'; render(); }
+  var MGQ = false;
+  function quietList() {
+    var ch = (typeof CHATS !== 'undefined' && CHATS) || [], now = Date.now(), out = [];
+    ch.forEach(function (c) {
+      var m = (c && c.messages) || []; if (!m.length) return;
+      var l = m[m.length - 1], t = Date.parse(l.v); if (l.d !== 'out' || isNaN(t)) return;
+      if (!m.some(function (x) { return x.d === 'in'; })) return;
+      var days = Math.floor((now - t) / 86400000); if (days < 3 || days > 60) return;
+      out.push({ name: String(c.imya || c.id || '?'), kanal: String(c.kanal || ''), days: days });
+    });
+    out.sort(function (x, y) { return x.days - y.days; });
+    return out;
+  }
+  function openMgr() { S.view = 'mgr'; MGQ = false; render(); }
   function renderMgr(el) {
     var items = [
-      { ico: '🔎', ok: false, t: ['Находит тех, кто замолчал', 'Онҳоро, ки хомӯш шудаанд, меёбад', 'Jim boʻlib qolganlarni topadi'], d: ['Смотрит ваши переписки и показывает клиентов, которые давно не писали.', 'Мукотибаҳои шуморо мебинад ва муштариёнеро нишон медиҳад, ки муддати дароз нанавиштаанд.', 'Yozishmalaringizni koʻrib, uzoq vaqt yozmagan mijozlarni koʻrsatadi.'] },
+      { ico: '🔎', ok: true, t: ['Находит тех, кто замолчал', 'Онҳоро, ки хомӯш шудаанд, меёбад', 'Jim boʻlib qolganlarni topadi'], d: ['Смотрит ваши переписки и показывает клиентов, которые давно не писали.', 'Мукотибаҳои шуморо мебинад ва муштариёнеро нишон медиҳад, ки муддати дароз нанавиштаанд.', 'Yozishmalaringizni koʻrib, uzoq vaqt yozmagan mijozlarni koʻrsatadi.'] },
       { ico: '💌', ok: true, t: ['Пишет тексты для возврата', 'Матнҳо барои баргардонидан менависад', 'Qaytarish uchun matnlar yozadi'], d: ['Готовит мягкие сообщения для тех, кто замолчал. Отправляете вы или оператор, сам он никому не пишет. Работает сейчас через Маркетолога.', 'Паёмҳои мулоим барои хомӯшшудагон тайёр мекунад. Шумо ё оператор мефиристед, худаш ба касе наменависад. Ҳоло тавассути Маркетолог кор мекунад.', 'Jim boʻlib qolganlar uchun yumshoq xabarlar tayyorlaydi. Yuborishni siz yoki operator qilasiz, oʻzi hech kimga yozmaydi. Hozir Marketolog orqali ishlaydi.'] },
       { ico: '🔁', ok: false, t: ['Напоминает о повторной покупке или визите', 'Дар бораи харид ё ташрифи такрорӣ ёдовар мешавад', 'Qayta xarid yoki tashrif haqida eslatadi'], d: ['Подсказывает, когда пора написать клиенту снова: через месяц после услуги, когда заканчивается товар.', 'Мегӯяд, кай вақти дубора навиштан ба муштарӣ аст: баъди як моҳи хизмат, вақте ки мол тамом мешавад.', 'Mijozga qachon yana yozish vaqti kelganini aytadi: xizmatdan bir oy keyin, tovar tugaganda.'] },
       { ico: '📋', ok: false, t: ['Ведёт карточку клиента', 'Корти муштариро пеш мебарад', 'Mijoz kartochkasini yuritadi'], d: ['Помнит, что клиент покупал, что просил и когда писал последний раз, чтобы вы отвечали по делу.', 'Дар хотир медорад, ки муштарӣ чӣ харидааст, чӣ талаб кардааст ва охирин бор кай навишта буд.', 'Mijoz nima sotib olgani, nima soragani va oxirgi marta qachon yozganini eslab qoladi.'] }
@@ -549,7 +562,14 @@ if (S.view === 'mkt') return renderMkt(el);
         '<span style="flex:none;font-size:12px;padding:3px 8px;border-radius:10px;background:' + (x.ok ? '#e3f6ea;color:#1f8a4c' : '#eee;color:#777') + '">' + esc(x.ok ? ui('работает', 'кор мекунад', 'ishlayapti') : ui('готовится', 'омода мешавад', 'tayyorlanmoqda')) + '</span></div>' +
         '<small style="opacity:.85">' + esc(x.d[i]) + '</small></div>';
     });
-    h += '</div><button class="btn" data-mgr="mkt" type="button" style="margin-top:12px">' + esc(ui('Открыть тексты для возврата', 'Кушодани матнҳо барои баргардонидан', 'Qaytarish matnlarini ochish')) + '</button>' +
+    h += '</div><button class="btn sec" data-mgr="quiet" type="button" style="margin-top:12px">' + esc(MGQ ? ui('Скрыть список', 'Пинҳон кардани рӯйхат', 'Roʻyxatni yashirish') : ui('Показать, кто замолчал', 'Нишон додан, ки кӣ хомӯш шудааст', 'Kim jim boʻlib qolganini koʻrsatish')) + '</button>';
+    if (MGQ) {
+      var ql = quietList();
+      h += ql.length ? '<div style="display:grid;gap:6px;margin-top:8px">' + ql.slice(0, 50).map(function (q) {
+        return '<div style="border:1px solid var(--line,#ddd);border-radius:10px;padding:8px;display:flex;justify-content:space-between;gap:8px"><b style="word-break:break-word">' + esc(q.name) + '</b><small style="flex:none;opacity:.8">' + esc(q.kanal) + ' · ' + esc(q.days) + ' ' + esc(ui('дн. молчит', 'рӯз хомӯш аст', 'kun jim')) + '</small></div>';
+      }).join('') + '</div><small style="opacity:.8">' + esc(ui('Показаны те, кому вы ответили последним и кто не отвечает от 3 до 60 дней.', 'Онҳое нишон дода шудаанд, ки шумо охирин ҷавоб додаед ва аз 3 то 60 рӯз ҷавоб намедиҳанд.', 'Oxirgi javobni siz bergan va 3 kundan 60 kungacha javob bermayotganlar koʻrsatilgan.')) + '</small>' : '<p><small>' + esc(ui('Сейчас таких клиентов нет.', 'Ҳоло чунин мижозон нест.', 'Hozir bunday mijozlar yoʻq.')) + '</small></p>';
+    }
+    h += '<button class="btn" data-mgr="mkt" type="button" style="margin-top:12px">' + esc(ui('Открыть тексты для возврата', 'Кушодани матнҳо барои баргардонидан', 'Qaytarish matnlarini ochish')) + '</button>' +
       '<p><small>' + esc(ui('В Маркетологе нажмите «Вернуть замолчавших».', 'Дар Маркетолог «Баргардонидани хомӯшшудагон»-ро пахш кунед.', 'Marketologda «Jim boʻlib qolganlarni qaytarish» tugmasini bosing.')) + '</small></p>';
     el.innerHTML = h;
   }
@@ -1062,7 +1082,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);
-if (b.dataset.mgr) return openMkt();
+if (b.dataset.mgr === 'quiet') { MGQ = !MGQ; return render(); }
+    if (b.dataset.mgr) return openMkt();
 if (b.dataset.kb) return kbClick(b.dataset.kb);
 if (b.dataset.mkt) return mktClick(b.dataset.mkt);
     var a = b.dataset.buh; if (!a) return;
