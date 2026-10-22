@@ -4,6 +4,7 @@ from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8126'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
 AN = {'st': 'none', 'left': 1, 'polls': 0}
 KBC = []
+SHP = []; SHD = []; SHREV = [0]
 NOTES = []
 SLOW = [0]; HELD = []; calls = []; ops = [{"id": "x1", "type": "in", "amount": "500", "note": "Продажа <b>x</b>", "date": time.strftime('%Y-%m-') + '01', "ts": 1}]; stock = [{"name": "Крем", "qty": 7}]
 def h(route):
@@ -21,6 +22,30 @@ def h(route):
                 if g['name'] == b['name']: g['qty'] += b['delta']; break
             else: stock.append({"name": b['name'], "qty": b['delta']})
             return route.fulfill(json={"ok": True, "stock": stock})
+    if u.endswith('/magazin'):
+        b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        def view():
+            return {"ok": True, "products": SHP, "debts": SHD, "report": {"month": time.strftime('%Y-%m'), "revenue": SHREV[0], "profit": 0, "owner": 0, "debt": sum(d['sum'] for d in SHD), "byDay": {}, "checks": [], "low": []}}
+        if a == 'product':
+            p = b['p']; SHP[:] = [x for x in SHP if x['kod'] != p['kod']] + [{"kod": p['kod'], "name": p['name'], "zakup": p['zakup'], "marzha": p['marzha'], "price": round(p['zakup'] * (1 + p['marzha'] / 100), 2), "qty": 0}]
+            return route.fulfill(json=view())
+        if a == 'receive':
+            for x in SHP:
+                if x['kod'] == b['kod']: x['qty'] += b['qty']
+            return route.fulfill(json=view())
+        if a == 'sell':
+            for it in b['items']:
+                for x in SHP:
+                    if x['kod'] == it['kod']:
+                        if x['qty'] < it['qty']: return route.fulfill(json={"ok": False, "error": "на складе мало"})
+                        x['qty'] -= it['qty']
+                        if b['pay'] == 'dolg': SHD.append({"name": b['who'], "sum": x['price'] * it['qty'], "since": b['date'], "owner": False})
+                        if b['pay'] == 'vladelec': SHD.append({"name": "Владелец", "sum": x['zakup'] * it['qty'], "since": b['date'], "owner": True})
+                        if b['pay'] in ('nal', 'perevod'): SHREV[0] += x['price'] * it['qty']
+            return route.fulfill(json=view())
+        if a == 'pay':
+            SHD[:] = [d for d in SHD if d['name'] != b['who']]; return route.fulfill(json=view())
+        return route.fulfill(json=view())
     if u.endswith('/yurist'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
         if a == 'status': return route.fulfill(json={"ok": True, "left": 5, "limit": 5})
@@ -231,7 +256,7 @@ try:
         check('@nurullo_psiholog' in fx('smm') and 'Анализ готов (22.10.2026)' in fx('smm') and 'осталось: 5 из 5' in fx('smm'), 'ассистент: SMM — Instagram, готовый анализ, остаток запросов')
         check('осталось: 10 из 20' in fx('mkt') and 'не подключены' not in fx('mkt'), 'ассистент: маркетолог — остаток запросов')
         check('Вопросов сегодня осталось: 5' in fx('lawyer'), 'ассистент: юрист — остаток вопросов')
-        check('Мой ассистент: сводка дня' in t and pg.locator('#sp-body [data-asst="open"]').count() == 6, 'ассистент: окно сводки с шестью специалистами и кнопками «Подробнее»')
+        check('Мой ассистент: сводка дня' in t and pg.locator('#sp-body [data-asst="open"]').count() == 7, 'ассистент: окно сводки с семью специалистами и кнопками «Подробнее»')
         pg.fill('#as-in', 'расскажи погоду'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(200)
         check('Не понял' in pg.inner_text('#as-msg') and pg.input_value('#as-in') == 'расскажи погоду', 'ассистент: непонятная задача — подсказка, текст не пропал')
         pg.fill('#as-in', 'составь договор аренды'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(400)
@@ -249,6 +274,37 @@ try:
         pg.click('[data-sp-back]'); pg.wait_for_timeout(200); pg.click('[data-home="assistant"]'); pg.wait_for_timeout(300)
         pg.click('[data-asst="open"][data-id="smm"]'); pg.wait_for_timeout(400)
         check('SMM-специалист' in pg.inner_text('#sp-body'), 'ассистент: «Подробнее» открывает нужного специалиста')
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.reload(); pg.wait_for_timeout(1200)
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+        check('Учёт магазина' in pg.inner_text('#sp-home'), 'магазин: есть на главном экране')
+        pg.click('[data-home="shop"]'); pg.wait_for_timeout(500)
+        check('Добавьте товары' in pg.inner_text('#sp-body') or 'Сначала добавьте' in pg.inner_text('#sp-body'), 'магазин: пустая касса подсказывает добавить товары')
+        pg.click('[data-shop="tab"][data-k="tovar"]'); pg.click('[data-shop="fnew"]')
+        pg.fill('#sh-f-kod', 'dr-01'); pg.fill('#sh-f-name', 'Дрель <b>x</b>'); pg.fill('#sh-f-zakup', '100'); pg.fill('#sh-f-marzha', '25')
+        check('125' in pg.inner_text('#sh-f-price'), 'магазин: цена продажи считается сама из закупки и маржи')
+        pg.click('[data-shop="save"]'); pg.wait_for_timeout(300)
+        check(any(x.get('action') == 'product' and x['p']['kod'] == 'dr-01' and x['p']['marzha'] == 25 for x in calls) and pg.locator('#sp-body b').filter(has_text='<b>x</b>').count() >= 0 and '125' in pg.inner_text('#sp-body'), 'магазин: товар сохранён с кодом и маржой')
+        check('Дрель <b>x</b>' in pg.inner_text('#sp-body'), 'магазин: название экранировано')
+        pg.click('[data-shop="fnew"]'); pg.fill('#sh-f-kod', 'bad kod!'); pg.fill('#sh-f-name', 'x'); pg.fill('#sh-f-zakup', '5'); pg.fill('#sh-f-marzha', '10'); pg.click('[data-shop="save"]')
+        check(pg.is_visible('#sh-err') and not any(x.get('action') == 'product' and x['p']['kod'] == 'bad kod!' for x in calls), 'магазин: неверный код не отправляется')
+        pg.click('[data-shop="fcancel"]')
+        pg.click('[data-shop="rcv"][data-k="dr-01"]'); pg.fill('#sh-r-qty', '5'); pg.click('[data-shop="rok"]'); pg.wait_for_timeout(300)
+        check('остаток 5' in pg.inner_text('#sp-body'), 'магазин: приход увеличил остаток')
+        pg.click('[data-shop="tab"][data-k="kassa"]'); pg.fill('#sh-code', 'DR-01'); pg.press('#sh-code', 'Enter'); pg.wait_for_timeout(200)
+        check('Итого: 125' in pg.inner_text('#sh-total'), 'магазин: код в кассе добавляет товар в чек (Enter)')
+        pg.click('[data-shop="plus"][data-k="dr-01"]'); check('Итого: 250' in pg.inner_text('#sh-total'), 'магазин: плюс увеличивает количество')
+        pg.click('[data-shop="pay"][data-k="dolg"]'); pg.click('[data-shop="sell"]'); check(pg.is_visible('#sh-err'), 'магазин: долг без покупателя не проходит')
+        pg.fill('#sh-who', 'Рустам'); pg.click('[data-shop="sell"]'); pg.wait_for_timeout(400)
+        check(any(x.get('action') == 'sell' and x['pay'] == 'dolg' and x['who'] == 'Рустам' and x['items'][0]['qty'] == 2 for x in calls) and 'Продано на 250' in pg.inner_text('#sp-body'), 'магазин: продажа в долг записана')
+        pg.click('[data-shop="tab"][data-k="dolg"]'); check('Рустам' in pg.inner_text('#sp-body') and '250' in pg.inner_text('#sp-body'), 'магазин: долг виден в списке')
+        pg.click('[data-shop="pay-open"][data-k="Рустам"]'); pg.click('[data-shop="pok"]'); pg.wait_for_timeout(300)
+        check(any(x.get('action') == 'pay' and x['who'] == 'Рустам' and x['amount'] == 250 for x in calls) and 'Долгов нет' in pg.inner_text('#sp-body'), 'магазин: оплата долга принята')
+        pg.click('[data-shop="tab"][data-k="kassa"]'); pg.fill('#sh-code', 'dr-01'); pg.press('#sh-code', 'Enter'); pg.click('[data-shop="pay"][data-k="vladelec"]')
+        check('Итого: 100' in pg.inner_text('#sh-total'), 'магазин: «Взял владелец» считает по закупочной цене')
+        pg.click('[data-shop="sell"]'); pg.wait_for_timeout(400); pg.click('[data-shop="tab"][data-k="dolg"]')
+        check('Владелец' in pg.inner_text('#sp-body') and any(x.get('action') == 'sell' and x['pay'] == 'vladelec' for x in calls), 'магазин: товар владельца записан ему в долг')
+        pg.click('[data-shop="tab"][data-k="otchet"]'); check('Выручка' in pg.inner_text('#sp-body') and 'Прибыль' in pg.inner_text('#sp-body'), 'магазин: отчёт показывает выручку и прибыль')
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(not errs, 'нет ошибок страницы ' + str(errs))
         check(pg.evaluate('document.documentElement.scrollWidth') <= pg.evaluate('innerWidth'), 'нет горизонтальной прокрутки на телефоне')
