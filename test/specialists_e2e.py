@@ -24,6 +24,11 @@ def h(route):
             return route.fulfill(json={"ok": True, "stock": stock})
     if u.endswith('/magazin'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if b.get('sid') == 'keepersid7777':
+            if a == 'receive':
+                for x in SHP:
+                    if x['kod'] == b['kod']: x['qty'] += b['qty']
+            return route.fulfill(json={"ok": True, "role": "storekeeper", "products": [{"kod": x['kod'], "name": x['name'], "zakup": x['zakup'], "qty": x['qty']} for x in SHP], "debts": [], "receipts": [{"id": "r1", "kod": "S1", "name": "Дрель продавца", "qty": 3, "zakup": 100, "date": time.strftime('%Y-%m-%d'), "who": "Кладовщик Али", "fix": False}]})
         if b.get('sid') == 'selltestsid9999':
             if a == 'sell':
                 for it in b['items']:
@@ -105,6 +110,8 @@ def h(route):
 def check(c, m):
     print(('ok - ' if c else 'FAIL - ') + m)
     if not c: raise SystemExit(1)
+def go(pg, sid):
+    pg.click('[data-home="fin"]'); pg.wait_for_timeout(150); pg.click('[data-fin="%s"]' % sid)
 try:
     with sync_playwright() as p:
         b = p.chromium.launch(); pg = b.new_page(viewport={'width': 390, 'height': 800}); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -114,7 +121,7 @@ try:
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(pg.is_visible('#sp-home'), 'первый экран владельца — ряд специалистов')
         t = pg.inner_text('#sp-home')
-        check(all(x in t for x in ['Бухгалтер', 'SMM-специалист', 'Юрист', 'Маркетолог', 'Менеджер по клиентам', 'Продавец-ассистент']), 'все шесть специалистов на первом экране')
+        check(all(x in t for x in ['Финансист', 'SMM-специалист', 'Юрист', 'Маркетолог', 'Менеджер по клиентам', 'Продавец-ассистент']), 'все шесть специалистов на первом экране')
         check(not pg.is_visible('#list') and not pg.is_visible('#chs'), 'переписки спрятаны за главным экраном')
         check(not pg.is_visible('#m-specbtn'), 'кнопки «Специалисты» в меню больше нет')
         pg.click('[data-home="lawyer"]'); pg.wait_for_timeout(300); check('Договор оказания услуг' in pg.inner_text('#sp-body') and 'Договор аренды' in pg.inner_text('#sp-body') and 'Договор купли-продажи' in pg.inner_text('#sp-body'), 'юрист: три договора в меню')
@@ -167,9 +174,9 @@ try:
         pg.click('[data-home="seller"]'); pg.wait_for_timeout(300)
         check(not pg.is_visible('#sp-home') and pg.is_visible('#list') and pg.is_visible('#sp-back'), 'продавец-ассистент открывает переписки, сверху «← Специалисты»')
         pg.click('#sp-back button'); pg.wait_for_timeout(200); check(pg.is_visible('#sp-home') and not pg.is_visible('#list'), 'кнопка «← Специалисты» возвращает на главный экран')
-        pg.click('[data-home="buh"]'); pg.wait_for_timeout(500)
+        go(pg, 'buh'); pg.wait_for_timeout(500)
         check(pg.is_visible('[data-onb^="kind:"]'), 'бухгалтер: при первом входе просит выбрать вид деятельности')
-        check(pg.locator('#sp-body [data-shop="goto"][data-k="kassa"]').count() == 1, 'бухгалтер: «Касса» видна и на первом экране знакомства')
+        check(pg.locator('#sp-body [data-shop="goto"]').count() == 0, 'бухгалтер: кнопок «Касса» и «Учёт» внутри больше нет, они в «Финансисте»')
         pg.click('[data-onb="kind:health"]'); pg.click('[data-onb="stock:yes"]'); pg.click('[data-onb^="staff:"] >> nth=0'); pg.click('[data-onb="hire"]'); pg.wait_for_timeout(700)
         t = pg.inner_text('#sp-body'); check('500' in t and 'Крем' in t, 'бухгалтер: итоги и остатки загружены')
         check('<b>x</b>' in t and pg.locator('#sp-body b', has_text='x').count() == 0, 'текст записи экранирован')
@@ -200,7 +207,7 @@ try:
         pg.click('[data-buh="open-g"]'); pg.fill('#bh-gname', 'Духи'); pg.fill('#bh-gqty', '3'); pg.click('[data-buh="gadd"]'); pg.wait_for_timeout(400); check('Духи' in pg.inner_text('#sp-body'), 'новый товар')
         # быстрое открытие бухгалтера: записи из телефона сразу, сервер отвечает медленно
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); SLOW[0] = 1.5
-        pg.click('[data-home="buh"]'); pg.wait_for_timeout(150)
+        go(pg, 'buh'); pg.wait_for_timeout(150)
         t = pg.inner_text('#sp-body'); check('Духи' in t and 'Загрузка' not in t, 'бухгалтер открывается сразу из сохранённого')
         check('Обновляем' in t, 'пока идёт обновление, написано «Обновляем…»')
         SLOW[0] = 0
@@ -284,8 +291,8 @@ try:
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.reload(); pg.wait_for_timeout(1200)
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
-        check('Учёт магазина' in pg.inner_text('#sp-home'), 'магазин: есть на главном экране')
-        pg.click('[data-home="shop"]'); pg.wait_for_timeout(500)
+        check('Финансист' in pg.inner_text('#sp-home'), 'финансист: есть на главном экране')
+        go(pg, 'shop'); pg.wait_for_timeout(500)
         check('Пока пусто' in pg.inner_text('#sp-body'), 'магазин: касса открывается и при пустом списке товаров (пустая корзина)')
         pg.click('[data-shop="tab"][data-k="tovar"]'); pg.click('[data-shop="fnew"]')
         pg.fill('#sh-f-kod', 'dr-01'); pg.fill('#sh-f-name', 'Дрель <b>x</b>'); pg.fill('#sh-f-zakup', '100'); pg.fill('#sh-f-marzha', '25')
@@ -301,18 +308,18 @@ try:
         pg.click('[data-shop="tab"][data-k="kassa"]'); pg.fill('#sh-code', 'DR-01'); pg.press('#sh-code', 'Enter'); pg.wait_for_timeout(200)
         check('125' in pg.inner_text('#sh-total'), 'магазин: код в кассе добавляет товар в чек (Enter)')
         pg.click('[data-shop="plus"][data-k="dr-01"]'); check('250' in pg.inner_text('#sh-total'), 'магазин: плюс увеличивает количество')
-        check(pg.locator('#sp-body [data-shop="tab"]').count() == 0 and pg.locator('#sp-body [data-shop="pay"]').count() == 0, 'касса: простой экран, без вкладок и выбора способа оплаты')
+        check(pg.locator('#sp-body [data-shop="tab"]').count() == 5 and pg.locator('#sp-body [data-shop="pay"]').count() == 0, 'продажа: у руководителя сверху вкладки, простой экран без выбора способа оплаты')
         pg.click('[data-shop="dolgopen"]'); pg.click('[data-shop="sell"]'); check(pg.is_visible('#sh-err'), 'магазин: долг без покупателя не проходит')
         pg.fill('#shx-who', 'Рустам'); pg.click('[data-shop="sell"]'); pg.wait_for_timeout(400)
         check(any(x.get('action') == 'sell' and x['pay'] == 'dolg' and x['who'] == 'Рустам' and x['items'][0]['qty'] == 2 for x in calls) and 'Продано на 250' in pg.inner_text('#sp-body'), 'магазин: продажа в долг записана')
-        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="buh"]'); pg.wait_for_timeout(300); pg.click('#sp-body [data-shop="goto"][data-k="tovar"]'); pg.wait_for_timeout(300); pg.click('[data-shop="tab"][data-k="dolg"]'); pg.wait_for_timeout(200)
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); go(pg, 'shop'); pg.wait_for_timeout(300); pg.click('#sp-body [data-shop="tab"][data-k="tovar"]'); pg.wait_for_timeout(300); pg.click('[data-shop="tab"][data-k="dolg"]'); pg.wait_for_timeout(200)
         check('Рустам' in pg.inner_text('#sp-body') and '250' in pg.inner_text('#sp-body'), 'магазин: долг виден в списке')
         pg.click('[data-shop="pay-open"][data-k="Рустам"]'); pg.click('[data-shop="pok"]'); pg.wait_for_timeout(300)
         check(any(x.get('action') == 'pay' and x['who'] == 'Рустам' and x['amount'] == 250 for x in calls) and 'Долгов нет' in pg.inner_text('#sp-body'), 'магазин: оплата долга принята')
         pg.click('[data-shop="tab"][data-k="kassa"]'); pg.fill('#sh-code', 'dr-01'); pg.press('#sh-code', 'Enter'); n1 = len(calls)
         pg.click('[data-shop="paynow"]'); pg.wait_for_timeout(400)
         check(any(x.get('action') == 'sell' and x['pay'] == 'nal' and x['items'][0]['qty'] == 1 for x in calls[n1:]), 'касса: «Оплатить» записывает продажу наличными одним нажатием')
-        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="buh"]'); pg.wait_for_timeout(300); pg.click('#sp-body [data-shop="goto"][data-k="tovar"]'); pg.wait_for_timeout(300)
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); go(pg, 'shop'); pg.wait_for_timeout(300); pg.click('#sp-body [data-shop="tab"][data-k="tovar"]'); pg.wait_for_timeout(300)
         pg.click('[data-shop="tab"][data-k="otchet"]'); check('Выручка' in pg.inner_text('#sp-body') and 'Прибыль' in pg.inner_text('#sp-body'), 'магазин: отчёт показывает выручку и прибыль')
         pg.click('#sp-body [data-shop="preview"]'); pg.wait_for_timeout(500)
         pt = pg.inner_text('#kas-body')
@@ -333,18 +340,29 @@ try:
         check('У этого покупателя уже долг' in pg.inner_text('#sh-whohint') and pg.locator('#shx-who').input_value() == 'Бунёд', 'долг: покупатель выбран из списка, большой долг предупреждает')
         pg.fill('#shx-who', 'Новый человек'); pg.wait_for_timeout(150)
         check('Нового покупателя запишем' in pg.inner_text('#sh-whohint'), 'долг: нового покупателя можно вписать вручную')
-        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="buh"]'); pg.wait_for_timeout(500)
-        check(pg.locator('#sp-body [data-shop="goto"][data-k="kassa"]').count() == 1 and pg.locator('#sp-body [data-shop="goto"][data-k="tovar"]').count() == 1, 'бухгалтер: две кнопки «Касса» и «Учёт»')
-        pg.click('#sp-body [data-shop="goto"][data-k="kassa"]'); pg.wait_for_timeout(400)
-        check(pg.is_visible('#sh-code'), 'бухгалтер: кнопка «Касса» открывает кассу')
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="fin"]'); pg.wait_for_timeout(400)
+        check(pg.locator('#sp-body [data-fin="buh"]').count() == 1 and pg.locator('#sp-body [data-fin="shop"]').count() == 1 and 'Финансист' in pg.inner_text('#sp-body'), 'финансист: внутри два раздела «Бухгалтерия» и «Учёт магазина»')
+        pg.click('#sp-body [data-fin="shop"]'); pg.wait_for_timeout(400)
+        check(pg.is_visible('#sh-code') and pg.locator('#sp-body [data-shop="tab"]').count() == 5, 'финансист: «Учёт магазина» открывает продажу, сверху пять вкладок')
+        pg.click('[data-shop="tab"][data-k="prihod"]'); pg.fill('#sh-pcode', 'dr'); pg.wait_for_timeout(150)
+        check(pg.locator('#sh-phints [data-shop="rcv"]').count() >= 1, 'приём: товар находится по первым буквам кода')
+        n2 = len(calls); pg.click('#sh-phints [data-shop="rcv"]'); pg.fill('#sh-r-qty', '4'); pg.click('[data-shop="rok"]'); pg.wait_for_timeout(300)
+        check(any(x.get('action') == 'receive' and x['kod'] == 'dr-01' and x['qty'] == 4 for x in calls[n2:]), 'приём: приход записывается из вкладки «Приём»')
+        pg.click('[data-shop="fnew"]'); check(pg.is_visible('#sh-f-kod'), 'приём: новый товар заводится прямо во вкладке')
+        pg.click('[data-shop="fcancel"]')
+        # остаток меньше, чем в чеке: продажа не блокируется, видно жёлтое предупреждение
+        pg.click('[data-shop="tab"][data-k="kassa"]'); pg.fill('#sh-code', 'dr-01'); pg.press('#sh-code', 'Enter')
+        for _ in range(12): pg.click('[data-shop="plus"][data-k="dr-01"]')
+        check(pg.is_visible('#sh-low') and 'Продажа пройдёт' in pg.inner_text('#sh-low'), 'продажа: при нехватке остатка жёлтое предупреждение, без блокировки')
+        check(pg.locator('#sp-body [data-shop="minus"]').count() == 1 and not pg.is_visible('#sh-err'), 'продажа: товар добавлен сверх остатка')
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(not errs, 'нет ошибок страницы ' + str(errs))
         check(pg.evaluate('document.documentElement.scrollWidth') <= pg.evaluate('innerWidth'), 'нет горизонтальной прокрутки на телефоне')
         # другой клиент не видит «Учёт магазина»
         pg.evaluate("localStorage.setItem('ew_cab','kdrugoyklient0000000000000000');document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.reload(); pg.wait_for_timeout(1200)
-        check(pg.locator('#sp-home [data-home="shop"]').evaluate('e=>e.hidden'), 'другой клиент: плитки «Учёт магазина» нет')
-        pg.click('[data-home="buh"]'); pg.wait_for_timeout(500)
-        check(pg.locator('#sp-body [data-shop="goto"]').count() == 0, 'другой клиент: в Бухгалтере нет кнопок «Касса» и «Учёт»')
+        check(pg.locator('#sp-home [data-home="shop"]').count() == 0 and pg.locator('#sp-home [data-home="fin"]').count() == 1, 'другой клиент: отдельной плитки «Учёт магазина» нет, есть «Финансист»')
+        pg.click('[data-home="fin"]'); pg.wait_for_timeout(500)
+        check(pg.locator('#sp-body [data-fin]').count() == 0 and (pg.locator('#sp-body [data-buh]').count() + pg.locator('#sp-body [data-onb]').count()) > 0 and pg.locator('#sp-body [data-shop]').count() == 0, 'другой клиент: «Финансист» сразу открывает бухгалтерию, раздела магазина нет')
         pg.evaluate("localStorage.setItem('ew_cab','k17jyvxja8gfe6lrye2izmvjjasx6');document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         # сотрудник не видит
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());localStorage.removeItem('ew_cab');localStorage.setItem('ew_sid','sidtest123456')"); pg.reload(); pg.wait_for_timeout(1200)
@@ -365,10 +383,19 @@ try:
         pg.evaluate("localStorage.setItem('ew_sid','selltestsid9999')"); pg.reload(); pg.wait_for_timeout(3500)
         pg.evaluate("localStorage.setItem('ew_cam_declined','1')")
         kt = pg.inner_text('#kas-body') if pg.query_selector('#kas-body') else ''
-        check(pg.is_visible('#kas-root') and 'Касса' in kt, 'продавец с ролью: открыта касса на весь экран')
+        check(pg.is_visible('#kas-root') and 'Продажа' in kt, 'продавец с ролью: открыта продажа на весь экран')
         check(not pg.query_selector('#kas-body [data-shop="tab"]') and 'Отчёт' not in kt and 'Закуп' not in kt and 'Взял владелец' not in kt, 'продавец с ролью: нет вкладок, отчёта, закупки и «Взял владелец»')
         pg.fill('#kas-body #sh-code', 'S1'); pg.wait_for_timeout(200); pg.click('#kas-body [data-shop="put"]'); pg.click('#kas-body [data-shop="paynow"]'); pg.wait_for_timeout(500)
         check(any(x.get('action') == 'sell' and x.get('sid') == 'selltestsid9999' and x['pay'] == 'nal' and 'code' not in x for x in calls), 'продавец с ролью: продажа уходит по сессии сотрудника')
         check(not errs, 'продавец с ролью: нет ошибок страницы ' + str(errs))
+        # кладовщик: только «Приём товара», без продажи, долгов и отчёта
+        pg.evaluate("localStorage.setItem('ew_sid','keepersid7777')"); pg.reload(); pg.wait_for_timeout(3500)
+        pg.evaluate("localStorage.setItem('ew_cam_declined','1')")
+        kk = pg.inner_text('#kas-body') if pg.query_selector('#kas-body') else ''
+        check(pg.is_visible('#kas-root') and 'Приём товара' in kk, 'кладовщик: открыт «Приём товара» на весь экран')
+        check(not pg.query_selector('#kas-body [data-shop="tab"]') and not pg.query_selector('#kas-body #sh-code') and 'Отчёт' not in kk and 'Долги' not in kk and 'Кладовщик Али' in kk, 'кладовщик: нет вкладок, продажи, долгов и отчёта; журнал приёма с автором виден')
+        pg.fill('#kas-body #sh-pcode', 'S1'); pg.wait_for_timeout(200); n3 = len(calls); pg.click('#kas-body [data-shop="rcv"]'); pg.fill('#sh-r-qty', '7'); pg.click('#kas-body [data-shop="rok"]'); pg.wait_for_timeout(500)
+        check(any(x.get('action') == 'receive' and x.get('sid') == 'keepersid7777' and x['kod'] == 'S1' and x['qty'] == 7 and 'code' not in x for x in calls[n3:]), 'кладовщик: приход уходит по сессии сотрудника')
+        check(not errs, 'кладовщик: нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()
