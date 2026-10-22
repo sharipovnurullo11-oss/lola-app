@@ -3530,9 +3530,23 @@ function load() {
       else { S.buh = { ops: r.ops || [], stock: r.stock || [] }; writeCache(); }
       if (S.view === 'buh') render();
     });
+    if (shopOn() && owner()) {
+      var mo = S.month;
+      callTo('/magazin', { action: 'list', month: mo }).then(function (r) {
+        if (mo !== S.month) return;
+        var ops = [], days = (r && r.ok && r.report && r.report.days) || {};
+        Object.keys(days).forEach(function (d) {
+          var x = days[d] || {};
+          if (cents(x.cashIn) > 0) ops.push({ id: 'shop-in-' + d, type: 'in', amount: x.cashIn, date: d, note: 'Магазин: продажи и оплаты долгов', ts: 0, virt: true });
+          if (cents(x.purchase) > 0) ops.push({ id: 'shop-out-' + d, type: 'out', amount: x.purchase, date: d, note: 'Магазин: закупка товара', ts: 0, virt: true });
+        });
+        S.shopOps = ops; if (S.view === 'buh') render();
+      });
+    } else S.shopOps = [];
   }
+  function allOps() { return (S.buh.ops || []).concat(S.shopOps || []); }
   function sums() {
-    var i = 0, o = 0; (S.buh.ops || []).forEach(function (p) { if (monthOf(p.date) !== S.month) return; var c = cents(p.amount); if (p.type === 'in') i += c; else o += c; });
+    var i = 0, o = 0; allOps().forEach(function (p) { if (monthOf(p.date) !== S.month) return; var c = cents(p.amount); if (p.type === 'in') i += c; else o += c; });
     return { i: i, o: o, p: i - o };
   }
   var CHIPS = { in: ['Продажа', 'Консультация', 'Предоплата', 'Другое'], out: ['Закупка товара', 'Аренда', 'Реклама', 'Зарплата', 'Транспорт', 'Связь', 'Другое'] };
@@ -3564,7 +3578,7 @@ var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухга�
     if (S.buh.error) { el.innerHTML = h + '<p class="err">' + esc(S.buh.error) + '</p><button class="btn" data-buh="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
     writeCache();
     if (S.buh.offline) h += '<p><small>' + esc(TX('Нет связи: показаны сохранённые записи.')) + '</small></p>'; else if (S.busy && S.buh.cached) h += '<p><small>' + esc(TX('Обновляем…')) + '</small></p>';
-    var t = sums(), ops = S.buh.ops.filter(function (p) { return monthOf(p.date) === S.month; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.ts < b.ts ? 1 : -1); });
+    var t = sums(), ops = allOps().filter(function (p) { return monthOf(p.date) === S.month; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.ts < b.ts ? 1 : -1); });
     h += '<p style="margin:2px 0 8px;opacity:.8">' + esc(TX('Записывайте каждый раз, когда деньги пришли или ушли. Прибыль посчитается сама. Суммы в сомони.')) + '</p>';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0"><button class="btn sec" data-buh="prev" type="button" aria-label="' + esc(TX('Прошлый месяц')) + '">‹</button><b>' + esc(monthName(S.month)) + '</b><button class="btn sec" data-buh="next" type="button" aria-label="' + esc(TX('Следующий месяц')) + '">›</button></div>';
     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">' +
@@ -3592,10 +3606,10 @@ var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухга�
     if (bi) h += '<h3 style="margin:14px 0 4px">' + esc(TX('Откуда пришли деньги')) + '</h3>' + bi;
     h += '<h3 style="margin:14px 0 4px">' + esc(TX('Записи за месяц')) + '</h3>' + (ops.length ? '<div>' + ops.map(function (p) {
       var ask = S.delAsk === p.id, inn = p.type === 'in';
-      return '<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ddd"><span aria-hidden="true" style="flex:none;color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '↗' : '↘') + '</span><span style="flex:none;opacity:.7;font-size:12px">' + esc(String(p.date).slice(8, 10) + '.' + String(p.date).slice(5, 7)) + '</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">' + esc(p.note || (inn ? TX('Приход') : TX('Расход'))) + '</span>' +
+      return '<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ddd"><span aria-hidden="true" style="flex:none;color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '↗' : '↘') + '</span><span style="flex:none;opacity:.7;font-size:12px">' + esc(String(p.date).slice(8, 10) + '.' + String(p.date).slice(5, 7)) + '</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">' + esc(p.virt ? TX(p.note) : (p.note || (inn ? TX('Приход') : TX('Расход')))) + '</span>' +
         '<b style="flex:none;color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + money(cents(p.amount)) + '</b>' +
-        '<button class="btn sec" data-buh="edit" data-id="' + esc(p.id) + '" type="button" aria-label="' + esc(TX('Исправить запись')) + '" style="flex:none;height:30px;padding:0 8px">✎</button>' +
-          '<button class="btn sec" data-buh="del" data-id="' + esc(p.id) + '" type="button" aria-label="' + esc(TX('Удалить запись')) + '" style="flex:none;height:30px;padding:0 8px' + (ask ? ';background:#c0392b;color:#fff' : '') + '">' + (ask ? esc(TX('Удалить?')) : '×') + '</button></div>';
+        (p.virt ? '<span style="flex:none;width:30px;text-align:center" title="' + esc(TX('Из учёта магазина')) + '">🛒</span>' : '<button class="btn sec" data-buh="edit" data-id="' + esc(p.id) + '" type="button" aria-label="' + esc(TX('Исправить запись')) + '" style="flex:none;height:30px;padding:0 8px">✎</button>' +
+          '<button class="btn sec" data-buh="del" data-id="' + esc(p.id) + '" type="button" aria-label="' + esc(TX('Удалить запись')) + '" style="flex:none;height:30px;padding:0 8px' + (ask ? ';background:#c0392b;color:#fff' : '') + '">' + (ask ? esc(TX('Удалить?')) : '×') + '</button>') + '</div>';
     }).join('') + '</div>' : '<p style="opacity:.8">' + esc(TX('Пока пусто. Нажмите «Деньги пришли», когда получите оплату, или «Деньги ушли», когда потратите.')) + '</p>');
     if (!(S.prof && S.prof.stock === 'no')) {
 h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="margin:0 0 6px;opacity:.8"><small>' + esc(TX('Сколько чего у вас есть. Нажмите + когда товар пришёл, − когда ушёл.')) + '</small></p>' +
@@ -3822,6 +3836,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var R = SH.d.report, h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">' + shBtn('mprev', '‹', { sec: true, st: 'width:56px;padding:0' }) + '<b>' + esc(monthName(R.month)) + '</b>' + shBtn('mnext', '›', { sec: true, st: 'width:56px;padding:0' }) + '</div>';
     var cell = function (l, v, c) { return '<div style="padding:10px;border:1px solid #e0e0e0;border-radius:10px"><small>' + esc(l) + '</small><div style="font-size:20px;font-weight:700;' + (c ? 'color:' + c : '') + '">' + esc(money(cents(v))) + '</div></div>'; };
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + cell(ui('Выручка', 'Даромад', 'Tushum'), R.revenue) + cell(ui('Прибыль', 'Фоида', 'Foyda'), R.profit, '#1f8a4c') + cell(ui('Взял владелец', 'Соҳиб гирифт', 'Egasi oldi'), R.owner, '#b36b00') + cell(ui('Долги всего', 'Қарзҳо ҳамагӣ', 'Jami qarz'), R.debt, '#c0392b') + '</div>';
+    var dd = R.days && R.days[today()];
+    if (dd && R.month === monthOf(today())) h += '<h3 style="margin-top:14px">' + esc(ui('Итоги дня', 'Натиҷаи рӯз', 'Kun yakuni')) + '</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + cell(ui('Продано на', 'Фурӯхта шуд', 'Sotildi'), dd.sold) + cell(ui('Пришло денег', 'Пул омад', 'Pul keldi'), dd.cashIn, '#1f8a4c') + cell(ui('Прибыль', 'Фоида', 'Foyda'), dd.profit, '#1f8a4c') + cell(ui('Закупка', 'Харид', 'Xarid'), dd.purchase, '#b36b00') + cell(ui('Новые долги', 'Қарзҳои нав', 'Yangi qarzlar'), dd.debtNew, '#c0392b') + '</div>';
     if (R.low.length) h += '<p style="margin-top:12px"><b>' + esc(ui('Заканчивается', 'Тамом шуда истодааст', 'Tugayapti')) + ':</b> ' + R.low.map(function (x) { return esc(x.name) + ' (' + x.qty + ')'; }).join(', ') + '</p>';
     h += '<h3 style="margin-top:14px">' + esc(ui('Продажи', 'Фурӯшҳо', 'Sotuvlar')) + '</h3>';
     if (!R.checks.length) return h + '<p>' + esc(ui('За этот месяц продаж нет.', 'Дар ин моҳ фурӯш нест.', 'Bu oyda sotuv yoʻq.')) + '</p>';
