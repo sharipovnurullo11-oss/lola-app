@@ -24,6 +24,12 @@ def h(route):
             return route.fulfill(json={"ok": True, "stock": stock})
     if u.endswith('/magazin'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if b.get('sid') == 'selltestsid9999':
+            if a == 'sell':
+                for it in b['items']:
+                    for x in SHP:
+                        if x['kod'] == it['kod']: x['qty'] -= it['qty']
+            return route.fulfill(json={"ok": True, "role": "seller", "products": [{"kod": x['kod'], "name": x['name'], "price": x['price'], "qty": x['qty']} for x in SHP], "debts": []})
         def view():
             return {"ok": True, "products": SHP, "debts": SHD, "report": {"month": time.strftime('%Y-%m'), "revenue": SHREV[0], "profit": 0, "owner": 0, "debt": sum(d['sum'] for d in SHD), "byDay": {}, "checks": [], "low": []}}
         if a == 'product':
@@ -348,5 +354,15 @@ try:
         check(pg.locator('#sp-body [data-shop="pay"]').count() == 0 and pg.locator('#sp-body [data-shop="dolgopen"]').count() == 1 and pg.locator('#sp-body [data-shop="paynow"]').count() == 1, 'продавец: только «В долг» и «Оплатить»')
         pg.click('#sp-body [data-shop="paynow"]'); pg.wait_for_timeout(400)
         check(any(x.get('action') == 'sell' and x.get('sid') == 'sidtest123456' and x['pay'] == 'nal' for x in calls), 'продавец: «Оплатить» проводит продажу по его сессии')
+        # продавец с ролью: только касса на весь экран
+        SHP.append({"kod": "S1", "name": "Дрель продавца", "zakup": 100, "marzha": 25, "price": 125.0, "qty": 5})
+        pg.evaluate("localStorage.setItem('ew_sid','selltestsid9999')"); pg.reload(); pg.wait_for_timeout(3500)
+        pg.evaluate("localStorage.setItem('ew_cam_declined','1')")
+        kt = pg.inner_text('#kas-body') if pg.query_selector('#kas-body') else ''
+        check(pg.is_visible('#kas-root') and 'Касса' in kt, 'продавец с ролью: открыта касса на весь экран')
+        check(not pg.query_selector('#kas-body [data-shop="tab"]') and 'Отчёт' not in kt and 'Закуп' not in kt and 'Взял владелец' not in kt, 'продавец с ролью: нет вкладок, отчёта, закупки и «Взял владелец»')
+        pg.fill('#kas-body #sh-code', 'S1'); pg.wait_for_timeout(200); pg.click('#kas-body [data-shop="put"]'); pg.click('#kas-body [data-shop="paynow"]'); pg.wait_for_timeout(500)
+        check(any(x.get('action') == 'sell' and x.get('sid') == 'selltestsid9999' and x['pay'] == 'nal' and 'code' not in x for x in calls), 'продавец с ролью: продажа уходит по сессии сотрудника')
+        check(not errs, 'продавец с ролью: нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()
