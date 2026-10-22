@@ -20,6 +20,11 @@ def h(route):
                 if g['name'] == b['name']: g['qty'] += b['delta']; break
             else: stock.append({"name": b['name'], "qty": b['delta']})
             return route.fulfill(json={"ok": True, "stock": stock})
+    if u.endswith('/yurist'):
+        b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if a == 'status': return route.fulfill(json={"ok": True, "left": 5, "limit": 5})
+        if len(b.get('text', '')) < (40 if a == 'explain' else 8): return route.fulfill(json={"ok": False, "error": "коротко"})
+        return route.fulfill(json={"ok": True, "text": "КОРОТКО <b>x</b>\nответ юриста", "left": 4})
     if u.endswith('/znaniya'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
         if a == 'list': return route.fulfill(json={"ok": True, "cases": [c for c in KBC if c['spec'] == b['spec']], "total": len([c for c in KBC if c['spec'] == b['spec']])})
@@ -76,8 +81,17 @@ try:
         pg.click('[data-law="edit"]'); pg.click('[data-law="lang:uz"]'); pg.click('[data-law="make"]'); check('SHARTNOMASI' in pg.inner_text('#law-res') and 'Ijrochi' in pg.inner_text('#law-res'), 'юрист: договор на узбекском')
         pg.click('[data-law="menu"]'); pg.click('[data-law="kind:rent"]'); pg.fill('[data-law-f="price"]', '1500'); pg.click('[data-law="make"]'); check('ДОГОВОР АРЕНДЫ' in pg.inner_text('#law-res') or 'IJARA' in pg.inner_text('#law-res') or 'ИҶОРА' in pg.inner_text('#law-res'), 'юрист: договор аренды')
         pg.click('[data-law="menu"]'); pg.click('[data-law="kind:sale"]'); pg.click('[data-law="make"]'); check('ПРОДАЖИ' in pg.inner_text('#law-res') or 'SOTDI' in pg.inner_text('#law-res') or 'ФУРӮШ' in pg.inner_text('#law-res'), 'юрист: договор купли-продажи')
+        pg.click('[data-law="menu"]'); pg.wait_for_timeout(300); check('Задать вопрос юристу' in pg.inner_text('#sp-body') and 'Объяснить договор' in pg.inner_text('#sp-body') and 'Вопросов сегодня осталось: 5' in pg.inner_text('#sp-body'), 'юрист: в меню вопрос и объяснение договора, остаток запросов')
+        pg.click('[data-law="ask"]'); pg.click('[data-law="run"]'); check(pg.is_visible('#sp-body .err') and not any(x.get('action') == 'ask' for x in calls), 'юрист: короткий вопрос не уходит на сервер')
+        pg.fill('#law-text', 'Клиент отказался после двух встреч, возвращать ли деньги?'); pg.click('[data-law="lang:tg"]'); pg.click('[data-law="run"]'); pg.wait_for_timeout(500)
+        check(any(x.get('action') == 'ask' and x.get('lang') == 'tg' for x in calls) and 'ответ юриста' in pg.inner_text('#law-ans') and pg.locator('#law-ans b').count() == 0, 'юрист: ответ получен, язык ответа передан, текст экранирован')
+        check(pg.input_value('#law-text').startswith('Клиент отказался'), 'юрист: вопрос не пропал')
+        pg.click('[data-kb="save:lawyer"]'); pg.wait_for_timeout(500); check(any(x.get('action') == 'save' and x.get('spec') == 'lawyer' and x['q'].startswith('Вопрос') for x in calls), 'юрист: ответ можно запомнить в базу знаний')
+        pg.click('[data-law="menu"]'); pg.click('[data-law="explain"]'); pg.fill('#law-text', 'Договор. Клиент вносит предоплату за месяц и не вправе требовать возврата.'); pg.click('[data-law="run"]'); pg.wait_for_timeout(500)
+        check(any(x.get('action') == 'explain' for x in calls), 'юрист: объяснение договора отправлено')
+        pg.click('[data-law="menu"]'); pg.click('[data-law="kind:sale"]'); pg.click('[data-law="make"]')
         pg.click('[data-kb="save:lawyer"]'); pg.wait_for_timeout(600)
-        check(any(x.get('action') == 'save' and x.get('spec') == 'lawyer' and x['q'].startswith('Договор') for x in calls) and 'Запомнено дел: 1' in pg.inner_text('#sp-body'), 'База знаний: договор Юриста записан')
+        check(any(x.get('action') == 'save' and x.get('spec') == 'lawyer' and x['q'].startswith('Договор') for x in calls) and 'Запомнено дел: 2' in pg.inner_text('#sp-body'), 'База знаний: договор Юриста записан')
         pg.click('[data-law="copy"]'); pg.wait_for_timeout(200); pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
         check(pg.is_visible('#sp-home'), 'после «назад» остаёмся на главном экране')
         pg.click('[data-home="seller"]'); pg.wait_for_timeout(300)
