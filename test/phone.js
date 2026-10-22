@@ -20,8 +20,8 @@ const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a
 const guest = client(), owner = client(), anon = client();
 
 // гость без входа видит пример кабинета, кнопки закрыты
-let r = await anon('GET', '/'); assert.equal(r.status, 200); assert.match(r.text, /Ассистент отвечает вашим клиентам/); assert.match(r.text, /300 сомони/); ok('landing');
-r = await anon('GET', '/demo'); assert.equal(r.status, 200); assert.match(r.text, /Кабинет/); assert.match(r.text, /<button class="btn primary" disabled>/); assert.match(r.text, /Зарегистрироваться за 300 сомони/); ok('guest preview has locked buttons');
+let r = await anon('GET', '/start'); assert.equal(r.status, 200); assert.match(r.text, /Ассистент отвечает вашим клиентам/); assert.match(r.text, /300 сомони/); ok('landing');
+r = await anon('GET', '/start/demo'); assert.equal(r.status, 200); assert.match(r.text, /Кабинет/); assert.match(r.text, /<button class="btn primary" disabled>/); assert.match(r.text, /Зарегистрироваться за 300 сомони/); ok('guest preview has locked buttons');
 assert.doesNotMatch(r.text, /<input[^>]*name="/); ok('preview has no working forms');
 
 r = await anon('GET', '/owner-register'); assert.equal(r.status, 200); assert.match(r.text, /name="email"/); ok('owner e-mail registration page exists');
