@@ -119,6 +119,11 @@ try:
     with sync_playwright() as p:
         b = p.chromium.launch(); pg = b.new_page(viewport={'width': 390, 'height': 800}); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.route('**/webhook/**', h)
+        pg.add_init_script("""
+window.__scanNext = null;
+window.BarcodeDetector = class { constructor(o){ this.o = o; } static async getSupportedFormats(){ return ['ean_13']; } async detect(){ const c = window.__scanNext; window.__scanNext = null; return c ? [{rawValue: c}] : []; } };
+Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: function (c) { if (c && c.video && JSON.stringify(c.video.facingMode || '').indexOf('environment') >= 0) return Promise.resolve(new MediaStream()); return Promise.reject(new DOMException('нет камеры', 'NotAllowedError')); } } });
+""")
         pg.goto('http://localhost:8126/window.html'); pg.wait_for_timeout(500)
         pg.evaluate("localStorage.setItem('ew_cab','k17jyvxja8gfe6lrye2izmvjjasx6')"); pg.reload(); pg.wait_for_timeout(1200)
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
@@ -361,6 +366,14 @@ try:
         pg.click('[data-shop="fcancel"]')
         # остаток меньше, чем в чеке: продажа не блокируется, видно жёлтое предупреждение
         pg.click('[data-shop="tab"][data-k="kassa"]'); pg.fill('#sh-code', 'dr-01'); pg.press('#sh-code', 'Enter')
+        pg.click('[data-shop="scan"][data-k="sell"]'); pg.wait_for_timeout(200)
+        check(pg.is_visible('#sh-scan-in'), 'скан на продаже: кнопка «Скан» открывает сканер')
+        pg.evaluate("window.__scanNext='dr-01'"); pg.wait_for_timeout(700)
+        check(pg.query_selector('#sh-scan') is None and 'Дрель' in pg.inner_text('#sp-body'), 'скан на продаже: штрихкод кладёт товар в чек')
+        pg.click('[data-shop="scan"][data-k="sell"]'); pg.wait_for_timeout(200); pg.fill('#sh-scan-in', 'ZZZ-9'); pg.click('#sh-scan-ok'); pg.wait_for_timeout(300)
+        check(pg.query_selector('#sh-scan') is None and pg.input_value('#sh-f-kod') == 'ZZZ-9', 'скан на продаже: незнакомый код у владельца открывает «Новый товар»')
+        pg.click('[data-shop="fcancel"]'); pg.wait_for_timeout(200)
+        pg.click('[data-shop="tab"][data-k="kassa"]'); pg.wait_for_timeout(200)
         for _ in range(12): pg.click('[data-shop="plus"][data-k="dr-01"]')
         check(pg.is_visible('#sh-low') and 'Продажа пройдёт' in pg.inner_text('#sh-low'), 'продажа: при нехватке остатка жёлтое предупреждение, без блокировки')
         check(pg.locator('#sp-body [data-shop="minus"]').count() == 1 and not pg.is_visible('#sh-err'), 'продажа: товар добавлен сверх остатка')
@@ -379,6 +392,8 @@ try:
         check(not pg.is_visible('#sp-home') and not pg.is_visible('#sp-back'), 'сотрудник не видит главный экран специалистов')
         check(pg.is_visible('#sp-kassa-btn'), 'продавец: есть большая кнопка «Касса»')
         n0 = len(calls); pg.click('#sp-kassa-btn'); pg.wait_for_timeout(600)
+        pg.click('[data-shop="scan"][data-k="sell"]'); pg.wait_for_timeout(200); pg.fill('#sh-scan-in', 'NOPE-77'); pg.click('#sh-scan-ok'); pg.wait_for_timeout(300)
+        check(pg.query_selector('#sh-scan') is None and 'Скажите кладовщику' in pg.inner_text('#sp-body') and pg.query_selector('#sh-f-kod') is None, 'скан у продавца: незнакомый код — подсказка сказать кладовщику, без «Нового товара»')
         check(pg.is_visible('#sh-code'), 'продавец: касса открывается')
         lc = [c for c in calls[n0:] if c.get('action') == 'list']
         check(lc and lc[-1].get('sid') == 'sidtest123456' and 'code' not in lc[-1], 'продавец: запрос уходит с сессией, без кода кабинета')
@@ -412,6 +427,20 @@ try:
         fc.value.set_files([{'name': 'f.png', 'mimeType': 'image/png', 'buffer': png}]); pg.wait_for_timeout(900)
         check(any(x.get('action') == 'foto' and x.get('kod') == 'S1' and x['foto'].startswith('data:image/jpeg;base64,') and len(x['foto']) < 20000 and x.get('sid') == 'keepersid7777' for x in calls[n4:]), 'кладовщик: фото товара сжимается и уходит на сервер')
         pg.wait_for_timeout(300); check(pg.locator('#kas-body img[src^="data:image/jpeg"]').count() >= 1, 'кладовщик: фото показано в форме приёма')
+        pg.click('#kas-body [data-shop="rcancel"]'); pg.wait_for_timeout(200)
+        n5 = len(calls)
+        pg.click('#kas-body [data-shop="scan"][data-k="recv"]'); pg.wait_for_timeout(200)
+        check(pg.is_visible('#sh-scan-in'), 'скан приёма: кнопка «Скан» открывает сканер')
+        pg.evaluate("window.__scanNext='S1'"); pg.wait_for_timeout(700)
+        check(pg.query_selector('#sh-scan') is None and pg.is_visible('#kas-body #sh-r-qty'), 'скан приёма: штрихкод известного товара открывает приход без набора')
+        pg.click('#kas-body [data-shop="rcancel"]'); pg.wait_for_timeout(200)
+        pg.click('#kas-body [data-shop="scan"][data-k="recv"]'); pg.wait_for_timeout(200); pg.fill('#sh-scan-in', '4600NEW77'); pg.click('#sh-scan-ok'); pg.wait_for_timeout(300)
+        check(pg.query_selector('#sh-scan') is None and pg.input_value('#kas-body #sh-f-kod') == '4600NEW77', 'скан приёма: незнакомый штрихкод сразу открывает «Новый товар» с этим кодом')
+        pg.click('#kas-body [data-shop="fcancel"]'); pg.wait_for_timeout(200)
+        pg.evaluate("window.BarcodeDetector = undefined"); pg.click('#kas-body [data-shop="scan"][data-k="recv"]'); pg.wait_for_timeout(300)
+        check('недоступен' in pg.inner_text('#sh-scan-msg'), 'скан без камеры: понятное сообщение и ввод вручную')
+        pg.click('#sh-scan-x'); pg.wait_for_timeout(200)
+        check(pg.query_selector('#sh-scan') is None and not any(x.get('action') == 'receive' for x in calls[n5:]), 'скан: закрытие сканера ничего не записывает')
         check(not errs, 'кладовщик: нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()
