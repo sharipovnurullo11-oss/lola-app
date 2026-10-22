@@ -91,7 +91,7 @@
       d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
-      d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; else if (t && t.id === 'as-in') AS.draft = t.value; });
+      d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; else if (t && t.id === 'as-in') AS.draft = t.value; else if (t && t.id === 'bh-text') S.bhDraft = t.value; });
 d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'mk-in' && !/Mobi|Android|iPhone/i.test(navigator.userAgent)) { e.preventDefault(); mktClick('send'); } });
     }
     return true;
@@ -233,8 +233,17 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       var id = r.ok ? r.id : asstRoute(text);
       if (!id) { AS.msg = TX('Не понял, какому специалисту передать. Выберите его в списке выше.'); return render(); }
       AS.draft = ''; AS.msg = '';
-      openOne(id);
+      openOne(id); asstHandoff(id, text);
     });
+  }
+  // Текст поручения сразу в поле специалиста: остаётся проверить и нажать кнопку. Сами специалисты ничего не отправляют.
+  function asstHandoff(id, text) {
+    if (id === 'lawyer') { LW.view = 'ask'; LW.text = text; }
+    else if (id === 'mkt') MK.draft = text;
+    else if (id === 'smm') { if (/(подпис|пост|caption)/i.test(text)) SM.cap = text; else SM.plan = text; }
+    else if (id === 'buh') S.bhDraft = text;
+    else return;
+    render();
   }
   function asstMic() {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -990,7 +999,7 @@ var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухга�
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px"><button class="btn" data-buh="add" type="button">' + esc(TX('Сохранить')) + '</button><button class="btn sec" data-buh="close-form" type="button">' + esc(TX('Отмена')) + '</button></div></form>';
     } else {
       h += '<div style="display:grid;gap:6px;margin:8px 0"><small style="opacity:.8">' + esc(TX('Напишите одной строкой («расход 150 такси») или нажмите микрофон и скажите: «потратил 150 на такси»')) + '</small>' +
-        '<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input class="in2" id="bh-text" maxlength="160" placeholder="' + esc(TX('расход 150 такси')) + '" autocomplete="off"><button class="btn" data-buh="text" type="button">' + esc(TX('Записать')) + '</button></div>' +
+        '<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input class="in2" id="bh-text" maxlength="160" placeholder="' + esc(TX('расход 150 такси')) + '" autocomplete="off" value="' + esc(S.bhDraft || '') + '"><button class="btn" data-buh="text" type="button">' + esc(TX('Записать')) + '</button></div>' +
         '<button class="btn sec" data-buh="mic" type="button" style="height:44px">🎤 ' + esc(TX('Сказать голосом')) + '</button></div>';
     }
     h += '<p class="err" id="bh-err" hidden></p>';
@@ -1077,7 +1086,7 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
       var old = null; S.buh.ops.forEach(function (p) { if (p.id === b.dataset.id) old = p; }); if (!old) return;
       S.edit = old.id; S.pre = { amount: String(cents(old.amount) / 100).replace('.', ','), note: old.note || '', date: old.date }; S.form = old.type; S.delAsk = null; render(); return;
     }
-    if (a === 'text') { var p = parseText($s('bh-text').value); if (!p) return err(TX('Напишите так: расход 150 такси или приход 500 продажа')); p.date = today(); return addOp(p); }
+    if (a === 'text') { var p = parseText($s('bh-text').value); if (!p) return err(TX('Напишите так: расход 150 такси или приход 500 продажа')); S.bhDraft = ''; p.date = today(); return addOp(p); }
     if (a === 'add' && S.edit) {
       var eid = S.edit, np = { type: $s('bh-type').value === 'in' ? 'in' : 'out', amount: $s('bh-sum').value.trim().replace(',', '.'), note: $s('bh-note').value.trim(), date: $s('bh-date').value };
       if (!(cents(np.amount) > 0)) return err(TX('Введите сумму больше нуля'));
