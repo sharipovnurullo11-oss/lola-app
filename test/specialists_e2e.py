@@ -194,6 +194,9 @@ try:
         check(hero.bounding_box()['width'] > 2 * tile.bounding_box()['width'] and hero.bounding_box()['height'] > tile.bounding_box()['height'], 'ассистент: кнопка заметно больше карточек специалистов')
         ops.append({"id": "t1", "type": "in", "amount": "200", "note": "Продажа", "date": time.strftime('%Y-%m-%d'), "ts": 9}); stock.append({"name": "Мыло <i>", "qty": 1})
         pg.evaluate("(function(){var n=new Date().toISOString(),o=new Date(Date.now()-30*864e5).toISOString();CHATS=[{kanal:'instagram',id:'a1',messages:[{d:'in',t:'привет',v:n}]},{kanal:'whatsapp',id:'b2',messages:[{d:'in',t:'спасибо',v:o},{d:'out',t:'пожалуйста',v:o}]}];})()")
+        check('Что происходит' in pg.inner_text('#sp-hero-sub'), 'кнопка ассистента: пока переписок нет — общее описание')
+        pg.evaluate("render_list()"); pg.wait_for_timeout(100)
+        check(pg.inner_text('#sp-hero-sub') == 'Ждут ответа: 1 · Молчат больше двух недель: 1' and pg.locator('#sp-home .sp-hero.wait').count() == 1, 'кнопка ассистента: на ней видно, сколько ждут ответа и сколько молчат')
         pg.click('[data-home="assistant"]'); pg.wait_for_timeout(500); t = pg.inner_text('#sp-body')
         fx = lambda k: pg.inner_text('.asst-fact[data-id="%s"]' % k) if pg.locator('.asst-fact[data-id="%s"]' % k).count() else ''
         check('Ждут ответа: 1' in fx('seller'), 'ассистент: продавец показывает, сколько клиентов ждут ответа')
