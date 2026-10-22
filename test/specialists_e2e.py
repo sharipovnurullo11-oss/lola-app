@@ -25,6 +25,10 @@ def h(route):
         if a == 'status': return route.fulfill(json={"ok": True, "left": 5, "limit": 5})
         if len(b.get('text', '')) < (40 if a == 'explain' else 8): return route.fulfill(json={"ok": False, "error": "коротко"})
         return route.fulfill(json={"ok": True, "text": "КОРОТКО <b>x</b>\nответ юриста", "left": 4})
+    if u.endswith('/marketolog'):
+        b = json.loads(route.request.post_data); calls.append(b)
+        if b['action'] == 'status': return route.fulfill(json={"ok": True, "channels": ["instagram"], "left": 10, "limit": 20})
+        return route.fulfill(json={"ok": True, "text": "ПЛАН <b>x</b>\n- понедельник рилс", "left": 9})
     if u.endswith('/znaniya'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
         if a == 'list': return route.fulfill(json={"ok": True, "cases": [c for c in KBC if c['spec'] == b['spec']], "total": len([c for c in KBC if c['spec'] == b['spec']])})
@@ -97,6 +101,12 @@ try:
         pg.click('[data-home="manager"]'); pg.wait_for_timeout(300); t = pg.inner_text('#sp-body')
         check('Находит тех, кто замолчал' in t and 'Пишет тексты для возврата' in t and 'работает' in t and 'готовится' in t and 'Скоро' not in t, 'менеджер: понятно, что он делает и что уже работает')
         pg.click('[data-mgr="mkt"]'); pg.wait_for_timeout(400); check('Вернуть замолчавших' in pg.inner_text('#sp-body'), 'менеджер: кнопка открывает Маркетолога с возвратом замолчавших'); pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
+        pg.click('[data-home="mkt"]'); pg.wait_for_timeout(600); pg.click('[data-mkt="task:plan"]'); pg.wait_for_timeout(500)
+        check(pg.is_visible('[data-kb="save:mkt"]') and 'База знаний' in pg.inner_text('#sp-body'), 'Маркетолог: после ответа есть «запомнить» и карточка базы знаний')
+        pg.click('[data-kb="save:mkt"]'); pg.wait_for_timeout(600)
+        check(any(x.get('action') == 'save' and x.get('spec') == 'mkt' and 'понедельник' in x['a'] for x in calls) and 'Запомнено ✓' in pg.inner_text('#sp-body'), 'Маркетолог: дело записано в базу знаний')
+        pg.wait_for_timeout(300)
+        pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
         pg.click('[data-home="seller"]'); pg.wait_for_timeout(300)
         check(not pg.is_visible('#sp-home') and pg.is_visible('#list') and pg.is_visible('#sp-back'), 'продавец-ассистент открывает переписки, сверху «← Специалисты»')
         pg.click('#sp-back button'); pg.wait_for_timeout(200); check(pg.is_visible('#sp-home') and not pg.is_visible('#list'), 'кнопка «← Специалисты» возвращает на главный экран')
