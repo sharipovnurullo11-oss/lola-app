@@ -36,7 +36,7 @@ def h(route):
                         if x['kod'] == it['kod']: x['qty'] -= it['qty']
             return route.fulfill(json={"ok": True, "role": "seller", "products": [{"kod": x['kod'], "name": x['name'], "price": x['price'], "qty": x['qty']} for x in SHP], "debts": []})
         def view():
-            return {"ok": True, "products": SHP, "debts": SHD, "report": {"month": time.strftime('%Y-%m'), "revenue": SHREV[0], "profit": 0, "owner": 0, "debt": sum(d['sum'] for d in SHD), "byDay": {}, "checks": [], "low": []}}
+            return {"ok": True, "products": SHP, "debts": SHD, "report": {"month": time.strftime('%Y-%m'), "revenue": SHREV[0], "profit": 0, "owner": 0, "debt": sum(d['sum'] for d in SHD), "byDay": {}, "days": {time.strftime('%Y-%m-%d'): {"sold": 300, "cashIn": 200, "debtNew": 100, "profit": 50, "purchase": 80}}, "checks": [], "low": []}}
         if a == 'product':
             p = b['p']; SHP[:] = [x for x in SHP if x['kod'] != p['kod']] + [{"kod": p['kod'], "name": p['name'], "zakup": p['zakup'], "marzha": p['marzha'], "price": round(p['zakup'] * (1 + p['marzha'] / 100), 2), "qty": 0}]
             return route.fulfill(json=view())
@@ -182,7 +182,9 @@ try:
         check('<b>x</b>' in t and pg.locator('#sp-body b', has_text='x').count() == 0, 'текст записи экранирован')
         pg.fill('#bh-text', 'расход 150,5 такси'); pg.click('[data-buh="text"]'); pg.wait_for_timeout(500)
         check(any(c['action'] == 'add' and c['op']['type'] == 'out' and c['op']['amount'] == '150.5' for c in calls), 'текстовая запись расхода')
-        check('349,5' in pg.inner_text('#sp-body').replace('\xa0', ' '), 'прибыль = 500 − 150,5 = 349,5')
+        bt = pg.inner_text('#sp-body').replace('\xa0', ' ')
+        check('469,5' in bt, 'бухгалтерия: прибыль = 500 + 200 (магазин) − 150,5 − 80 (закупка) = 469,5')
+        check('Магазин: продажи' in bt and pg.locator('#sp-body [data-buh="del"]').count() == pg.locator('#sp-body [data-buh="edit"]').count() and 'Магазин: закупка' in bt, 'бухгалтерия: строки магазина показаны без кнопок правки/удаления')
         _t = pg.inner_text('#sp-body'); check('Куда ушли деньги' in _t and 'Транспорт' in _t, 'бухгалтер: итог «куда ушли деньги» с категорией Транспорт')
         pg.fill('#bh-text', 'привет'); pg.click('[data-buh="text"]'); check('расход 150' in pg.inner_text('#bh-err'), 'непонятный текст отклонён')
         pg.evaluate("window.SpeechRecognition=function(){this.start=function(){var me=this;setTimeout(function(){me.onresult({results:[[{transcript:'потратил сто двадцать на бензин'}]]});me.onend&&me.onend()},50)};this.stop=function(){}}")
@@ -320,7 +322,7 @@ try:
         pg.click('[data-shop="paynow"]'); pg.wait_for_timeout(400)
         check(any(x.get('action') == 'sell' and x['pay'] == 'nal' and x['items'][0]['qty'] == 1 for x in calls[n1:]), 'касса: «Оплатить» записывает продажу наличными одним нажатием')
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); go(pg, 'shop'); pg.wait_for_timeout(300); pg.click('#sp-body [data-shop="tab"][data-k="tovar"]'); pg.wait_for_timeout(300)
-        pg.click('[data-shop="tab"][data-k="otchet"]'); check('Выручка' in pg.inner_text('#sp-body') and 'Прибыль' in pg.inner_text('#sp-body'), 'магазин: отчёт показывает выручку и прибыль')
+        pg.click('[data-shop="tab"][data-k="otchet"]'); check('Итоги дня' in pg.inner_text('#sp-body') and 'Пришло денег' in pg.inner_text('#sp-body'), 'магазин: «Итоги дня» в отчёте'); check('Выручка' in pg.inner_text('#sp-body') and 'Прибыль' in pg.inner_text('#sp-body'), 'магазин: отчёт показывает выручку и прибыль')
         pg.click('#sp-body [data-shop="preview"]'); pg.wait_for_timeout(500)
         pt = pg.inner_text('#kas-body')
         check(pg.is_visible('#kas-root') and 'Так видит продавец' in pt and 'Отчёт' not in pt, 'руководитель: просмотр «как видит продавец» открывается')
