@@ -2566,20 +2566,31 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function leftOf(r, def) { return TX('Запросов сегодня осталось') + ': ' + r.left + ' ' + TX('из') + ' ' + (r.limit || def); }
   var QUIET_DAYS = 14;
-  function asstFacts() {
-    var f = {}, now = Date.now();
+  // Ждут ответа и давно молчат — по уже загруженным перепискам; null, если переписок нет
+  function chatCounts() {
     try {
-      if (typeof CHATS !== 'undefined' && Array.isArray(CHATS) && typeof unread_of === 'function' && typeof MODE !== 'undefined' && MODE === 'user') {
-        var wait = 0, quiet = 0;
-        CHATS.forEach(function (c) {
-          if (unread_of(c) > 0) wait++;
-          var last = 0; (c.messages || []).forEach(function (x) { var t = Date.parse(x && x.v); if (t > last) last = t; });
-          if (last && now - last > QUIET_DAYS * 864e5) quiet++;
-        });
-        f.seller = wait ? ui('Ждут ответа: ', 'Мунтазири ҷавоб: ', 'Javob kutmoqda: ') + wait : ui('Все клиенты получили ответ ✓', 'Ба ҳамаи мизоҷон ҷавоб дода шуд ✓', 'Barcha mijozlarga javob berildi ✓');
-        f.manager = quiet ? ui('Молчат больше двух недель: ', 'Зиёда аз ду ҳафта хомӯшанд: ', 'Ikki haftadan ortiq jim: ') + quiet : ui('Никто не пропал надолго ✓', 'Ҳеҷ кас муддати дароз гум нашудааст ✓', 'Hech kim uzoq vaqt yo‘qolmagan ✓');
-      }
-    } catch (e) {}
+      if (typeof CHATS === 'undefined' || !Array.isArray(CHATS) || typeof unread_of !== 'function' || typeof MODE === 'undefined' || MODE !== 'user') return null;
+      var wait = 0, quiet = 0, now = Date.now();
+      CHATS.forEach(function (c) {
+        if (unread_of(c) > 0) wait++;
+        var last = 0; (c.messages || []).forEach(function (x) { var t = Date.parse(x && x.v); if (t > last) last = t; });
+        if (last && now - last > QUIET_DAYS * 864e5) quiet++;
+      });
+      return { wait: wait, quiet: quiet, total: CHATS.length };
+    } catch (e) { return null; }
+  }
+  function waitTxt(n) { return n ? ui('Ждут ответа: ', 'Мунтазири ҷавоб: ', 'Javob kutmoqda: ') + n : ui('Все клиенты получили ответ ✓', 'Ба ҳамаи мизоҷон ҷавоб дода шуд ✓', 'Barcha mijozlarga javob berildi ✓'); }
+  function quietTxt(n) { return n ? ui('Молчат больше двух недель: ', 'Зиёда аз ду ҳафта хомӯшанд: ', 'Ikki haftadan ortiq jim: ') + n : ui('Никто не пропал надолго ✓', 'Ҳеҷ кас муддати дароз гум нашудааст ✓', 'Hech kim uzoq vaqt yo‘qolmagan ✓'); }
+  // Подпись большой кнопки: главное из переписок, пока их нет — общее описание
+  function heroSub() {
+    var c = chatCounts(), sub = $s('sp-hero-sub'); if (!sub) return;
+    var t = c && c.total ? waitTxt(c.wait) + (c.quiet ? ' · ' + quietTxt(c.quiet) : '') : TX('Что происходит у всех ваших специалистов, в одном окне');
+    if (sub.textContent !== t) sub.textContent = t;
+    var hero = sub.closest('.sp-hero'); if (hero) hero.classList.toggle('wait', !!(c && c.total && c.wait));
+  }
+  function asstFacts() {
+    var f = {}, cc = chatCounts();
+    if (cc) { f.seller = waitTxt(cc.wait); f.manager = quietTxt(cc.quiet); }
     var b = AS.buh;
     if (!b) f.buh = TX('Загрузка…');
     else if (!b.error) {
@@ -2666,13 +2677,13 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '#sp-home .sp-tile.soon{opacity:.6}#sp-home .sp-tile .ic{font-size:36px;line-height:1}#sp-home .sp-tile b{font-size:15px}#sp-home .sp-tile small{opacity:.75;font-size:12px}' +
       '#sp-home .sp-hero{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin:0 0 16px;padding:22px 18px;border:0;border-radius:20px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font:inherit;cursor:pointer;box-shadow:0 6px 18px rgba(79,70,229,.35)}' +
       '#sp-home .sp-hero .ic{font-size:40px;line-height:1;flex:none}#sp-home .sp-hero b{display:block;font-size:19px}#sp-home .sp-hero small{display:block;opacity:.9;font-size:13px;margin-top:2px}' +
-      '#sp-home .sp-hero:focus-visible{outline:3px solid #fff;outline-offset:2px}' +
+      '#sp-home .sp-hero:focus-visible{outline:3px solid #fff;outline-offset:2px}#sp-home .sp-hero.wait small{opacity:1;font-weight:700}' +
       '#sp-home .sp-grid{gap:8px!important}#sp-home .sp-tile{padding:10px 8px!important}#sp-home .sp-tile .ic{font-size:28px!important}#sp-home .sp-tile small{display:none}' +
       '#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
     document.head.appendChild(st);
     var home = document.createElement('section'); home.id = 'sp-home'; home.hidden = true; home.setAttribute('aria-label', TX('Специалисты'));
     home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p>' +
-      '<button type="button" class="sp-hero" data-home="assistant"><span class="ic" aria-hidden="true">✨</span><span><b>' + esc(TX('Мой ассистент: сводка дня')) + '</b><small>' + esc(TX('Что происходит у всех ваших специалистов, в одном окне')) + '</small></span></button>' +
+      '<button type="button" class="sp-hero" data-home="assistant"><span class="ic" aria-hidden="true">✨</span><span><b>' + esc(TX('Мой ассистент: сводка дня')) + '</b><small id="sp-hero-sub">' + esc(TX('Что происходит у всех ваших специалистов, в одном окне')) + '</small></span></button>' +
       '<div class="sp-grid">' +
       LIST.map(function (x) {
         return '<button type="button" class="sp-tile' + (x.ready ? '' : ' soon') + '" data-home="' + x.id + '"><span class="ic" aria-hidden="true">' + x.ico + '</span><b>' + esc(TX(x.name)) + '</b><small>' + esc(TX(x.ready ? x.about : 'Скоро')) + '</small></button>';
@@ -2699,6 +2710,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var app = document.querySelector('.app'); if (app) app.classList.toggle('sp-on', show);
     $s('sp-home').hidden = !show;
     $s('sp-back').hidden = !(user && !HOME);
+    if (show) heroSub();
   }
 
   function render() {
@@ -3492,6 +3504,8 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
   (function wait() {
     if (ensure() && injectHome()) {
       if (typeof render_top === 'function') { var o = render_top; render_top = function () { var r = o.apply(this, arguments); applyHome(); return r; }; }
+      // список каналов перерисовывается после каждой загрузки переписок — тогда же обновляем подпись большой кнопки
+      if (typeof render_channels === 'function') { var oc = render_channels; render_channels = function () { var r = oc.apply(this, arguments); heroSub(); return r; }; }
       applyHome(); return;
     }
     if (++tries < 50) setTimeout(wait, 200);
