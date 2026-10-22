@@ -24,11 +24,13 @@ def h(route):
             return route.fulfill(json={"ok": True, "stock": stock})
     if u.endswith('/magazin'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if a == 'foto_get': return route.fulfill(json={"ok": True, "kod": b['kod'], "foto": FOTOS.get(b['kod'], '')})
+        if a == 'foto': FOTOS[b['kod']] = b['foto']
         if b.get('sid') == 'keepersid7777':
             if a == 'receive':
                 for x in SHP:
                     if x['kod'] == b['kod']: x['qty'] += b['qty']
-            return route.fulfill(json={"ok": True, "role": "storekeeper", "products": [{"kod": x['kod'], "name": x['name'], "zakup": x['zakup'], "qty": x['qty']} for x in SHP], "debts": [], "receipts": [{"id": "r1", "kod": "S1", "name": "Дрель продавца", "qty": 3, "zakup": 100, "date": time.strftime('%Y-%m-%d'), "who": "Кладовщик Али", "fix": False}]})
+            return route.fulfill(json={"ok": True, "role": "storekeeper", "products": [{"kod": x['kod'], "name": x['name'], "zakup": x['zakup'], "qty": x['qty'], "foto": 1 if x['kod'] in FOTOS else 0} for x in SHP], "debts": [], "receipts": [{"id": "r1", "kod": "S1", "name": "Дрель продавца", "qty": 3, "zakup": 100, "date": time.strftime('%Y-%m-%d'), "who": "Кладовщик Али", "fix": False}]})
         if b.get('sid') == 'selltestsid9999':
             if a == 'sell':
                 for it in b['items']:
@@ -107,6 +109,7 @@ def h(route):
         if a == 'reply': return route.fulfill(json={"ok": True, "text": "ОТВЕТ готов", "left": 1, "connected": True})
         return route.fulfill(json={"ok": False, "error": "Не получилось прочитать ваш Instagram", "reconnect": True})
     route.fulfill(json={"ok": True, "staff": [], "sessions": [], "chats": []})
+FOTOS = {}
 def check(c, m):
     print(('ok - ' if c else 'FAIL - ') + m)
     if not c: raise SystemExit(1)
@@ -314,6 +317,10 @@ try:
         pg.click('[data-shop="dolgopen"]'); pg.click('[data-shop="sell"]'); check(pg.is_visible('#sh-err'), 'магазин: долг без покупателя не проходит')
         pg.fill('#shx-who', 'Рустам'); pg.click('[data-shop="sell"]'); pg.wait_for_timeout(400)
         check(any(x.get('action') == 'sell' and x['pay'] == 'dolg' and x['who'] == 'Рустам' and x['items'][0]['qty'] == 2 for x in calls) and 'Продано на 250' in pg.inner_text('#sp-body'), 'магазин: продажа в долг записана')
+        check(pg.is_visible('[data-shop="print"]') and pg.locator('[data-shop="rw"]').count() == 2, 'чек: после продажи есть «Печать чека» и выбор ленты 58/80')
+        pg.click('[data-shop="rw"][data-k="80"]'); pg.wait_for_timeout(100); check(pg.evaluate("localStorage.getItem('ew_rw')") == '80', 'чек: ширина ленты запоминается')
+        pg.evaluate("window.__pr=0; HTMLIFrameElement.prototype.__x=1"); pg.click('[data-shop="print"]'); pg.wait_for_timeout(500)
+        check(pg.evaluate("(function(){var f=document.querySelector('iframe');return !!f&&f.contentDocument.body.innerText.indexOf('250')>=0})()"), 'чек: в печатной форме есть сумма 250')
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); go(pg, 'shop'); pg.wait_for_timeout(300); pg.click('#sp-body [data-shop="tab"][data-k="tovar"]'); pg.wait_for_timeout(300); pg.click('[data-shop="tab"][data-k="dolg"]'); pg.wait_for_timeout(200)
         check('Рустам' in pg.inner_text('#sp-body') and '250' in pg.inner_text('#sp-body'), 'магазин: долг виден в списке')
         pg.click('[data-shop="pay-open"][data-k="Рустам"]'); pg.click('[data-shop="pok"]'); pg.wait_for_timeout(300)
@@ -398,6 +405,13 @@ try:
         check(not pg.query_selector('#kas-body [data-shop="tab"]') and not pg.query_selector('#kas-body #sh-code') and 'Отчёт' not in kk and 'Долги' not in kk and 'Кладовщик Али' in kk, 'кладовщик: нет вкладок, продажи, долгов и отчёта; журнал приёма с автором виден')
         pg.fill('#kas-body #sh-pcode', 'S1'); pg.wait_for_timeout(200); n3 = len(calls); pg.click('#kas-body [data-shop="rcv"]'); pg.fill('#sh-r-qty', '7'); pg.click('#kas-body [data-shop="rok"]'); pg.wait_for_timeout(500)
         check(any(x.get('action') == 'receive' and x.get('sid') == 'keepersid7777' and x['kod'] == 'S1' and x['qty'] == 7 and 'code' not in x for x in calls[n3:]), 'кладовщик: приход уходит по сессии сотрудника')
+        import base64
+        png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+        pg.fill('#kas-body #sh-pcode', 'S1'); pg.wait_for_timeout(200); pg.click('#kas-body [data-shop="rcv"]'); n4 = len(calls)
+        with pg.expect_file_chooser() as fc: pg.click('#kas-body [data-shop="foto"]')
+        fc.value.set_files([{'name': 'f.png', 'mimeType': 'image/png', 'buffer': png}]); pg.wait_for_timeout(900)
+        check(any(x.get('action') == 'foto' and x.get('kod') == 'S1' and x['foto'].startswith('data:image/jpeg;base64,') and len(x['foto']) < 20000 and x.get('sid') == 'keepersid7777' for x in calls[n4:]), 'кладовщик: фото товара сжимается и уходит на сервер')
+        pg.wait_for_timeout(300); check(pg.locator('#kas-body img[src^="data:image/jpeg"]').count() >= 1, 'кладовщик: фото показано в форме приёма')
         check(not errs, 'кладовщик: нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()
