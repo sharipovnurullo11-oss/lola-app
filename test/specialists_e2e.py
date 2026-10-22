@@ -169,6 +169,7 @@ try:
         pg.click('#sp-back button'); pg.wait_for_timeout(200); check(pg.is_visible('#sp-home') and not pg.is_visible('#list'), 'кнопка «← Специалисты» возвращает на главный экран')
         pg.click('[data-home="buh"]'); pg.wait_for_timeout(500)
         check(pg.is_visible('[data-onb^="kind:"]'), 'бухгалтер: при первом входе просит выбрать вид деятельности')
+        check(pg.locator('#sp-body [data-shop="goto"][data-k="kassa"]').count() == 1, 'бухгалтер: «Касса» видна и на первом экране знакомства')
         pg.click('[data-onb="kind:health"]'); pg.click('[data-onb="stock:yes"]'); pg.click('[data-onb^="staff:"] >> nth=0'); pg.click('[data-onb="hire"]'); pg.wait_for_timeout(700)
         t = pg.inner_text('#sp-body'); check('500' in t and 'Крем' in t, 'бухгалтер: итоги и остатки загружены')
         check('<b>x</b>' in t and pg.locator('#sp-body b', has_text='x').count() == 0, 'текст записи экранирован')
