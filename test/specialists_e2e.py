@@ -36,6 +36,8 @@ def h(route):
         if a == 'status': return route.fulfill(json={"ok": True, "connected": True, "username": "nurullo_psiholog", "left": 5, "limit": 5})
         if a == 'plan': return route.fulfill(json={"ok": True, "text": "ПЛАН <b>x</b>\nПН - рилс", "left": 4, "connected": True})
         if a == 'caption': return route.fulfill(json={"ok": True, "text": "Подпись готова", "left": 3, "connected": True})
+        if a == 'ideas': return route.fulfill(json={"ok": True, "text": "ИДЕИ <b>x</b>", "left": 2, "connected": True})
+        if a == 'reply': return route.fulfill(json={"ok": True, "text": "ОТВЕТ готов", "left": 1, "connected": True})
         return route.fulfill(json={"ok": False, "error": "Не получилось прочитать ваш Instagram", "reconnect": True})
     route.fulfill(json={"ok": True, "staff": [], "sessions": [], "chats": []})
 def check(c, m):
@@ -105,6 +107,11 @@ try:
         check(pg.locator('#sm-res b').count() == 0 and 'ПЛАН <b>x</b>' in pg.inner_text('#sm-res'), 'SMM: ответ экранирован')
         check('4' in pg.inner_text('#sp-body'), 'SMM: остаток запросов уменьшился')
         pg.fill('#sm-cap', 'пост про тревогу'); pg.click('[data-smm="caption"]'); pg.wait_for_timeout(500); check('Подпись готова' in pg.inner_text('#sm-res'), 'SMM: подпись получена')
+        pg.click('[data-smm="ideas"]'); pg.wait_for_timeout(500)
+        check(any(c['action'] == 'ideas' for c in calls) and 'ИДЕИ <b>x</b>' in pg.inner_text('#sm-res') and pg.locator('#sm-res b').count() == 0, 'SMM: идеи роликов получены, ответ экранирован')
+        pg.click('[data-smm="reply"]'); check('вставьте комментарий' in pg.inner_text('#sp-body').lower() and not any(c['action'] == 'reply' for c in calls), 'SMM: пустой комментарий не уходит на сервер')
+        pg.fill('#sm-rep', 'А сколько стоит консультация?'); pg.click('[data-smm="reply"]'); pg.wait_for_timeout(500)
+        check(any(c['action'] == 'reply' and c['text'] == 'А сколько стоит консультация?' for c in calls) and 'ОТВЕТ готов' in pg.inner_text('#sm-res'), 'SMM: ответ на комментарий получен')
         pg.click('[data-smm="profile"]'); pg.wait_for_timeout(500); check('Instagram' in pg.inner_text('#sp-body') and pg.is_visible('#sp-body .err'), 'SMM: ошибка разбора показана')
         # SMM: полный анализ Instagram
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="smm"]'); pg.wait_for_timeout(600)

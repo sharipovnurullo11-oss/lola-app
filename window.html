@@ -2508,7 +2508,7 @@ $('ar-list').addEventListener('click', function(e){
       d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
-      d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; });
+      d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; });
 d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'mk-in' && !/Mobi|Android|iPhone/i.test(navigator.userAgent)) { e.preventDefault(); mktClick('send'); } });
     }
     return true;
@@ -2581,7 +2581,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
 
   /* ---------- SMM-специалист ---------- */
-  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0 };
+  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0 };
   function openSmm() {
     S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; anStop(); render();
     callTo('/smm', { action: 'status' }).then(function (r) {
@@ -2598,7 +2598,7 @@ if (S.view === 'mkt') return renderMkt(el);
       var prev = SM.an ? [SM.an.running, SM.an.status, SM.an.shag, SM.an.error] : null;
       if (r.ok) { SM.an = r; SM.anErr = ''; } else if (!SM.an) SM.an = { error: r.error || TX('не удалось загрузить') };
       var cur = SM.an ? [SM.an.running, SM.an.status, SM.an.shag, SM.an.error] : null;
-      var ae = document.activeElement, typing = !!(ae && (ae.id === 'sm-plan' || ae.id === 'sm-cap'));
+      var ae = document.activeElement, typing = !!(ae && (ae.id === 'sm-plan' || ae.id === 'sm-cap' || ae.id === 'sm-ideas' || ae.id === 'sm-rep'));
       anSchedule();
       if (!typing || JSON.stringify(prev) !== JSON.stringify(cur)) render();
     });
@@ -2676,6 +2676,14 @@ if (S.view === 'mkt') return renderMkt(el);
       '<b>' + esc(TX('Подпись к посту или Reels')) + '</b>' +
       '<textarea class="in2" id="sm-cap" rows="2" maxlength="800" placeholder="' + esc(TX('О чём пост или ролик?')) + '">' + esc(SM.cap) + '</textarea>' +
       '<button class="btn" data-smm="caption" type="button"' + dis + '>' + esc(TX('Написать подпись')) + '</button></div>';
+    h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
+      '<b>' + esc(TX('Идеи роликов')) + '</b>' +
+      '<textarea class="in2" id="sm-ideas" rows="2" maxlength="800" placeholder="' + esc(TX('О чём хотите ролики? (необязательно)')) + '">' + esc(SM.ideas) + '</textarea>' +
+      '<button class="btn" data-smm="ideas" type="button"' + dis + '>' + esc(TX('Придумать 5 идей')) + '</button></div>';
+    h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
+      '<b>' + esc(TX('Ответ на комментарий или сообщение')) + '</b>' +
+      '<textarea class="in2" id="sm-rep" rows="3" maxlength="800" placeholder="' + esc(TX('Вставьте комментарий или сообщение, на которое нужно ответить')) + '">' + esc(SM.rep) + '</textarea>' +
+      '<button class="btn" data-smm="reply" type="button"' + dis + '>' + esc(TX('Написать ответ')) + '</button></div>';
     h += '<div style="display:grid;gap:8px;margin-bottom:10px"><b>' + esc(TX('Разбор профиля')) + '</b>' +
       '<button class="btn sec" data-smm="profile" type="button"' + dis + '>' + esc(TX('Разобрать мой профиль')) + '</button></div>';
     if (SM.busy) h += '<p>⏳ ' + esc(TX('Готовлю ответ, это до минуты…')) + '</p>';
@@ -2687,8 +2695,9 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function runSmm(act) {
     if (SM.busy) return;
-    var text = act === 'plan' ? SM.plan : act === 'caption' ? SM.cap : '';
+    var text = act === 'plan' ? SM.plan : act === 'caption' ? SM.cap : act === 'ideas' ? SM.ideas : act === 'reply' ? SM.rep : '';
     if (act === 'caption' && String(text).trim().length < 5) { SM.err = TX('Напишите, о чём пост или ролик'); SM.res = ''; return render(); }
+    if (act === 'reply' && String(text).trim().length < 5) { SM.err = TX('Вставьте комментарий или сообщение, на которое нужно ответить'); SM.res = ''; return render(); }
     SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; render();
     callTo('/smm', { action: act, text: String(text).trim() }).then(function (r) {
       SM.busy = false;
@@ -2703,7 +2712,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (a === 'an-start') return anStart();
     if (a === 'an-copy') return copyText((SM.an && SM.an.otchet) || '', function () { SM.anCopied = true; if (S.view === 'smm') render(); });
     if (a === 'copy') return copyText(SM.res, function () { SM.copied = true; if (S.view === 'smm') render(); });
-    if (a === 'plan' || a === 'caption' || a === 'profile') return runSmm(a);
+    if (a === 'plan' || a === 'caption' || a === 'profile' || a === 'ideas' || a === 'reply') return runSmm(a);
   }
 
   /* ---------- Маркетолог ---------- */
