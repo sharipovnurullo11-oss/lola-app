@@ -1266,6 +1266,63 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     rd.readAsDataURL(file);
   }
   function shFotoBox(inner) { return '<input type="file" id="sh-foto-in" accept="image/*" capture="environment" hidden>' + inner; }
+  var SCAN = null;
+  function shScanBtn(mode) { return shBtn('scan', '📷 ' + ui('Скан', 'Скан', 'Skan'), { sec: true, st: 'min-height:48px;padding:0 14px' }, mode); }
+  function shCanCreate() { return !sellerView() || KEEPER; }
+  function shFindExact(code) { var t = String(code).toLowerCase(), hit = null; ((SH.d && SH.d.products) || []).forEach(function (p) { if (String(p.kod).toLowerCase() === t) hit = p; }); return hit; }
+  function shScanMsg(t) { var m = SCAN && SCAN.ov && SCAN.ov.querySelector('#sh-scan-msg'); if (m) m.textContent = t; }
+  function shScanStop() {
+    if (!SCAN) return; var s = SCAN; SCAN = null; clearInterval(s.timer);
+    try { if (s.stream) s.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    try { if (s.ov.parentNode) s.ov.parentNode.removeChild(s.ov); } catch (e) {}
+  }
+  function shScanOpen(mode) {
+    if (SCAN) return;
+    var host = document.querySelector('dialog[open]') || document.body;
+    var ov = document.createElement('div'); ov.id = 'sh-scan';
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', ui('Сканер штрихкода', 'Скануери рамзи хатч', 'Shtrix-kod skaneri'));
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;box-sizing:border-box';
+    ov.innerHTML = '<video id="sh-scan-v" playsinline muted style="width:min(92vw,420px);max-height:55vh;background:#000;border-radius:12px;object-fit:cover"></video>' +
+      '<div id="sh-scan-msg" role="status" style="color:#fff;text-align:center;max-width:420px">' + esc(ui('Наведите камеру на штрихкод товара', 'Камераро ба рамзи мол равона кунед', 'Kamerani tovar shtrix-koduga yoʻnaltiring')) + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr auto;gap:8px;width:min(92vw,420px)"><input id="sh-scan-in" class="in2" autocomplete="off" inputmode="text" placeholder="' + esc(ui('Или введите код вручную', 'Ё рамзро дастӣ ворид кунед', 'Yoki kodni qoʻlda kiriting')) + '" style="height:48px;font-size:16px"><button type="button" class="btn" id="sh-scan-ok" style="height:48px">' + esc(ui('Ввести', 'Ворид', 'Kiritish')) + '</button></div>' +
+      '<button type="button" class="btn sec" id="sh-scan-x" style="min-height:48px">' + esc(ui('Закрыть', 'Пӯшидан', 'Yopish')) + '</button>';
+    host.appendChild(ov);
+    SCAN = { ov: ov, mode: mode, stream: null, timer: null, done: false, busy: false };
+    ov.querySelector('#sh-scan-x').addEventListener('click', function () { shScanStop(); render(); });
+    ov.querySelector('#sh-scan-ok').addEventListener('click', function () { shScanDone(ov.querySelector('#sh-scan-in').value); });
+    ov.querySelector('#sh-scan-in').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); shScanDone(this.value); } });
+    var det = null;
+    try { if (typeof window.BarcodeDetector === 'function' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] }); } catch (e) { det = null; }
+    if (!det) { shScanMsg(ui('Сканер на этом телефоне недоступен. Введите код вручную.', 'Скануер дар ин телефон дастрас нест. Рамзро дастӣ ворид кунед.', 'Bu telefonda skaner ishlamaydi. Kodni qoʻlda kiriting.')); return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }).then(function (st) {
+      if (!SCAN || SCAN.ov !== ov) { st.getTracks().forEach(function (t) { t.stop(); }); return; }
+      SCAN.stream = st; var v = ov.querySelector('#sh-scan-v'); v.srcObject = st; var pr = v.play(); if (pr && pr.catch) pr.catch(function () {});
+      SCAN.timer = setInterval(function () {
+        if (!SCAN || SCAN.ov !== ov || SCAN.busy || SCAN.done) return; SCAN.busy = true;
+        det.detect(v).then(function (res) { if (SCAN) SCAN.busy = false; if (res && res.length && res[0].rawValue) shScanDone(res[0].rawValue); }, function () { if (SCAN) SCAN.busy = false; });
+      }, 250);
+    }).catch(function () { shScanMsg(ui('Нет доступа к камере. Разрешите камеру в браузере или введите код вручную.', 'Ба камера дастрасӣ нест. Камераро иҷозат диҳед ё рамзро дастӣ ворид кунед.', 'Kameraga ruxsat yoʻq. Kameraga ruxsat bering yoki kodni qoʻlda kiriting.')); });
+  }
+  function shScanDone(raw) {
+    if (!SCAN || SCAN.done) return;
+    var code = String(raw || '').trim().slice(0, 20); if (!code) return;
+    var mode = SCAN.mode; SCAN.done = true; shScanStop();
+    SH.err = ''; SH.ok = ''; SH.found = null; SH.low = '';
+    var p = shFindExact(code), noAdd = ui('Товара с кодом «' + code + '» нет. Скажите кладовщику или владельцу.', 'Мол бо рамзи «' + code + '» нест. Ба анбордор ё соҳиб гӯед.', '«' + code + '» kodli tovar yoʻq. Omborchi yoki egasiga ayting.');
+    var newOne = ui('Товара с кодом «' + code + '» ещё нет. Заведите его: название, закупка и маржа.', 'Мол бо рамзи «' + code + '» ҳанӯз нест. Онро ворид кунед: ном, нархи харид ва маржа.', '«' + code + '» kodli tovar hali yoʻq. Uni kiriting: nomi, xarid narxi va marja.');
+    if (mode === 'sell') {
+      SH.tab = 'kassa'; SH.code = '';
+      if (p) shPut(p.kod);
+      else if (shCanCreate()) { SH.tab = 'prihod'; SH.rcv = null; SH.pcode = ''; SH.fotoNew = ''; SH.form = { kod: code, name: '', zakup: '', marzha: '' }; SH.err = newOne; }
+      else SH.err = noAdd;
+      return render();
+    }
+    SH.tab = 'prihod'; SH.pcode = '';
+    if (p) { SH.rcv = { kod: p.kod, name: p.name }; SH.form = null; }
+    else if (shCanCreate()) { SH.rcv = null; SH.fotoNew = ''; SH.form = { kod: code, name: '', zakup: '', marzha: '' }; SH.err = newOne; }
+    else { SH.rcv = null; SH.err = noAdd; }
+    render();
+  }
   function shRw() { try { return Number(lstore('ew_rw')) === 80 ? 80 : 58; } catch (e) { return 58; } }
   function shPrintReceipt() {
     var r = SH.last; if (!r) return; var w = shRw(), d = new Date(r.ts), pn = { nal: ui('наличные', 'нақд', 'naqd'), perevod: ui('перевод', 'гузаронидан', 'oʻtkazma'), dolg: ui('в долг', 'қарз', 'qarzga'), vladelec: ui('владелец', 'соҳиб', 'egasi') };
@@ -1352,7 +1409,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         shBtn('minus', '−', { sec: true, st: 'width:48px;padding:0' }, it.kod) + '<b style="min-width:20px;text-align:center">' + it.qty + '</b>' + shBtn('plus', '+', { sec: true, st: 'width:48px;padding:0' }, it.kod) + '</div>';
     }).join('') + '</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start">' +
-      '<div>' + shIn('sh-code', ui('Введите код товара', 'Рамзи молро ворид кунед', 'Tovar kodini kiriting'), SH.code, 'inputmode="text" enterkeyhint="done"') +
+      '<div><div style="display:grid;grid-template-columns:1fr auto;gap:8px">' + shIn('sh-code', ui('Введите код товара', 'Рамзи молро ворид кунед', 'Tovar kodini kiriting'), SH.code, 'inputmode="text" enterkeyhint="done"') + shScanBtn('sell') + '</div>' +
       '<div id="sh-hints" style="margin-top:12px;min-height:56px;' + box + '">' + shHintsHtml() + '</div></div>' +
       '<div style="' + box + ';display:flex;flex-direction:column;min-height:200px"><div style="opacity:.75">' + esc(ui('Корзина', 'Сабад', 'Savat')) + '</div><div style="flex:1">' + cart + '</div>' +
       '<div id="sh-total" style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #e3e3e3;margin-top:12px;padding-top:10px"><span style="opacity:.75">' + esc(ui('Итого', 'Ҳамагӣ', 'Jami')) + '</span><b style="font-size:30px">' + esc(money(shCartSum())) + ' ' + esc(ui('сом.', 'сом.', 'som')) + '</b></div></div></div>';
@@ -1408,7 +1465,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         shIn('sh-r-zakup', ui('Новая закупочная цена (если изменилась)', 'Нархи нави харид (агар тағйир ёфт)', 'Yangi xarid narxi (oʻzgargan boʻlsa)'), '', 'inputmode="decimal"') +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
     } else {
-      h += '<div>' + shIn('sh-pcode', ui('Код или название товара', 'Рамз ё номи мол', 'Tovar kodi yoki nomi'), SH.pcode, 'inputmode="text" enterkeyhint="done"') + '<div id="sh-phints" style="margin-top:10px;min-height:48px">' + shPHints() + '</div></div>' +
+      h += '<div><div style="display:grid;grid-template-columns:1fr auto;gap:8px">' + shIn('sh-pcode', ui('Код или название товара', 'Рамз ё номи мол', 'Tovar kodi yoki nomi'), SH.pcode, 'inputmode="text" enterkeyhint="done"') + shScanBtn('recv') + '</div>' + '<div id="sh-phints" style="margin-top:10px;min-height:48px">' + shPHints() + '</div></div>' +
         shBtn('fnew', '＋ ' + ui('Новый товар', 'Моли нав', 'Yangi tovar'), { sec: true, st: 'width:100%;margin:10px 0' });
     }
     var rc = (D && D.receipts) || [];
@@ -1475,6 +1532,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'add') { var c = $s('sh-code'); SH.code = ''; shAdd(c ? c.value : ''); render(); var c2 = $s('sh-code'); if (c2) c2.focus(); return; }
     if (a === 'put') { SH.err = ''; SH.found = null; var pc = $s('sh-code'), pt = pc ? pc.value.trim().toLowerCase() : ''; shPut(k); SH.code = pt === String(k).toLowerCase() ? k : ''; render(); var c3 = $s('sh-code'); if (c3) c3.focus(); return; }
     if (a === 'print') return shPrintReceipt();
+    if (a === 'scan') return shScanOpen(k);
     if (a === 'foto') { var fi = $s('sh-foto-in'); if (fi) { fi.dataset.k = k; fi.value = ''; fi.click(); } return; }
     if (a === 'rw') { try { lstore('ew_rw', String(k)); } catch (e) {} return render(); }
     if (a === 'who') { SH.who = k; SH.err = ''; render(); return; }
