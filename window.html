@@ -2437,6 +2437,9 @@ $('ar-list').addEventListener('click', function(e){
     { id: 'lawyer', name: 'Юрист', about: 'Составляет договоры на русском, таджикском и узбекском', ready: true, ico: '⚖️' }
   ];
   var S = { view: 'list', buh: null, month: '', busy: false };
+  // «Учёт магазина» пока включён только для двух кабинетов: Шамсуло (колхоз, Россия) и владельца приложения. Остальным он не виден, сервер тоже не пускает.
+  var SHOP_ALLOW = ['k17jyvxja8gfe6lrye2izmvjjasx6', 'ktfsozy4lpr8llrzfdaym0nmvak4lb9'];
+  function shopOn() { try { return SHOP_ALLOW.indexOf(String(store('ew_cab') || '')) >= 0; } catch (e) { return false; } }
 
   function $s(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -2520,7 +2523,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if (id === 'buh') openBuh(); else if (id === 'shop') openShop(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
+    if (id === 'shop' && !shopOn()) return; if (id === 'buh') openBuh(); else if (id === 'shop') openShop(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
 
@@ -2629,7 +2632,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function renderAsst(el) {
     var facts = asstFacts();
-    var rows = ASST_ROWS.map(function (r) {
+    var rows = ASST_ROWS.filter(function (r) { return r.id !== 'shop' || shopOn(); }).map(function (r) {
       var s = LIST.filter(function (x) { return x.id === r.id; })[0] || { ico: '', name: r.id };
       return '<div class="asst-row" style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line,#e5e5e5)">' +
         '<span style="font-size:24px;flex:none" aria-hidden="true">' + s.ico + '</span>' +
@@ -2731,6 +2734,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var show = user && HOME;
     var app = document.querySelector('.app'); if (app) app.classList.toggle('sp-on', show);
     $s('sp-home').hidden = !show;
+    var shopTile = document.querySelector('#sp-home [data-home="shop"]'); if (shopTile) shopTile.hidden = !shopOn();
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
   }
@@ -2746,7 +2750,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
 if (S.view === 'mkt') return renderMkt(el);
     if (S.view !== 'list') return renderSoon(el, S.view);
     el.innerHTML = '<h2 style="padding-right:36px">' + esc(TX('Специалисты')) + '</h2><p>' + esc(TX('Выберите специалиста. Каждый работает в своём окне.')) + '</p><div class="sp-list" style="display:grid;gap:10px">' +
-      LIST.map(function (s) {
+      LIST.filter(function (s) { return s.id !== 'shop' || shopOn(); }).map(function (s) {
         return '<button type="button" class="btn sec sp-card" data-sp="' + s.id + '" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:12px">' +
           '<span style="font-size:26px;flex:none" aria-hidden="true">' + s.ico + '</span>' +
           '<span style="flex:1;min-width:0"><b style="display:block">' + esc(TX(s.name)) + '</b><small style="opacity:.75">' + esc(TX(s.about)) + '</small></span>' +
@@ -3513,7 +3517,7 @@ function load() {
   function renderBuh(el) {
     if (S.onb) return renderOnb(el);
 var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухгалтер')) + '</h2>' + (S.prof ? '<button type="button" class="btn sec" data-onb="change" style="height:30px;padding:0 10px;margin:0 0 6px;font-size:13px">' + esc(TX('Изменить вид деятельности')) + '</button>' : '');
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px"><button type="button" class="btn" data-shop="goto" data-k="kassa" style="min-height:56px;font-size:17px">🛒 ' + esc(ui('Касса', 'Касса', 'Kassa')) + '</button><button type="button" class="btn sec" data-shop="goto" data-k="tovar" style="min-height:56px;font-size:17px">📦 ' + esc(ui('Учёт', 'Ҳисоб', 'Hisob')) + '</button></div>';
+    if (shopOn()) h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px"><button type="button" class="btn" data-shop="goto" data-k="kassa" style="min-height:56px;font-size:17px">🛒 ' + esc(ui('Касса', 'Касса', 'Kassa')) + '</button><button type="button" class="btn sec" data-shop="goto" data-k="tovar" style="min-height:56px;font-size:17px">📦 ' + esc(ui('Учёт', 'Ҳисоб', 'Hisob')) + '</button></div>';
     if (!S.buh) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (S.buh.error) { el.innerHTML = h + '<p class="err">' + esc(S.buh.error) + '</p><button class="btn" data-buh="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
     writeCache();
