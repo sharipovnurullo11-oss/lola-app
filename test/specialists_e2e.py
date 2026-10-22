@@ -337,5 +337,13 @@ try:
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());localStorage.removeItem('ew_cab');localStorage.setItem('ew_sid','sidtest123456')"); pg.reload(); pg.wait_for_timeout(1200)
         pg.evaluate("localStorage.setItem('ew_cam_declined','1');document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(not pg.is_visible('#sp-home') and not pg.is_visible('#sp-back'), 'сотрудник не видит главный экран специалистов')
+        check(pg.is_visible('#sp-kassa-btn'), 'продавец: есть большая кнопка «Касса»')
+        n0 = len(calls); pg.click('#sp-kassa-btn'); pg.wait_for_timeout(600)
+        check(pg.is_visible('#sh-code'), 'продавец: касса открывается')
+        lc = [c for c in calls[n0:] if c.get('action') == 'list']
+        check(lc and lc[-1].get('sid') == 'sidtest123456' and 'code' not in lc[-1], 'продавец: запрос уходит с сессией, без кода кабинета')
+        check(pg.locator('#sp-body [data-shop="tab"]').count() == 0, 'продавец: вкладок Товары, Долги, Отчёт нет')
+        pg.fill('#sh-code', SHP[0]['kod']); pg.wait_for_timeout(200); pg.click('#sp-body [data-shop="put"]'); pg.wait_for_timeout(300)
+        check(pg.locator('#sp-body [data-shop="pay"][data-k="vladelec"]').count() == 0 and pg.locator('#sp-body [data-shop="pay"][data-k="dolg"]').count() == 1, 'продавец: нет «Взял владелец», «В долг» есть')
         b.close()
 finally: srv.terminate()
