@@ -305,8 +305,8 @@ if (S.view === 'mkt') return renderMkt(el);
   }
 
   /* ---------- База знаний специалиста: отработанные дела этого кабинета ---------- */
-  var KB = { smm: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, lawyer: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, last: { smm: null, lawyer: null } };
-  function kbView() { return S.view === 'law' ? 'lawyer' : S.view === 'smm' ? 'smm' : ''; }
+  var KB = { smm: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, lawyer: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, mkt: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, last: { smm: null, lawyer: null, mkt: null } };
+  function kbView() { return S.view === 'law' ? 'lawyer' : S.view === 'smm' ? 'smm' : S.view === 'mkt' ? 'mkt' : ''; }
   function kbLoad(spec) {
     var k = KB[spec]; if (!k) return;
     callTo('/znaniya', { action: 'list', spec: spec }).then(function (r) {
@@ -669,6 +669,8 @@ h += '<div id="mk-chat" style="display:grid;gap:8px;max-height:46dvh;overflow:au
 if (MK.err) h += '<p class="err">' + esc(MK.err) + '</p>';
 h += '<div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end"><textarea class="in2" id="mk-in" rows="2" maxlength="1500" placeholder="' + esc(TX('Напишите маркетологу…')) + '">' + esc(MK.draft) + '</textarea><button class="btn" data-mkt="send" type="button"' + dis + '>' + esc(TX('Отправить')) + '</button></div>';
 h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">' + (MK.msgs.length ? '<button class="btn sec" data-mkt="copy" type="button" style="height:32px;padding:0 10px;font-size:13px">' + esc(TX(MK.copied ? 'Скопировано ✓' : 'Скопировать последний ответ')) + '</button><button class="btn sec" data-mkt="clear" type="button" style="height:32px;padding:0 10px;font-size:13px">' + esc(TX('Очистить чат')) + '</button>' : '') + '</div>';
+var mkQ = '', mkA = ''; for (var mi = MK.msgs.length - 1; mi >= 0; mi--) { if (!mkA && MK.msgs[mi].r === 'a') mkA = MK.msgs[mi].t; else if (mkA && MK.msgs[mi].r === 'u') { mkQ = MK.msgs[mi].t; break; } }
+h += (mkQ && mkA && !MK.busy ? '<div style="margin:8px 0">' + kbBtn('mkt', { q: mkQ.slice(0, 300), a: mkA.slice(0, 3000) }) + '</div>' : (KB.last.mkt = null, '')) + kbCard('mkt');
 h += '<p><small>' + esc(TX('Я ничего не публикую и никому не пишу сам. Переписок ваших клиентов я не вижу: только цифры.')) + '</small></p>';
 el.innerHTML = h;
 var c = $s('mk-chat'); if (c) c.scrollTop = c.scrollHeight;
@@ -678,7 +680,7 @@ text = String(text || '').trim();
 if (MK.busy) return;
 if (text.length < 2) { MK.err = TX('Напишите вопрос маркетологу'); return render(); }
 var hist = MK.msgs.slice(-8).map(function (m) { return { r: m.r, t: m.t }; });
-MK.msgs.push({ r: 'u', t: text }); MK.draft = ''; MK.busy = true; MK.err = ''; MK.copied = false; mkSave(); render();
+KB.mkt.saved = false; MK.msgs.push({ r: 'u', t: text }); MK.draft = ''; MK.busy = true; MK.err = ''; MK.copied = false; mkSave(); render();
 callTo('/marketolog', { action: 'chat', text: text, task: task || '', history: hist }).then(function (r) {
 MK.busy = false;
 if (r.ok) { MK.msgs.push({ r: 'a', t: r.text || '' }); if (MK.st && !MK.st.error) MK.st.left = r.left; mkSave(); }
