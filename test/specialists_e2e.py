@@ -286,7 +286,7 @@ try:
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check('Учёт магазина' in pg.inner_text('#sp-home'), 'магазин: есть на главном экране')
         pg.click('[data-home="shop"]'); pg.wait_for_timeout(500)
-        check('Добавьте товары' in pg.inner_text('#sp-body') or 'Сначала добавьте' in pg.inner_text('#sp-body'), 'магазин: пустая касса подсказывает добавить товары')
+        check('Пока пусто' in pg.inner_text('#sp-body'), 'магазин: касса открывается и при пустом списке товаров (пустая корзина)')
         pg.click('[data-shop="tab"][data-k="tovar"]'); pg.click('[data-shop="fnew"]')
         pg.fill('#sh-f-kod', 'dr-01'); pg.fill('#sh-f-name', 'Дрель <b>x</b>'); pg.fill('#sh-f-zakup', '100'); pg.fill('#sh-f-marzha', '25')
         check('125' in pg.inner_text('#sh-f-price'), 'магазин: цена продажи считается сама из закупки и маржи')
