@@ -2428,7 +2428,7 @@ $('ar-list').addEventListener('click', function(e){
     { id: 'buh', name: 'Бухгалтер', about: 'Приход, расход и остатки товара. Показывает прибыль за месяц', ready: true, ico: '📒' },
     { id: 'smm', name: 'SMM-специалист', about: 'План недели, подписи к постам и разбор профиля по вашему Instagram', ready: true, ico: '📣' },
     { id: 'mkt', name: 'Маркетолог', about: 'Контент-план, где теряются клиенты, ваши цифры и тексты для возврата', ready: true, ico: '🎯' },
-    { id: 'manager', name: 'Менеджер по клиентам', about: 'Напоминает о повторных покупках и возвращает пропавших клиентов', ready: false, ico: '🤝' },
+    { id: 'manager', name: 'Менеджер по клиентам', about: 'Следит, чтобы клиенты не терялись: возвращает замолчавших, напоминает о повторных покупках', ready: true, ico: '🤝' },
     { id: 'lawyer', name: 'Юрист', about: 'Составляет договоры на русском, таджикском и узбекском', ready: true, ico: '⚖️' }
   ];
   var S = { view: 'list', buh: null, month: '', busy: false };
@@ -2515,7 +2515,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else { S.view = id; render(); }
+    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
 
@@ -2565,6 +2565,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     if (S.view === 'buh') return renderBuh(el);
     if (S.view === 'smm') return renderSmm(el);
     if (S.view === 'law') return renderLaw(el);
+    if (S.view === 'mgr') return renderMgr(el);
 if (S.view === 'mkt') return renderMkt(el);
     if (S.view !== 'list') return renderSoon(el, S.view);
     el.innerHTML = '<h2 style="padding-right:36px">' + esc(TX('Специалисты')) + '</h2><p>' + esc(TX('Выберите специалиста. Каждый работает в своём окне.')) + '</p><div class="sp-list" style="display:grid;gap:10px">' +
@@ -2778,6 +2779,27 @@ if (S.view === 'mkt') return renderMkt(el);
     if (p[0] === 'save') return kbSave(spec);
     if (p[0] === 'toggle') { KB[spec].open = !KB[spec].open; return render(); }
     if (p[0] === 'del') return kbDel(spec, Number(p[2]));
+  }
+
+  /* ---------- Менеджер по клиентам: что он делает и что уже работает ---------- */
+  function openMgr() { S.view = 'mgr'; render(); }
+  function renderMgr(el) {
+    var items = [
+      { ico: '🔎', ok: false, t: ['Находит тех, кто замолчал', 'Онҳоро, ки хомӯш шудаанд, меёбад', 'Jim boʻlib qolganlarni topadi'], d: ['Смотрит ваши переписки и показывает клиентов, которые давно не писали.', 'Мукотибаҳои шуморо мебинад ва муштариёнеро нишон медиҳад, ки муддати дароз нанавиштаанд.', 'Yozishmalaringizni koʻrib, uzoq vaqt yozmagan mijozlarni koʻrsatadi.'] },
+      { ico: '💌', ok: true, t: ['Пишет тексты для возврата', 'Матнҳо барои баргардонидан менависад', 'Qaytarish uchun matnlar yozadi'], d: ['Готовит мягкие сообщения для тех, кто замолчал. Отправляете вы или оператор, сам он никому не пишет. Работает сейчас через Маркетолога.', 'Паёмҳои мулоим барои хомӯшшудагон тайёр мекунад. Шумо ё оператор мефиристед, худаш ба касе наменависад. Ҳоло тавассути Маркетолог кор мекунад.', 'Jim boʻlib qolganlar uchun yumshoq xabarlar tayyorlaydi. Yuborishni siz yoki operator qilasiz, oʻzi hech kimga yozmaydi. Hozir Marketolog orqali ishlaydi.'] },
+      { ico: '🔁', ok: false, t: ['Напоминает о повторной покупке или визите', 'Дар бораи харид ё ташрифи такрорӣ ёдовар мешавад', 'Qayta xarid yoki tashrif haqida eslatadi'], d: ['Подсказывает, когда пора написать клиенту снова: через месяц после услуги, когда заканчивается товар.', 'Мегӯяд, кай вақти дубора навиштан ба муштарӣ аст: баъди як моҳи хизмат, вақте ки мол тамом мешавад.', 'Mijozga qachon yana yozish vaqti kelganini aytadi: xizmatdan bir oy keyin, tovar tugaganda.'] },
+      { ico: '📋', ok: false, t: ['Ведёт карточку клиента', 'Корти муштариро пеш мебарад', 'Mijoz kartochkasini yuritadi'], d: ['Помнит, что клиент покупал, что просил и когда писал последний раз, чтобы вы отвечали по делу.', 'Дар хотир медорад, ки муштарӣ чӣ харидааст, чӣ талаб кардааст ва охирин бор кай навишта буд.', 'Mijoz nima sotib olgani, nima soragani va oxirgi marta qachon yozganini eslab qoladi.'] }
+    ], i = LI[window.LANG || 'ru'] || 0;
+    var h = backBtn() + '<h2 style="padding-right:36px">🤝 ' + esc(TX('Менеджер по клиентам')) + '</h2>' +
+      '<p>' + esc(ui('Его работа: чтобы клиенты не терялись. Он помогает вернуть тех, кто замолчал, и вовремя напомнить о себе. Сам он клиентам не пишет: тексты готовит, отправляете вы.', 'Вазифаи ӯ: муштариён гум нашаванд. Ӯ кӯмак мекунад хомӯшшудагонро баргардонед ва саривақт худро ёдовар шавед. Худаш ба муштариён наменависад: матнҳоро тайёр мекунад, шумо мефиристед.', 'Uning ishi: mijozlar yoʻqolib qolmasligi. U jim boʻlib qolganlarni qaytarishga va oʻz vaqtida eslatishga yordam beradi. Oʻzi mijozlarga yozmaydi: matnlarni tayyorlaydi, yuborishni siz qilasiz.')) + '</p><div style="display:grid;gap:10px">';
+    items.forEach(function (x) {
+      h += '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;display:grid;gap:4px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:26px" aria-hidden="true">' + x.ico + '</span><b style="flex:1">' + esc(x.t[i]) + '</b>' +
+        '<span style="flex:none;font-size:12px;padding:3px 8px;border-radius:10px;background:' + (x.ok ? '#e3f6ea;color:#1f8a4c' : '#eee;color:#777') + '">' + esc(x.ok ? ui('работает', 'кор мекунад', 'ishlayapti') : ui('готовится', 'омода мешавад', 'tayyorlanmoqda')) + '</span></div>' +
+        '<small style="opacity:.85">' + esc(x.d[i]) + '</small></div>';
+    });
+    h += '</div><button class="btn" data-mgr="mkt" type="button" style="margin-top:12px">' + esc(ui('Открыть тексты для возврата', 'Кушодани матнҳо барои баргардонидан', 'Qaytarish matnlarini ochish')) + '</button>' +
+      '<p><small>' + esc(ui('В Маркетологе нажмите «Вернуть замолчавших».', 'Дар Маркетолог «Баргардонидани хомӯшшудагон»-ро пахш кунед.', 'Marketologda «Jim boʻlib qolganlarni qaytarish» tugmasini bosing.')) + '</small></p>';
+    el.innerHTML = h;
   }
 
   /* ---------- Юрист: договоры на трёх языках ---------- */
@@ -3285,6 +3307,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);
+if (b.dataset.mgr) return openMkt();
 if (b.dataset.kb) return kbClick(b.dataset.kb);
 if (b.dataset.mkt) return mktClick(b.dataset.mkt);
     var a = b.dataset.buh; if (!a) return;
