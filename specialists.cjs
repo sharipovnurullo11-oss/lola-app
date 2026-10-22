@@ -11,8 +11,8 @@
     { id: 'buh', name: 'Бухгалтер', about: 'Приход, расход и остатки товара. Показывает прибыль за месяц', ready: true, ico: '📒' },
     { id: 'smm', name: 'SMM-специалист', about: 'План недели, подписи к постам и разбор профиля по вашему Instagram', ready: true, ico: '📣' },
     { id: 'mkt', name: 'Маркетолог', about: 'Контент-план, где теряются клиенты, ваши цифры и тексты для возврата', ready: true, ico: '🎯' },
-    { id: 'manager', name: 'Менеджер по клиентам', about: 'Напоминает о повторных покупках и возвращает пропавших клиентов', ready: false, ico: '🤝' },
-    { id: 'lawyer', name: 'Юрист', about: 'Договоры, условия и ответы на юридические вопросы бизнеса', ready: false, ico: '⚖️' }
+    { id: 'manager', name: 'Менеджер по клиентам', about: 'Следит, чтобы клиенты не терялись: возвращает замолчавших, напоминает о повторных покупках', ready: true, ico: '🤝' },
+    { id: 'lawyer', name: 'Юрист', about: 'Составляет договоры на русском, таджикском и узбекском', ready: true, ico: '⚖️' }
   ];
   var S = { view: 'list', buh: null, month: '', busy: false };
 
@@ -91,14 +91,14 @@
       d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
-      d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; });
+      d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; });
 d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'mk-in' && !/Mobi|Android|iPhone/i.test(navigator.userAgent)) { e.preventDefault(); mktClick('send'); } });
     }
     return true;
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else { S.view = id; render(); }
+    if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
 
@@ -147,6 +147,8 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var el = $s('sp-body'); if (!el) return;
     if (S.view === 'buh') return renderBuh(el);
     if (S.view === 'smm') return renderSmm(el);
+    if (S.view === 'law') return renderLaw(el);
+    if (S.view === 'mgr') return renderMgr(el);
 if (S.view === 'mkt') return renderMkt(el);
     if (S.view !== 'list') return renderSoon(el, S.view);
     el.innerHTML = '<h2 style="padding-right:36px">' + esc(TX('Специалисты')) + '</h2><p>' + esc(TX('Выберите специалиста. Каждый работает в своём окне.')) + '</p><div class="sp-list" style="display:grid;gap:10px">' +
@@ -273,7 +275,10 @@ if (S.view === 'mkt') return renderMkt(el);
     if (SM.err) h += '<p class="err">' + esc(SM.err) + '</p>';
     if (SM.res) h += '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;margin:8px 0;font-size:14px;line-height:1.45" id="sm-res">' + esc(SM.res) + '</div>' +
       '<button class="btn sec" data-smm="copy" type="button">' + esc(TX(SM.copied ? 'Скопировано ✓' : 'Скопировать')) + '</button>' +
+      kbBtn('smm', SM.res ? { q: SM.q || '', a: SM.res } : null) +
       '<p><small>' + esc(TX('Я ничего не публикую сам: текст вставляете вы.')) + '</small></p>';
+    else KB.last.smm = null;
+    h += kbCard('smm');
     el.innerHTML = h;
   }
   function runSmm(act) {
@@ -281,10 +286,11 @@ if (S.view === 'mkt') return renderMkt(el);
     var text = act === 'plan' ? SM.plan : act === 'caption' ? SM.cap : act === 'ideas' ? SM.ideas : act === 'reply' ? SM.rep : '';
     if (act === 'caption' && String(text).trim().length < 5) { SM.err = TX('Напишите, о чём пост или ролик'); SM.res = ''; return render(); }
     if (act === 'reply' && String(text).trim().length < 5) { SM.err = TX('Вставьте комментарий или сообщение, на которое нужно ответить'); SM.res = ''; return render(); }
-    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; render();
+    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; KB.smm.saved = false; render();
+    var qLabel = { plan: 'План на неделю', caption: 'Подпись', ideas: 'Идеи роликов', reply: 'Ответ на сообщение', profile: 'Разбор профиля' }[act] + (String(text).trim() ? ': ' + String(text).trim().slice(0, 200) : '');
     callTo('/smm', { action: act, text: String(text).trim() }).then(function (r) {
       SM.busy = false;
-      if (r.ok) { SM.res = r.text || ''; if (SM.st && !SM.st.error) { SM.st.left = r.left; SM.st.connected = !!r.connected; } }
+      if (r.ok) { SM.res = r.text || ''; SM.q = qLabel; if (SM.st && !SM.st.error) { SM.st.left = r.left; SM.st.connected = !!r.connected; } }
       else SM.err = r.error || TX('Не получилось');
       if (S.view === 'smm') render();
     });
@@ -296,6 +302,331 @@ if (S.view === 'mkt') return renderMkt(el);
     if (a === 'an-copy') return copyText((SM.an && SM.an.otchet) || '', function () { SM.anCopied = true; if (S.view === 'smm') render(); });
     if (a === 'copy') return copyText(SM.res, function () { SM.copied = true; if (S.view === 'smm') render(); });
     if (a === 'plan' || a === 'caption' || a === 'profile' || a === 'ideas' || a === 'reply') return runSmm(a);
+  }
+
+  /* ---------- База знаний специалиста: отработанные дела этого кабинета ---------- */
+  var KB = { smm: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, lawyer: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, last: { smm: null, lawyer: null } };
+  function kbView() { return S.view === 'law' ? 'lawyer' : S.view === 'smm' ? 'smm' : ''; }
+  function kbLoad(spec) {
+    var k = KB[spec]; if (!k) return;
+    callTo('/znaniya', { action: 'list', spec: spec }).then(function (r) {
+      if (r.ok) { k.c = r.cases || []; k.total = r.total || 0; k.msg = ''; } else { k.msg = r.error || TX('не удалось загрузить'); if (!k.c) k.c = []; }
+      if (kbView() === spec) render();
+    });
+  }
+  function kbSave(spec) {
+    var k = KB[spec], ln = KB.last[spec]; if (!k || k.busy || !ln) return;
+    k.busy = true; k.msg = ''; render();
+    callTo('/znaniya', { action: 'save', spec: spec, q: ln.q, a: ln.a }).then(function (r) {
+      k.busy = false;
+      if (r.ok) { k.saved = true; k.total = r.total || k.total; k.msg = r.duplicate ? ui('Это уже есть в базе знаний', 'Ин аллакай дар пойгоҳи дониш ҳаст', 'Bu allaqachon bilimlar bazasida bor') : ''; kbLoad(spec); }
+      else k.msg = r.error || TX('Не получилось');
+      if (kbView() === spec) render();
+    });
+  }
+  function kbDel(spec, id) {
+    var k = KB[spec]; if (!k || k.busy) return;
+    if (k.ask !== id) { k.ask = id; return render(); }
+    k.ask = null; k.busy = true; render();
+    callTo('/znaniya', { action: 'delete', spec: spec, id: id }).then(function (r) {
+      k.busy = false; if (!r.ok) k.msg = r.error || TX('Не получилось'); else kbLoad(spec);
+      if (kbView() === spec) render();
+    });
+  }
+  function kbBtn(spec, text) {
+    var k = KB[spec];
+    KB.last[spec] = text;
+    if (!text) return '';
+    return '<button class="btn sec" data-kb="save:' + spec + '" type="button"' + (k.busy || k.saved ? ' disabled' : '') + '>' + esc(k.saved ? ui('Запомнено ✓', 'Дар ёд монд ✓', 'Eslab qolindi ✓') : ui('Это подошло — запомнить', 'Ин мувофиқ омад — дар ёд нигоҳ дор', 'Bu maʼqul boʻldi — eslab qol')) + '</button>';
+  }
+  function kbCard(spec) {
+    var k = KB[spec]; if (!k) return '';
+    if (k.c === null) { k.c = []; kbLoad(spec); }
+    var h = '<div style="margin-top:16px;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px;display:grid;gap:8px">' +
+      '<b>📚 ' + esc(ui('База знаний', 'Пойгоҳи дониш', 'Bilimlar bazasi')) + '</b>' +
+      '<small style="opacity:.8">' + esc(ui('Здесь сохраняются удачные дела. Специалист опирается на них, когда отвечает вам. Видите их только вы.', 'Дар ин ҷо корҳои хуб нигоҳ дошта мешаванд. Мутахассис ҳангоми ҷавоб ба шумо ба онҳо такя мекунад. Онҳоро танҳо шумо мебинед.', 'Bu yerda muvaffaqiyatli ishlar saqlanadi. Mutaxassis sizga javob berganda ularga tayanadi. Ularni faqat siz koʻrasiz.')) + '</small>' +
+      '<small>' + esc(ui('Запомнено дел', 'Корҳои дар ёдмонда', 'Eslab qolingan ishlar')) + ': <b>' + esc(k.total) + '</b></small>';
+    if (k.msg) h += '<small class="err">' + esc(k.msg) + '</small>';
+    if (k.total) h += '<button class="btn sec" data-kb="toggle:' + spec + '" type="button">' + esc(k.open ? ui('Скрыть', 'Пинҳон кардан', 'Yashirish') : ui('Показать', 'Нишон додан', 'Koʻrsatish')) + '</button>';
+    if (k.open && k.c.length) {
+      h += '<div style="display:grid;gap:8px">' + k.c.map(function (c) {
+        return '<div style="border:1px solid var(--line,#ddd);border-radius:10px;padding:8px"><b style="font-size:13px">' + esc(c.q) + '</b>' +
+          '<div style="white-space:pre-wrap;word-break:break-word;font-size:13px;opacity:.85;max-height:120px;overflow:auto;margin:4px 0">' + esc(c.a) + '</div>' +
+          '<button class="btn sec" data-kb="del:' + spec + ':' + c.id + '" type="button" style="padding:4px 10px;height:auto"' + (k.busy ? ' disabled' : '') + '>' + esc(k.ask === c.id ? ui('Точно удалить?', 'Ҳатман нест кунам?', 'Rostdan oʻchirilsinmi?') : ui('Удалить', 'Нест кардан', 'Oʻchirish')) + '</button></div>';
+      }).join('') + '</div>';
+    }
+    return h + '</div>';
+  }
+  function kbClick(a) {
+    var p = a.split(':'), spec = p[1];
+    if (p[0] === 'save') return kbSave(spec);
+    if (p[0] === 'toggle') { KB[spec].open = !KB[spec].open; return render(); }
+    if (p[0] === 'del') return kbDel(spec, Number(p[2]));
+  }
+
+  /* ---------- Менеджер по клиентам: что он делает и что уже работает ---------- */
+  function openMgr() { S.view = 'mgr'; render(); }
+  function renderMgr(el) {
+    var items = [
+      { ico: '🔎', ok: false, t: ['Находит тех, кто замолчал', 'Онҳоро, ки хомӯш шудаанд, меёбад', 'Jim boʻlib qolganlarni topadi'], d: ['Смотрит ваши переписки и показывает клиентов, которые давно не писали.', 'Мукотибаҳои шуморо мебинад ва муштариёнеро нишон медиҳад, ки муддати дароз нанавиштаанд.', 'Yozishmalaringizni koʻrib, uzoq vaqt yozmagan mijozlarni koʻrsatadi.'] },
+      { ico: '💌', ok: true, t: ['Пишет тексты для возврата', 'Матнҳо барои баргардонидан менависад', 'Qaytarish uchun matnlar yozadi'], d: ['Готовит мягкие сообщения для тех, кто замолчал. Отправляете вы или оператор, сам он никому не пишет. Работает сейчас через Маркетолога.', 'Паёмҳои мулоим барои хомӯшшудагон тайёр мекунад. Шумо ё оператор мефиристед, худаш ба касе наменависад. Ҳоло тавассути Маркетолог кор мекунад.', 'Jim boʻlib qolganlar uchun yumshoq xabarlar tayyorlaydi. Yuborishni siz yoki operator qilasiz, oʻzi hech kimga yozmaydi. Hozir Marketolog orqali ishlaydi.'] },
+      { ico: '🔁', ok: false, t: ['Напоминает о повторной покупке или визите', 'Дар бораи харид ё ташрифи такрорӣ ёдовар мешавад', 'Qayta xarid yoki tashrif haqida eslatadi'], d: ['Подсказывает, когда пора написать клиенту снова: через месяц после услуги, когда заканчивается товар.', 'Мегӯяд, кай вақти дубора навиштан ба муштарӣ аст: баъди як моҳи хизмат, вақте ки мол тамом мешавад.', 'Mijozga qachon yana yozish vaqti kelganini aytadi: xizmatdan bir oy keyin, tovar tugaganda.'] },
+      { ico: '📋', ok: false, t: ['Ведёт карточку клиента', 'Корти муштариро пеш мебарад', 'Mijoz kartochkasini yuritadi'], d: ['Помнит, что клиент покупал, что просил и когда писал последний раз, чтобы вы отвечали по делу.', 'Дар хотир медорад, ки муштарӣ чӣ харидааст, чӣ талаб кардааст ва охирин бор кай навишта буд.', 'Mijoz nima sotib olgani, nima soragani va oxirgi marta qachon yozganini eslab qoladi.'] }
+    ], i = LI[window.LANG || 'ru'] || 0;
+    var h = backBtn() + '<h2 style="padding-right:36px">🤝 ' + esc(TX('Менеджер по клиентам')) + '</h2>' +
+      '<p>' + esc(ui('Его работа: чтобы клиенты не терялись. Он помогает вернуть тех, кто замолчал, и вовремя напомнить о себе. Сам он клиентам не пишет: тексты готовит, отправляете вы.', 'Вазифаи ӯ: муштариён гум нашаванд. Ӯ кӯмак мекунад хомӯшшудагонро баргардонед ва саривақт худро ёдовар шавед. Худаш ба муштариён наменависад: матнҳоро тайёр мекунад, шумо мефиристед.', 'Uning ishi: mijozlar yoʻqolib qolmasligi. U jim boʻlib qolganlarni qaytarishga va oʻz vaqtida eslatishga yordam beradi. Oʻzi mijozlarga yozmaydi: matnlarni tayyorlaydi, yuborishni siz qilasiz.')) + '</p><div style="display:grid;gap:10px">';
+    items.forEach(function (x) {
+      h += '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;display:grid;gap:4px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:26px" aria-hidden="true">' + x.ico + '</span><b style="flex:1">' + esc(x.t[i]) + '</b>' +
+        '<span style="flex:none;font-size:12px;padding:3px 8px;border-radius:10px;background:' + (x.ok ? '#e3f6ea;color:#1f8a4c' : '#eee;color:#777') + '">' + esc(x.ok ? ui('работает', 'кор мекунад', 'ishlayapti') : ui('готовится', 'омода мешавад', 'tayyorlanmoqda')) + '</span></div>' +
+        '<small style="opacity:.85">' + esc(x.d[i]) + '</small></div>';
+    });
+    h += '</div><button class="btn" data-mgr="mkt" type="button" style="margin-top:12px">' + esc(ui('Открыть тексты для возврата', 'Кушодани матнҳо барои баргардонидан', 'Qaytarish matnlarini ochish')) + '</button>' +
+      '<p><small>' + esc(ui('В Маркетологе нажмите «Вернуть замолчавших».', 'Дар Маркетолог «Баргардонидани хомӯшшудагон»-ро пахш кунед.', 'Marketologda «Jim boʻlib qolganlarni qaytarish» tugmasini bosing.')) + '</small></p>';
+    el.innerHTML = h;
+  }
+
+  /* ---------- Юрист: договоры на трёх языках ---------- */
+  var LW = { view: 'menu', kind: '', lang: '', f: {}, res: '', err: '', copied: false, text: '', busy: false, left: null, q: '' };
+  function ui(ru, tg, uz) { var l = (typeof window !== 'undefined' && window.LANG) || 'ru'; return l === 'tg' ? (tg || ru) : l === 'uz' ? (uz || ru) : ru; }
+  var DKIND = {
+    services: { ico: '🤝', ru: 'Договор оказания услуг', tg: 'Шартномаи хизматрасонӣ', uz: 'Xizmat koʻrsatish shartnomasi', sub: ['Исполнитель и клиент: консультации, мастера, обучение', 'Иҷрокунанда ва муштарӣ: машварат, усто, омӯзиш', 'Ijrochi va mijoz: maslahat, usta, oʻqitish'] },
+    rent: { ico: '🏠', ru: 'Договор аренды', tg: 'Шартномаи иҷора', uz: 'Ijara shartnomasi', sub: ['Помещение или оборудование во временное пользование', 'Бино ё таҷҳизот барои истифодаи муваққатӣ', 'Xona yoki jihozni vaqtincha foydalanishga berish'] },
+    sale: { ico: '🛒', ru: 'Договор купли-продажи', tg: 'Шартномаи хариду фурӯш', uz: 'Oldi-sotdi shartnomasi', sub: ['Продавец и покупатель: товар, цена, гарантия', 'Фурӯшанда ва харидор: мол, нарх, кафолат', 'Sotuvchi va xaridor: tovar, narx, kafolat'] }
+  };
+  // поля: k — ключ; п = подпись на трёх языках; t — тип (sel: варианты), ex — пример
+  var DFIELDS = {
+    services: [
+      { k: 'a', l: ['Исполнитель (ФИО)', 'Иҷрокунанда (насаб, ном)', 'Ijrochi (F.I.Sh.)'] },
+      { k: 'b', l: ['Клиент (ФИО)', 'Муштарӣ (насаб, ном)', 'Mijoz (F.I.Sh.)'] },
+      { k: 'svc', l: ['Какая услуга', 'Кадом хизмат', 'Qanday xizmat'], ex: ['Например: психологическая консультация, 4 встречи в месяц', 'Масалан: машварати равонӣ, 4 вохӯрӣ дар як моҳ', 'Masalan: psixologik maslahat, oyiga 4 uchrashuv'] },
+      { k: 'price', l: ['Стоимость и порядок оплаты', 'Нарх ва тартиби пардохт', 'Narx va toʻlov tartibi'], ex: ['Например: 1200 сомони за месяц, вперёд до начала месяца', 'Масалан: 1200 сомонӣ барои як моҳ, пешакӣ', 'Masalan: oyiga 1200 somoni, oldindan'] },
+      { k: 'notice', l: ['За сколько часов предупреждать о переносе', 'Барои ба таъхир андохтан чанд соат пеш хабар додан', 'Koʻchirish haqida necha soat oldin ogohlantirish'], ex: ['24', '24', '24'] },
+      { k: 'ref', t: 'sel', l: ['Если клиент отказался после начала месяца', 'Агар муштарӣ баъд аз оғози моҳ даст кашад', 'Mijoz oy boshlangandan keyin rad etsa'], o: [['after', 'Оплата за начатый период не возвращается', 'Пардохт барои давраи оғозшуда баргардонида намешавад', 'Boshlangan davr uchun toʻlov qaytarilmaydi'], ['prop', 'Возвращается оплата за неиспользованное время', 'Пардохт барои вақти истифоданашуда баргардонида мешавад', 'Foydalanilmagan vaqt uchun toʻlov qaytariladi']] },
+      { k: 'term', l: ['Срок действия договора', 'Мӯҳлати амали шартнома', 'Shartnoma muddati'], ex: ['Например: до 30.11.2026', 'Масалан: то 30.11.2026', 'Masalan: 30.11.2026 gacha'] },
+      { k: 'city', l: ['Город', 'Шаҳр', 'Shahar'], ex: ['Душанбе', 'Душанбе', 'Dushanbe'] }
+    ],
+    rent: [
+      { k: 'a', l: ['Арендодатель (ФИО или название)', 'Иҷорадиҳанда (насаб, ном ё номи ташкилот)', 'Ijaraga beruvchi (F.I.Sh. yoki nomi)'] },
+      { k: 'b', l: ['Арендатор (ФИО или название)', 'Иҷоранишин (насаб, ном ё номи ташкилот)', 'Ijarachi (F.I.Sh. yoki nomi)'] },
+      { k: 'obj', l: ['Что сдаётся', 'Чӣ ба иҷора дода мешавад', 'Nima ijaraga beriladi'], ex: ['Например: помещение 30 кв. м под магазин', 'Масалан: бинои 30 м² барои мағоза', 'Masalan: doʻkon uchun 30 kv. m xona'] },
+      { k: 'addr', l: ['Адрес или где находится', 'Суроға ё ҷойгиршавӣ', 'Manzil yoki joylashuvi'] },
+      { k: 'price', l: ['Плата в месяц (сомони)', 'Ҳаққи иҷора дар як моҳ (сомонӣ)', 'Oylik toʻlov (somoni)'], ex: ['1500', '1500', '1500'] },
+      { k: 'day', l: ['До какого числа месяца платить', 'То кадом рӯзи моҳ пардохт кардан', 'Oyning qaysi kunigacha toʻlash'], ex: ['5', '5', '5'] },
+      { k: 'start', l: ['Дата начала аренды', 'Санаи оғози иҷора', 'Ijara boshlanish sanasi'], ex: ['01.11.2026', '01.11.2026', '01.11.2026'] },
+      { k: 'term', l: ['На какой срок', 'Барои кадом мӯҳлат', 'Qancha muddatga'], ex: ['Например: 11 месяцев', 'Масалан: 11 моҳ', 'Masalan: 11 oy'] },
+      { k: 'deposit', l: ['Залог (сомони, можно 0)', 'Гарав (сомонӣ, метавонад 0 бошад)', 'Garov (somoni, 0 boʻlishi mumkin)'], ex: ['1500', '1500', '1500'] },
+      { k: 'util', t: 'sel', l: ['Коммунальные услуги', 'Хизматрасониҳои коммуналӣ', 'Kommunal xizmatlar'], o: [['tenant', 'Платит арендатор', 'Иҷоранишин пардохт мекунад', 'Ijarachi toʻlaydi'], ['landlord', 'Платит арендодатель', 'Иҷорадиҳанда пардохт мекунад', 'Ijaraga beruvchi toʻlaydi'], ['incl', 'Включены в плату', 'Дар ҳаққи иҷора дохил аст', 'Toʻlovga kiritilgan']] },
+      { k: 'notice', l: ['За сколько дней предупреждать о расторжении', 'Барои бекор кардан чанд рӯз пеш хабар додан', 'Bekor qilish haqida necha kun oldin ogohlantirish'], ex: ['30', '30', '30'] },
+      { k: 'city', l: ['Город', 'Шаҳр', 'Shahar'], ex: ['Душанбе', 'Душанбе', 'Dushanbe'] }
+    ],
+    sale: [
+      { k: 'a', l: ['Продавец (ФИО или название)', 'Фурӯшанда (насаб, ном ё номи ташкилот)', 'Sotuvchi (F.I.Sh. yoki nomi)'] },
+      { k: 'b', l: ['Покупатель (ФИО или название)', 'Харидор (насаб, ном ё номи ташкилот)', 'Xaridor (F.I.Sh. yoki nomi)'] },
+      { k: 'item', l: ['Что продаётся и сколько', 'Чӣ ва чандто фурӯхта мешавад', 'Nima va qancha sotiladi'], ex: ['Например: диван, 1 шт.', 'Масалан: диван, 1 дона', 'Masalan: divan, 1 dona'] },
+      { k: 'price', l: ['Общая цена (сомони)', 'Нархи умумӣ (сомонӣ)', 'Umumiy narx (somoni)'], ex: ['3500', '3500', '3500'] },
+      { k: 'pay', t: 'sel', l: ['Когда оплата', 'Пардохт кай', 'Toʻlov qachon'], o: [['full', 'Полностью до передачи товара', 'Пурра пеш аз супоридани мол', 'Tovar topshirilguncha toʻliq'], ['half', 'Половина вперёд, остальное при получении', 'Нисфаш пешакӣ, боқӣ ҳангоми гирифтан', 'Yarmi oldindan, qolgani olishda'], ['onget', 'Всё при получении товара', 'Ҳама ҳангоми гирифтани мол', 'Hammasi tovarni olishda']] },
+      { k: 'delivery', l: ['Срок передачи товара', 'Мӯҳлати супоридани мол', 'Tovarni topshirish muddati'], ex: ['Например: до 10.11.2026', 'Масалан: то 10.11.2026', 'Masalan: 10.11.2026 gacha'] },
+      { k: 'warr', l: ['Гарантия (дней)', 'Кафолат (рӯз)', 'Kafolat (kun)'], ex: ['14', '14', '14'] },
+      { k: 'city', l: ['Город', 'Шаҳр', 'Shahar'], ex: ['Душанбе', 'Душанбе', 'Dushanbe'] }
+    ]
+  };
+  var LI = { ru: 0, tg: 1, uz: 2 };
+  function dateStr() { var d = new Date(); return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear(); }
+  function optText(kind, k, v, lang) { var fs = DFIELDS[kind], i, j; for (i = 0; i < fs.length; i++) if (fs[i].k === k) for (j = 0; j < fs[i].o.length; j++) if (fs[i].o[j][0] === v) return fs[i].o[j][1 + LI[lang]]; return ''; }
+  function fv(f, k) { var v = String(f[k] == null ? '' : f[k]).trim(); return v || '________'; }
+  // Тексты договоров. В тексте {k} подставляется ответ, {ref}/{util}/{pay} — выбранный вариант.
+  var DTXT = {
+    services: {
+      ru: { t: 'ДОГОВОР ОКАЗАНИЯ УСЛУГ', p: ['г. {city}, {date}', 'Исполнитель: {a}. Клиент: {b}. Вместе — «Стороны».',
+        '1. Предмет. Исполнитель обязуется оказать Клиенту услугу: {svc}, а Клиент обязуется оплатить её.',
+        '2. Стоимость и оплата. {price}. Оплата вносится до начала оплачиваемого периода.',
+        '3. Порядок оказания. Время и формат встреч Стороны согласуют заранее. Перенос возможен, если Клиент предупредил не позднее чем за {notice} ч. до встречи; иначе встреча считается проведённой.',
+        '4. Отказ. {ref}. Если услугу не удалось оказать по вине Исполнителя, он возвращает оплату за неоказанную часть.',
+        '5. Конфиденциальность. Исполнитель не разглашает сведения о Клиенте, кроме случаев, предусмотренных законом.',
+        '6. Ответственность. Исполнитель отвечает за качество услуги, но не гарантирует результата, который зависит от действий самого Клиента.',
+        '7. Споры решаются переговорами, а при несогласии — в суде по законодательству Республики Таджикистан.',
+        '8. Срок. Договор действует с даты подписания, срок: {term}. Составлен в двух экземплярах, по одному для каждой Стороны.',
+        'Подписи: Исполнитель ______________ ({a}); Клиент ______________ ({b}).'] },
+      tg: { t: 'ШАРТНОМАИ ХИЗМАТРАСОНӢ', p: ['ш. {city}, {date}', 'Иҷрокунанда: {a}. Муштарӣ: {b}. Дар маҷмӯъ — «Тарафҳо».',
+        '1. Мавзӯи шартнома. Иҷрокунанда уҳдадор аст ба Муштарӣ хизмат нишон диҳад: {svc}, Муштарӣ бошад уҳдадор аст онро пардохт кунад.',
+        '2. Арзиш ва пардохт. {price}. Пардохт пеш аз оғози давраи пулакӣ анҷом дода мешавад.',
+        '3. Тартиби хизматрасонӣ. Вақт ва шакли вохӯриҳоро Тарафҳо пешакӣ мувофиқа мекунанд. Таъхири вохӯрӣ мумкин аст, агар Муштарӣ на дертар аз {notice} соат пеш хабар диҳад; дар акси ҳол вохӯрӣ гузаронидашуда ҳисоб мешавад.',
+        '4. Даст кашидан. {ref}. Агар хизмат бо айби Иҷрокунанда нишон дода нашавад, ӯ пардохти қисми нишондодашударо бармегардонад.',
+        '5. Махфият. Иҷрокунанда маълумоти Муштариро ошкор намекунад, ғайр аз ҳолатҳое, ки қонун пешбинӣ кардааст.',
+        '6. Масъулият. Иҷрокунанда барои сифати хизмат ҷавобгар аст, вале натиҷаеро, ки аз амали худи Муштарӣ вобаста аст, кафолат намедиҳад.',
+        '7. Баҳсҳо тавассути гуфтушунид ҳал карда мешаванд, дар сурати розӣ набудан — дар суд мутобиқи қонунгузории Ҷумҳурии Тоҷикистон.',
+        '8. Мӯҳлат. Шартнома аз рӯзи имзо амал мекунад, мӯҳлат: {term}. Дар ду нусха тартиб дода шудааст, барои ҳар Тараф як нусха.',
+        'Имзоҳо: Иҷрокунанда ______________ ({a}); Муштарӣ ______________ ({b}).'] },
+      uz: { t: 'XIZMAT KOʻRSATISH SHARTNOMASI', p: ['{city} sh., {date}', 'Ijrochi: {a}. Mijoz: {b}. Birgalikda — «Tomonlar».',
+        '1. Shartnoma predmeti. Ijrochi Mijozga xizmat koʻrsatishni zimmasiga oladi: {svc}, Mijoz esa uning uchun toʻlashni zimmasiga oladi.',
+        '2. Narx va toʻlov. {price}. Toʻlov pullik davr boshlanishidan oldin amalga oshiriladi.',
+        '3. Xizmat koʻrsatish tartibi. Uchrashuvlar vaqti va shaklini Tomonlar oldindan kelishadi. Mijoz uchrashuvdan kamida {notice} soat oldin ogohlantirsa, uni koʻchirish mumkin; aks holda uchrashuv oʻtkazilgan hisoblanadi.',
+        '4. Rad etish. {ref}. Agar xizmat Ijrochining aybi bilan koʻrsatilmasa, u koʻrsatilmagan qism uchun toʻlovni qaytaradi.',
+        '5. Maxfiylik. Ijrochi Mijoz haqidagi maʼlumotlarni, qonunda nazarda tutilgan hollardan tashqari, oshkor qilmaydi.',
+        '6. Javobgarlik. Ijrochi xizmat sifati uchun javob beradi, lekin Mijozning oʻz harakatlariga bogʻliq natijani kafolatlamaydi.',
+        '7. Nizolar muzokaralar yoʻli bilan, kelishilmasa — Tojikiston Respublikasi qonunchiligiga muvofiq sudda hal qilinadi.',
+        '8. Muddat. Shartnoma imzolangan kundan kuchga kiradi, muddati: {term}. Ikki nusxada tuzilgan, har bir Tomon uchun bittadan.',
+        'Imzolar: Ijrochi ______________ ({a}); Mijoz ______________ ({b}).'] }
+    },
+    rent: {
+      ru: { t: 'ДОГОВОР АРЕНДЫ', p: ['г. {city}, {date}', 'Арендодатель: {a}. Арендатор: {b}.',
+        '1. Предмет. Арендодатель передаёт Арендатору во временное пользование: {obj}, находящееся: {addr}. Передача оформляется актом.',
+        '2. Плата. {price} сомони в месяц. Вносится не позднее {day} числа каждого месяца. Коммунальные услуги: {util}.',
+        '3. Срок. Аренда начинается {start}, срок: {term}.',
+        '4. Залог. Залог: {deposit} сомони. Он возвращается при возврате имущества в исправном состоянии, за вычетом сумм, которые Арендатор не оплатил или за ущерб.',
+        '5. Обязанности Арендатора. Беречь имущество, использовать по назначению, не сдавать в субаренду без письменного согласия Арендодателя, возвратить по окончании срока в том состоянии, в котором принял, с учётом обычного износа.',
+        '6. Расторжение. Любая Сторона вправе расторгнуть договор, предупредив другую письменно за {notice} дн.',
+        '7. Споры решаются переговорами, а при несогласии — в суде по законодательству Республики Таджикистан.',
+        '8. Договор составлен в двух экземплярах, по одному для каждой Стороны.',
+        'Подписи: Арендодатель ______________ ({a}); Арендатор ______________ ({b}).'] },
+      tg: { t: 'ШАРТНОМАИ ИҶОРА', p: ['ш. {city}, {date}', 'Иҷорадиҳанда: {a}. Иҷоранишин: {b}.',
+        '1. Мавзӯи шартнома. Иҷорадиҳанда ба Иҷоранишин барои истифодаи муваққатӣ месупорад: {obj}, ки ҷойгир аст: {addr}. Супурдан бо санад расмӣ карда мешавад.',
+        '2. Ҳаққи иҷора. {price} сомонӣ дар як моҳ. На дертар аз рӯзи {day}-уми ҳар моҳ пардохт мешавад. Хизматрасониҳои коммуналӣ: {util}.',
+        '3. Мӯҳлат. Иҷора аз {start} оғоз мешавад, мӯҳлат: {term}.',
+        '4. Гарав. Гарав: {deposit} сомонӣ. Он ҳангоми баргардонидани амвол дар ҳолати хуб баргардонида мешавад, бо тарҳи маблағҳое, ки Иҷоранишин напардохтааст ё барои зарар.',
+        '5. Уҳдадориҳои Иҷоранишин. Амволро нигоҳубин кунад, мувофиқи таъинот истифода барад, бе розигии хаттии Иҷорадиҳанда ба иҷораи дуюм надиҳад, дар охири мӯҳлат ба ҳамон ҳолате, ки қабул кардааст, бо назардошти фарсудашавии оддӣ баргардонад.',
+        '6. Бекор кардан. Ҳар Тараф метавонад шартномаро бекор кунад, ба Тарафи дигар хаттӣ {notice} рӯз пеш хабар диҳад.',
+        '7. Баҳсҳо тавассути гуфтушунид ҳал карда мешаванд, дар сурати розӣ набудан — дар суд мутобиқи қонунгузории Ҷумҳурии Тоҷикистон.',
+        '8. Шартнома дар ду нусха тартиб дода шудааст, барои ҳар Тараф як нусха.',
+        'Имзоҳо: Иҷорадиҳанда ______________ ({a}); Иҷоранишин ______________ ({b}).'] },
+      uz: { t: 'IJARA SHARTNOMASI', p: ['{city} sh., {date}', 'Ijaraga beruvchi: {a}. Ijarachi: {b}.',
+        '1. Shartnoma predmeti. Ijaraga beruvchi Ijarachiga vaqtincha foydalanish uchun topshiradi: {obj}, joylashgan manzil: {addr}. Topshirish dalolatnoma bilan rasmiylashtiriladi.',
+        '2. Ijara haqi. Oyiga {price} somoni. Har oyning {day}-sanasidan kechiktirmay toʻlanadi. Kommunal xizmatlar: {util}.',
+        '3. Muddat. Ijara {start} dan boshlanadi, muddati: {term}.',
+        '4. Garov. Garov: {deposit} somoni. U mulk soz holatda qaytarilganda, Ijarachi toʻlamagan summalar yoki zarar chegirib tashlangan holda qaytariladi.',
+        '5. Ijarachining majburiyatlari. Mulkni asrash, maqsadiga muvofiq foydalanish, Ijaraga beruvchining yozma roziligisiz subijaraga bermaslik, muddat tugaganda oddiy eskirishni hisobga olgan holda qabul qilgan holatda qaytarish.',
+        '6. Bekor qilish. Har bir Tomon shartnomani bekor qilishi mumkin, buning uchun boshqa Tomonni yozma ravishda {notice} kun oldin ogohlantiradi.',
+        '7. Nizolar muzokaralar yoʻli bilan, kelishilmasa — Tojikiston Respublikasi qonunchiligiga muvofiq sudda hal qilinadi.',
+        '8. Shartnoma ikki nusxada tuzilgan, har bir Tomon uchun bittadan.',
+        'Imzolar: Ijaraga beruvchi ______________ ({a}); Ijarachi ______________ ({b}).'] }
+    },
+    sale: {
+      ru: { t: 'ДОГОВОР КУПЛИ-ПРОДАЖИ', p: ['г. {city}, {date}', 'Продавец: {a}. Покупатель: {b}.',
+        '1. Предмет. Продавец передаёт Покупателю в собственность товар: {item}, а Покупатель принимает его и оплачивает.',
+        '2. Цена и оплата. Общая цена: {price} сомони. Оплата: {pay}.',
+        '3. Передача. Срок передачи: {delivery}. Покупатель проверяет товар при получении; видимые недостатки нужно заявить сразу.',
+        '4. Качество и гарантия. Товар должен соответствовать описанию. Гарантия: {warr} дн. со дня получения. Если в этот срок обнаружен недостаток, не возникший по вине Покупателя, Продавец заменяет или ремонтирует товар либо возвращает деньги.',
+        '5. Право собственности переходит к Покупателю с момента передачи товара и полной оплаты.',
+        '6. Споры решаются переговорами, а при несогласии — в суде по законодательству Республики Таджикистан.',
+        '7. Договор составлен в двух экземплярах, по одному для каждой Стороны.',
+        'Подписи: Продавец ______________ ({a}); Покупатель ______________ ({b}).'] },
+      tg: { t: 'ШАРТНОМАИ ХАРИДУ ФУРӮШ', p: ['ш. {city}, {date}', 'Фурӯшанда: {a}. Харидор: {b}.',
+        '1. Мавзӯи шартнома. Фурӯшанда ба Харидор мол месупорад: {item}, Харидор онро қабул мекунад ва пардохт менамояд.',
+        '2. Нарх ва пардохт. Нархи умумӣ: {price} сомонӣ. Пардохт: {pay}.',
+        '3. Супурдан. Мӯҳлати супурдан: {delivery}. Харидор молро ҳангоми гирифтан месанҷад; камбудиҳои намоёнро дарҳол эълон кардан лозим аст.',
+        '4. Сифат ва кафолат. Мол бояд ба тавсиф мувофиқ бошад. Кафолат: {warr} рӯз аз рӯзи гирифтан. Агар дар ин мӯҳлат камбудие пайдо шавад, ки бо айби Харидор набошад, Фурӯшанда молро иваз мекунад, таъмир мекунад ё пулро бармегардонад.',
+        '5. Ҳуқуқи моликият ба Харидор аз лаҳзаи супурдани мол ва пардохти пурра мегузарад.',
+        '6. Баҳсҳо тавассути гуфтушунид ҳал карда мешаванд, дар сурати розӣ набудан — дар суд мутобиқи қонунгузории Ҷумҳурии Тоҷикистон.',
+        '7. Шартнома дар ду нусха тартиб дода шудааст, барои ҳар Тараф як нусха.',
+        'Имзоҳо: Фурӯшанда ______________ ({a}); Харидор ______________ ({b}).'] },
+      uz: { t: 'OLDI-SOTDI SHARTNOMASI', p: ['{city} sh., {date}', 'Sotuvchi: {a}. Xaridor: {b}.',
+        '1. Shartnoma predmeti. Sotuvchi Xaridorga mulk qilib tovarni topshiradi: {item}, Xaridor uni qabul qiladi va toʻlaydi.',
+        '2. Narx va toʻlov. Umumiy narx: {price} somoni. Toʻlov: {pay}.',
+        '3. Topshirish. Topshirish muddati: {delivery}. Xaridor tovarni olishda tekshiradi; koʻrinib turgan kamchiliklar darhol aytilishi kerak.',
+        '4. Sifat va kafolat. Tovar tavsifga mos boʻlishi kerak. Kafolat: olingan kundan {warr} kun. Shu muddatda Xaridorning aybisiz kamchilik topilsa, Sotuvchi tovarni almashtiradi, taʼmirlaydi yoki pulni qaytaradi.',
+        '5. Mulk huquqi tovar topshirilgan va toʻliq toʻlangan paytdan Xaridorga oʻtadi.',
+        '6. Nizolar muzokaralar yoʻli bilan, kelishilmasa — Tojikiston Respublikasi qonunchiligiga muvofiq sudda hal qilinadi.',
+        '7. Shartnoma ikki nusxada tuzilgan, har bir Tomon uchun bittadan.',
+        'Imzolar: Sotuvchi ______________ ({a}); Xaridor ______________ ({b}).'] }
+    }
+  };
+  var DNOTE = ['Образец. Перед подписанием покажите договор живому юристу в Таджикистане: я помогаю составить текст, но не заменяю юриста.', 'Намуна. Пеш аз имзо шартномаро ба ҳуқуқшиноси зинда дар Тоҷикистон нишон диҳед: ман дар навиштани матн кумак мекунам, вале ҷойи ҳуқуқшиносро намегирам.', 'Namuna. Imzolashdan oldin shartnomani Tojikistondagi tirik yuristga koʻrsating: men matn tuzishga yordam beraman, lekin yuristning oʻrnini bosmayman.'];
+  function buildDoc(kind, lang, f) {
+    var tpl = DTXT[kind][lang], ff = {}, k;
+    for (k in f) ff[k] = f[k];
+    ff.date = ff.date || dateStr();
+    var sel = { ref: 1, util: 1, pay: 1 };
+    return tpl.t + '\n\n' + tpl.p.map(function (line) {
+      return line.replace(/\{(\w+)\}/g, function (_, key) {
+        if (sel[key]) { var v = optText(kind, key, ff[key] || DFIELDS[kind].filter(function (x) { return x.k === key; })[0].o[0][0], lang); return v || '________'; }
+        return fv(ff, key);
+      });
+    }).join('\n\n');
+  }
+  function lwLang() { return LW.lang || ((typeof window !== 'undefined' && window.LANG) || 'ru'); }
+  function openLaw() { LW.view = 'menu'; LW.kind = ''; LW.res = ''; LW.err = ''; LW.copied = false; S.view = 'law'; render(); lawStatus(); }
+  function renderLaw(el) {
+    var h = backBtn() + '<h2 style="padding-right:36px">⚖️ ' + esc(TX('Юрист')) + '</h2>';
+    var lang = lwLang();
+    if (LW.view === 'menu') {
+      h += '<p>' + esc(ui('Составлю договор за пару минут: ответьте на несколько вопросов, и текст будет готов на русском, таджикском или узбекском.', 'Шартномаро дар чанд дақиқа тартиб медиҳам: ба чанд савол ҷавоб диҳед, матн бо забони русӣ, тоҷикӣ ё узбекӣ тайёр мешавад.', 'Shartnomani bir necha daqiqada tuzaman: bir nechta savolga javob bering, matn rus, tojik yoki oʻzbek tilida tayyor boʻladi.')) + '</p><div style="display:grid;gap:10px">';
+      ['services', 'rent', 'sale'].forEach(function (k) {
+        var d = DKIND[k], i = LI[window.LANG || 'ru'] || 0;
+        h += '<button type="button" class="btn sec" data-law="kind:' + k + '" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:12px"><span style="font-size:26px;flex:none" aria-hidden="true">' + d.ico + '</span><span style="flex:1;min-width:0"><b style="display:block">' + esc([d.ru, d.tg, d.uz][i]) + '</b><small style="opacity:.75">' + esc(d.sub[i]) + '</small></span></button>';
+      });
+      h += '<button type="button" class="btn sec" data-law="ask" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:12px"><span style="font-size:26px;flex:none" aria-hidden="true">❓</span><span style="flex:1;min-width:0"><b style="display:block">' + esc(ui('Задать вопрос юристу', 'Ба ҳуқуқшинос савол додан', 'Yuristga savol berish')) + '</b><small style="opacity:.75">' + esc(ui('Повседневные дела бизнеса: возврат денег, условия, порядок действий', 'Корҳои ҳаррӯзаи тиҷорат: баргардонидани пул, шартҳо, тартиби амал', 'Biznesning kundalik ishlari: pulni qaytarish, shartlar, harakat tartibi')) + '</small></span></button>' +
+        '<button type="button" class="btn sec" data-law="explain" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:12px"><span style="font-size:26px;flex:none" aria-hidden="true">📄</span><span style="flex:1;min-width:0"><b style="display:block">' + esc(ui('Объяснить договор', 'Шартномаро фаҳмондан', 'Shartnomani tushuntirish')) + '</b><small style="opacity:.75">' + esc(ui('Вставьте текст договора: объясню простыми словами и покажу риски', 'Матни шартномаро гузоред: бо забони оддӣ шарҳ медиҳам ва хатарҳоро нишон медиҳам', 'Shartnoma matnini qoʻying: oddiy tilda tushuntiraman va xavflarni koʻrsataman')) + '</small></span></button>';
+      h += '</div><p style="margin-top:12px"><small>' + esc(ui(DNOTE[0], DNOTE[1], DNOTE[2])) + '</small></p>';
+      h += (LW.left != null ? '<p><small>' + esc(ui('Вопросов сегодня осталось', 'Имрӯз саволҳо монд', 'Bugun savollar qoldi')) + ': <b>' + esc(LW.left) + '</b></small></p>' : '');
+      h += kbCard('lawyer');
+      el.innerHTML = h; return;
+    }
+    if (LW.view === 'ask' || LW.view === 'explain') {
+      var ex = LW.view === 'explain';
+      h += '<p style="margin:4px 0"><b>' + esc(ex ? ui('Объяснить договор', 'Шартномаро фаҳмондан', 'Shartnomani tushuntirish') : ui('Вопрос юристу', 'Савол ба ҳуқуқшинос', 'Yuristga savol')) + '</b></p>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><small style="align-self:center">' + esc(ui('Язык ответа', 'Забони ҷавоб', 'Javob tili')) + ':</small>' +
+        [['ru', 'Русский'], ['tg', 'Тоҷикӣ'], ['uz', 'Oʻzbekcha']].map(function (x) { return '<button type="button" class="btn ' + (lang === x[0] ? '' : 'sec') + '" data-law="lang:' + x[0] + '" style="padding:6px 12px;height:auto">' + x[1] + '</button>'; }).join('') + '</div>' +
+        '<textarea class="in2" id="law-text" rows="' + (ex ? 8 : 4) + '" maxlength="' + (ex ? 6000 : 1200) + '" placeholder="' + esc(ex ? ui('Вставьте сюда текст договора или нужный пункт', 'Матни шартнома ё бандро дар ин ҷо гузоред', 'Shartnoma matni yoki kerakli bandni shu yerga qoʻying') : ui('Опишите ситуацию своими словами', 'Вазъиятро бо суханони худ тавсиф кунед', 'Vaziyatni oʻz soʻzlaringiz bilan yozing')) + '">' + esc(LW.text) + '</textarea>' +
+        '<div style="margin-top:8px"><button class="btn" data-law="run" type="button"' + (LW.busy ? ' disabled' : '') + '>' + esc(ui('Получить ответ', 'Ҷавоб гирифтан', 'Javob olish')) + '</button> <button class="btn sec" data-law="menu" type="button">' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button></div>' +
+        (LW.busy ? '<p>⏳ ' + esc(ui('Готовлю ответ, это до минуты…', 'Ҷавобро омода мекунам, то як дақиқа…', 'Javob tayyorlanmoqda, bir daqiqagacha…')) + '</p>' : '') +
+        (LW.err ? '<p class="err">' + esc(LW.err) + '</p>' : '') +
+        (LW.left != null ? '<p><small>' + esc(ui('Вопросов сегодня осталось', 'Имрӯз саволҳо монд', 'Bugun savollar qoldi')) + ': <b>' + esc(LW.left) + '</b></small></p>' : '');
+      if (LW.res) h += '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;margin:8px 0;font-size:14px;line-height:1.5" id="law-ans">' + esc(LW.res) + '</div>' +
+        '<button class="btn sec" data-law="copy" type="button">' + esc(LW.copied ? ui('Скопировано ✓', 'Нусха шуд ✓', 'Nusxalandi ✓') : ui('Скопировать', 'Нусха гирифтан', 'Nusxalash')) + '</button> ' +
+        kbBtn('lawyer', { q: (ex ? 'Разбор договора: ' : 'Вопрос: ') + String(LW.q).slice(0, 220), a: LW.res }) +
+        '<p><small>' + esc(DNOTE[LI[lang]]) + '</small></p>';
+      else KB.last.lawyer = null;
+      h += kbCard('lawyer');
+      el.innerHTML = h; return;
+    }
+    var d = DKIND[LW.kind], i2 = LI[window.LANG || 'ru'] || 0;
+    h += '<p style="margin:4px 0"><b>' + esc([d.ru, d.tg, d.uz][i2]) + '</b></p>';
+    if (LW.view === 'form') {
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><small style="align-self:center">' + esc(ui('Язык договора', 'Забони шартнома', 'Shartnoma tili')) + ':</small>' +
+        [['ru', 'Русский'], ['tg', 'Тоҷикӣ'], ['uz', 'Oʻzbekcha']].map(function (x) { return '<button type="button" class="btn ' + (lang === x[0] ? '' : 'sec') + '" data-law="lang:' + x[0] + '" style="padding:6px 12px;height:auto">' + x[1] + '</button>'; }).join('') + '</div>';
+      h += '<div style="display:grid;gap:8px">';
+      DFIELDS[LW.kind].forEach(function (fl) {
+        var lab = esc(fl.l[i2]), val = LW.f[fl.k] == null ? '' : LW.f[fl.k];
+        h += '<label style="display:grid;gap:4px"><small>' + lab + '</small>';
+        if (fl.t === 'sel') {
+          h += '<select class="in2" data-law-f="' + fl.k + '">' + fl.o.map(function (o, oi) { var cur = val || fl.o[0][0]; return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + esc(o[1 + i2]) + '</option>'; }).join('') + '</select>';
+        } else h += '<input class="in2" data-law-f="' + fl.k + '" maxlength="200" value="' + esc(val) + '" placeholder="' + esc((fl.ex && fl.ex[i2]) || '') + '">';
+        h += '</label>';
+      });
+      h += '</div><button class="btn" data-law="make" type="button" style="margin-top:10px">' + esc(ui('Составить договор', 'Шартномаро тартиб додан', 'Shartnomani tuzish')) + '</button>' +
+        ' <button class="btn sec" data-law="menu" type="button" style="margin-top:10px">' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button>';
+      el.innerHTML = h; return;
+    }
+    h += '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;margin:8px 0;font-size:14px;line-height:1.5" id="law-res">' + esc(LW.res) + '</div>' +
+      '<button class="btn" data-law="copy" type="button">' + esc(LW.copied ? ui('Скопировано ✓', 'Нусха шуд ✓', 'Nusxalandi ✓') : ui('Скопировать', 'Нусха гирифтан', 'Nusxalash')) + '</button> ' +
+      '<button class="btn sec" data-law="edit" type="button">' + esc(ui('Изменить ответы', 'Ҷавобҳоро тағйир додан', 'Javoblarni oʻzgartirish')) + '</button> ' +
+      '<button class="btn sec" data-law="menu" type="button">' + esc(ui('Другой договор', 'Шартномаи дигар', 'Boshqa shartnoma')) + '</button>' +
+      kbBtn('lawyer', { q: ('Договор: ' + [d.ru][0] + ', ' + fv(LW.f, 'a') + ' и ' + fv(LW.f, 'b')).slice(0, 300), a: LW.res }) +
+      '<p><small>' + esc(DNOTE[LI[lang]]) + '</small></p>';
+    h += kbCard('lawyer');
+    el.innerHTML = h;
+  }
+  function lawStatus() { callTo('/yurist', { action: 'status' }).then(function (r) { if (r.ok) { LW.left = r.left; if (S.view === 'law') render(); } }); }
+  function lawRun() {
+    if (LW.busy) return;
+    var ex = LW.view === 'explain', t = String(LW.text || '').trim();
+    if (t.length < (ex ? 40 : 8)) { LW.err = ex ? ui('Вставьте текст договора или нужного пункта', 'Матни шартнома ё бандро гузоред', 'Shartnoma matnini yoki bandni qoʻying') : ui('Напишите вопрос подробнее', 'Саволро муфассалтар нависед', 'Savolni batafsilroq yozing'); LW.res = ''; return render(); }
+    LW.busy = true; LW.err = ''; LW.res = ''; LW.copied = false; KB.lawyer.saved = false; LW.q = t; render();
+    callTo('/yurist', { action: ex ? 'explain' : 'ask', text: t, lang: lwLang() }).then(function (r) {
+      LW.busy = false;
+      if (r.ok) { LW.res = r.text || ''; LW.left = r.left; } else LW.err = r.error || TX('Не получилось');
+      if (S.view === 'law') render();
+    });
+  }
+  function lawClick(a) {
+    if (a === 'menu') { LW.view = 'menu'; LW.res = ''; LW.err = ''; return render(); }
+    if (a === 'ask' || a === 'explain') { LW.view = a; LW.res = ''; LW.err = ''; LW.text = ''; LW.lang = ''; KB.lawyer.saved = false; lawStatus(); return render(); }
+    if (a === 'run') return lawRun();
+    if (a.indexOf('kind:') === 0) { LW.kind = a.slice(5); LW.f = { city: ui('Душанбе', 'Душанбе', 'Dushanbe') }; LW.lang = ''; LW.view = 'form'; return render(); }
+    if (a.indexOf('lang:') === 0) { LW.lang = a.slice(5); return render(); }
+    if (a === 'make') { LW.res = buildDoc(LW.kind, lwLang(), LW.f); LW.view = 'doc'; LW.copied = false; KB.lawyer.saved = false; return render(); }
+    if (a === 'edit') { LW.view = 'form'; return render(); }
+    if (a === 'copy') return copyText(LW.res, function () { LW.copied = true; if (S.view === 'law') render(); });
   }
 
   /* ---------- Маркетолог ---------- */
@@ -558,6 +889,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
+if (b.dataset.law) return lawClick(b.dataset.law);
+if (b.dataset.mgr) return openMkt();
+if (b.dataset.kb) return kbClick(b.dataset.kb);
 if (b.dataset.mkt) return mktClick(b.dataset.mkt);
     var a = b.dataset.buh; if (!a) return;
     if (a === 'reload') { S.buh = readCache(S.month); load(); return render(); }
