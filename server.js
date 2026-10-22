@@ -33,7 +33,7 @@ async function refreshWindow() {
     const r = await fetch(WINDOW_URL, { signal: AbortSignal.timeout(10000) });
     if (!r.ok) return;
     const t = Buffer.from(await r.arrayBuffer());
-    if (t.length > 20000 && t.includes(Buffer.from('</html>'))) WINDOW_HTML = t;
+    if (t.length > 20000 && t.length < 4_000_000 && t.includes(Buffer.from('</html>'))) WINDOW_HTML = t;
   } catch { /* остаёмся на прежней версии */ }
 }
 if (process.env.NODE_ENV !== 'test') { refreshWindow(); setInterval(refreshWindow, 60_000).unref(); }
@@ -43,20 +43,37 @@ const MIME = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const rand = () => crypto.randomBytes(32).toString('base64url');
 
-// Пароли: scrypt из стандартной библиотеки Node (argon2 можно подключить позже)
-function hashPassword(pw) {
+// Пароли: scrypt из стандартной библиотеки Node (асинхронно, чтобы проверка пароля не вешала весь сервер)
+const scrypt = (pw, salt) => new Promise((resolve, reject) => crypto.scrypt(pw, salt, 64, { N: 16384, r: 8, p: 1 }, (e, k) => (e ? reject(e) : resolve(k))));
+async function hashPassword(pw) {
   const salt = crypto.randomBytes(16);
-  const h = crypto.scryptSync(pw, salt, 64, { N: 16384, r: 8, p: 1 });
+  const h = await scrypt(pw, salt);
   return `scrypt$${salt.toString('base64')}$${h.toString('base64')}`;
 }
-function checkPassword(pw, stored) {
+async function checkPassword(pw, stored) {
   const [alg, s, h] = String(stored).split('$');
-  if (alg !== 'scrypt') return false;
-  const got = crypto.scryptSync(pw, Buffer.from(s, 'base64'), 64, { N: 16384, r: 8, p: 1 });
+  if (alg !== 'scrypt' || !s || !h) return false;
+  const got = await scrypt(pw, Buffer.from(s, 'base64'));
   const want = Buffer.from(h, 'base64');
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
-const DUMMY = hashPassword('dummy-password'); // одинаковое время ответа, если почты нет
+const DUMMY = await hashPassword('dummy-password'); // одинаковое время ответа, если почты нет
+
+// Общие заголовки безопасности для каждого ответа
+const SEC = {
+  'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
+  'Permissions-Policy': 'geolocation=(), payment=(), usb=()', 'Cross-Origin-Opener-Policy': 'same-origin',
+  ...(SECURE ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
+};
+// Ограничитель частоты запросов в памяти: не даёт перебирать пароли, засыпать регистрациями и грузить сервер
+const HITS = new Map();
+function tooMany(key, limit, windowMs) {
+  const now = Date.now();
+  const arr = (HITS.get(key) || []).filter((t) => now - t < windowMs);
+  arr.push(now); HITS.set(key, arr);
+  return arr.length > limit;
+}
+setInterval(() => { const now = Date.now(); for (const [k, v] of HITS) if (!v.length || now - v[v.length - 1] > 120_000) HITS.delete(k); }, 60_000).unref();
 
 function parseCookies(req) {
   const out = {};
@@ -92,8 +109,7 @@ setInterval(() => db.cleanup().catch(() => {}), 3600_000).unref();
 export const server = http.createServer(async (req, res) => {
   const send = (status, body, headers = {}) => {
     res.writeHead(status, {
-      'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'same-origin', 'Cache-Control': 'no-store',
+      ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
       'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; frame-ancestors 'none'",
       ...headers,
     });
@@ -107,12 +123,20 @@ export const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && p === '/healthz') return send(200, 'ok', { 'Content-Type': 'text/plain' });
 
+    // Частота запросов с одного адреса: общая, на изменения и на вход/регистрацию
+    const ip = clientIp(req);
+    if (tooMany('all|' + ip, 600, 60_000)) return send(429, 'Too many requests', { 'Content-Type': 'text/plain', 'Retry-After': '60' });
+    if (req.method === 'POST') {
+      if (tooMany('post|' + ip, 60, 60_000)) return send(429, 'Too many requests', { 'Content-Type': 'text/plain', 'Retry-After': '60' });
+      if ((p === '/login' || p === '/register' || p === '/owner-register') && tooMany('auth|' + ip, 12, 60_000)) return send(429, 'Too many requests', { 'Content-Type': 'text/plain', 'Retry-After': '60' });
+    }
+
     // статические файлы
     if (req.method === 'GET' && !p.includes('..') && /^\/[\w.-]+\.(css|js|svg|png|webmanifest)$/.test(p)) {
       const f = path.join(PUBLIC, p);
       if (fs.existsSync(f)) {
         const ext = path.extname(f);
-        res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': p === '/sw.js' ? 'no-cache' : 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+        res.writeHead(200, { ...SEC, 'Content-Type': MIME[ext], 'Cache-Control': p === '/sw.js' ? 'no-cache' : 'public, max-age=3600' });
         return res.end(fs.readFileSync(f));
       }
     }
@@ -120,7 +144,7 @@ export const server = http.createServer(async (req, res) => {
     // «Единое окно» — статичная страница на n8n-вебхуках (свой CSP: инлайн-скрипт и запросы к n8n)
     if (req.method === 'GET' && (p === '/window' || p === '/w')) {
       res.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',
+        ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
         'Content-Security-Policy': "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://n8n-ny7q.srv2033023.hstgr.cloud; frame-ancestors 'none'",
       });
       return res.end(WINDOW_HTML);
@@ -162,7 +186,7 @@ export const server = http.createServer(async (req, res) => {
         if (!user || !user.is_owner) return html(404, V.notFound(lang));
         const r = await db.receiptById(rm[1]);
         if (!r || !/^[\w.-]+$/.test(r.file)) return html(404, V.notFound(lang));
-        res.writeHead(200, { 'Content-Type': r.mime, 'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" });
+        res.writeHead(200, { ...SEC, 'Content-Type': r.mime, 'Content-Disposition': 'inline', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" });
         return res.end(fs.readFileSync(path.join(DATA_DIR, 'receipts', r.file)));
       }
       const m = p.match(/^\/lang\/(ru|tg|uz)$/);
@@ -177,7 +201,7 @@ export const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && p === '/receipt') {
       if (!user) return html(401, 'login');
-      if (req.headers['x-csrf'] !== cookies.csrf) return html(403, 'csrf');
+      if (!cookies.csrf || req.headers['x-csrf'] !== cookies.csrf) return html(403, 'csrf');
       if (!['awaiting_payment', 'rejected'].includes(user.status)) return html(409, 'status');
       if ((await db.receiptCount(user.id)) >= MAX_RECEIPTS_PER_USER) return html(429, 'limit');
       const buf = await readRaw(req, MAX_RECEIPT);
@@ -218,7 +242,7 @@ export const server = http.createServer(async (req, res) => {
         else if (form.terms !== '1') err = t.errTerms;
         if (err) return html(400, V.registerPage(lang, csrf, err, v));
         try {
-          const u = await db.createUser({ email: v.email, name: v.name, passwordHash: hashPassword(form.password), lang, isOwner: !!ownerEmail() && v.email === ownerEmail() });
+          const u = await db.createUser({ email: v.email, name: v.name, passwordHash: await hashPassword(form.password), lang, isOwner: !!ownerEmail() && v.email === ownerEmail() });
           const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
           setCookies.push(cookie('sid', tok, SESSION_TTL));
           return redirect('/cabinet');
@@ -231,11 +255,12 @@ export const server = http.createServer(async (req, res) => {
       if (p === '/login') {
         const login = String(form.login || form.email || '').trim().toLowerCase();
         const ph = login.includes('@') ? null : normPhone(login);
-        const key = `${clientIp(req)}|${ph || login}`;
-        if ((await db.recentFailures(key, FAIL_WINDOW)) >= MAX_FAILS) return html(429, V.loginPage(lang, csrf, t.errLimit, { login }));
+        const key = `${ip}|${ph || login}`, keyAll = `*|${ph || login}`;
+        // по адресу и логину — 5 неудач, по одному логину со всех адресов — 25 (против перебора с разных адресов)
+        if ((await db.recentFailures(key, FAIL_WINDOW)) >= MAX_FAILS || (await db.recentFailures(keyAll, FAIL_WINDOW)) >= MAX_FAILS * 5) return html(429, V.loginPage(lang, csrf, t.errLimit, { login }));
         const u = login ? (ph ? await db.userByPhone(ph) : await db.userByEmail(login)) : null;
-        const ok = !!u && !!u.password_hash && checkPassword(form.password || '', u.password_hash);
-        if (!ok) { checkPassword(form.password || '', DUMMY); await db.addFailure(key); return html(401, V.loginPage(lang, csrf, t.errCreds, { login })); }
+        const ok = !!u && !!u.password_hash && (await checkPassword(String(form.password || '').slice(0, 200), u.password_hash));
+        if (!ok) { if (!u || !u.password_hash) await checkPassword(String(form.password || '').slice(0, 200), DUMMY); await db.addFailure(key); await db.addFailure(keyAll); return html(401, V.loginPage(lang, csrf, t.errCreds, { login })); }
         await db.clearFailures(key);
         const tok = rand(); await db.createSession(sha(tok), u.id, SESSION_TTL);
         setCookies.push(cookie('sid', tok, SESSION_TTL));
@@ -274,7 +299,7 @@ export const server = http.createServer(async (req, res) => {
             const target = await db.userById(r.user_id);
             if (target && target.phone && !target.password_hash) {
               const pw = genPassword();
-              await db.setPassword(target.id, hashPassword(pw));
+              await db.setPassword(target.id, await hashPassword(pw));
               return html(200, V.credentialsPage(lang, target, pw, `${PUBLIC_URL}/login`));
             }
           }
@@ -287,7 +312,7 @@ export const server = http.createServer(async (req, res) => {
         const c = await db.userById(form.id);
         if (!c || c.is_owner || !c.phone) return html(404, V.notFound(lang));
         const pw = genPassword();
-        await db.setPassword(c.id, hashPassword(pw));
+        await db.setPassword(c.id, await hashPassword(pw));
         return html(200, V.credentialsPage(lang, c, pw, `${PUBLIC_URL}/login`));
       }
 
