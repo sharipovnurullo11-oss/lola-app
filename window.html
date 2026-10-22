@@ -2524,7 +2524,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   // Один вход ко всем специалистам: по каждому коротко, что он делает, кнопка «Подробнее» и поле, чтобы поручить задачу.
   // Задача уходит нужному специалисту по ключевым словам.
   // Живые цифры: переписки берём из уже загруженного списка, деньги и остатки тем же запросом, что и бухгалтер (с записями из телефона).
-  var AS = { draft: '', msg: '', rec: null, buh: null, month: '' };
+  var AS = { draft: '', msg: '', rec: null, buh: null, month: '', st: {} };
   var ASST_ROWS = [
     { id: 'seller', line: 'Отвечает клиентам в Instagram, WhatsApp, Telegram и Messenger. Ждущие ответа смотрите в переписках.' },
     { id: 'buh', line: 'Приход, расход и остатки товара. Прибыль за месяц считается сама.' },
@@ -2559,7 +2559,12 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       else if (!AS.buh) AS.buh = { error: true };
       if (S.view === 'asst') render();
     });
+    // остальные — те же запросы статуса, что делает каждый специалист при открытии
+    [['smm', '/smm', 'status'], ['an', '/smm', 'analysis_status'], ['mkt', '/marketolog', 'status'], ['law', '/yurist', 'status']].forEach(function (q) {
+      callTo(q[1], { action: q[2] }).then(function (r) { if (my !== AS.req) return; AS.st[q[0]] = r.ok ? r : null; if (S.view === 'asst') render(); });
+    });
   }
+  function leftOf(r, def) { return TX('Запросов сегодня осталось') + ': ' + r.left + ' ' + TX('из') + ' ' + (r.limit || def); }
   var QUIET_DAYS = 14;
   function asstFacts() {
     var f = {}, now = Date.now();
@@ -2588,6 +2593,21 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
         ' · ' + ui('Прибыль за месяц: ', 'Фоидаи моҳ: ', 'Oylik foyda: ') + money(mi - mo) +
         (low.length ? ' · ' + ui('Заканчивается: ', 'Тамом шуда истодааст: ', 'Tugayapti: ') + low.join(', ') : '');
     }
+    var st = AS.st, sm = st.smm, an = st.an, mk = st.mkt, lw = st.law, p;
+    if (sm) {
+      p = [sm.connected ? TX('Instagram подключён') + (sm.username ? ': @' + sm.username : '') : '⚠️ ' + ui('Instagram не подключён', 'Instagram пайваст нест', 'Instagram ulanmagan')];
+      if (an && an.running) p.push('⏳ ' + ui('Идёт полный анализ Instagram', 'Таҳлили пурраи Instagram идома дорад', 'Instagramning to‘liq tahlili ketmoqda'));
+      else if (an && an.status === 'done' && an.otchet) p.push(ui('Анализ готов', 'Таҳлил тайёр', 'Tahlil tayyor') + (anFmtDate(an.finished) ? ' (' + anFmtDate(an.finished) + ')' : ''));
+      if (sm.left != null) p.push(leftOf(sm, 5));
+      f.smm = p.join(' · ');
+    }
+    if (mk) {
+      p = [];
+      if (!(mk.channels || []).length) p.push('⚠️ ' + ui('Каналы не подключены', 'Каналҳо пайваст нестанд', 'Kanallar ulanmagan'));
+      if (mk.left != null) p.push(leftOf(mk, 20));
+      if (p.length) f.mkt = p.join(' · ');
+    }
+    if (lw && lw.left != null) f.lawyer = ui('Вопросов сегодня осталось', 'Имрӯз саволҳо монд', 'Bugun savollar qoldi') + ': ' + lw.left;
     return f;
   }
   function renderAsst(el) {
