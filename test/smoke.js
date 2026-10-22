@@ -12,7 +12,7 @@ async function call(method, path, body) {
 }
 const ok = (n) => console.log('ok -', n);
 
-let r = await call('GET', '/'); assert.equal(r.status, 200); assert.match(r.text, /Лола/); ok('landing ru');
+let r = await call('GET', '/start'); assert.equal(r.status, 200); assert.match(r.text, /Лола/); ok('landing ru');
 r = await call('GET', '/lang/tg'); assert.equal(r.status, 303);
 r = await call('GET', '/register'); assert.match(r.text, /Сабти ном/); ok('tajik');
 r = await call('GET', '/lang/uz'); r = await call('GET', '/register'); assert.match(r.text, /Roʻyxatdan/); ok('uzbek');

@@ -24,7 +24,7 @@ function layout(lang, title, body) {
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap">
 <link rel="stylesheet" href="/app.css"></head><body>
 <div class="wrap"><header class="bar"><a class="logo" href="/">${LOGO}<b>${esc(t.brand)}</b></a>
-<nav class="nav"><a class="btn small" href="/demo">${esc(t.nav_demo)}</a><a class="btn small" href="/login">${esc(t.login)}</a><a class="btn small primary" href="/register">${esc(t.nav_start)}</a></nav></header>
+<nav class="nav"><a class="btn small" href="/start/demo">${esc(t.nav_demo)}</a><a class="btn small" href="/login">${esc(t.login)}</a><a class="btn small primary" href="/register">${esc(t.nav_start)}</a></nav></header>
 <nav class="langs">${langs}</nav>
 <main>${body}</main></div>
 <script src="/app.js" defer></script></body></html>`;
@@ -78,7 +78,7 @@ export function landing(lang) {
   const team = [[t.team1t, t.team1], [t.team2t, t.team2], [t.team3t, t.team3]]
     .map(([a, b]) => `<div class="card"><h3>${esc(a)}</h3><p>${esc(b)}</p></div>`).join('');
   return layout(lang, t.app, `<div class="hero"><div><h1>${esc(t.hero)}</h1><p class="lead">${esc(t.heroLead)}</p>
-<div class="cta"><a class="btn primary" href="/register">${esc(t.ctaStart)}</a><a class="btn" href="/demo">${esc(t.ctaDemo)}</a></div>
+<div class="cta"><a class="btn primary" href="/register">${esc(t.ctaStart)}</a><a class="btn" href="/start/demo">${esc(t.ctaDemo)}</a></div>
 <p class="price">${esc(t.priceNote)}</p></div>
 <div class="phone" aria-label="${esc(t.sampleTitle)}"><div class="ptop"><span>Instagram</span><span>${esc(t.sample)}</span></div>
 <div class="msg in">${esc(t.msg1)}<small>10:42</small></div><div class="msg bot">${esc(t.msg2)}<small>${esc(t.whoBot)} · 10:42</small></div>
