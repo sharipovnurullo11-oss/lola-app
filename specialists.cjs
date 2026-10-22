@@ -164,13 +164,82 @@ if (S.view === 'mkt') return renderMkt(el);
   }
 
   /* ---------- SMM-специалист ---------- */
-  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', copied: false };
+  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0 };
   function openSmm() {
-    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; render();
+    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; anStop(); render();
     callTo('/smm', { action: 'status' }).then(function (r) {
       SM.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
       if (S.view === 'smm') render();
     });
+    anLoad();
+  }
+  /* Полный анализ Instagram: n8n разбирает видео, комментарии и Директ в фоне, окно раз в несколько секунд спрашивает, как идёт. */
+  function anStop() { if (SM.anTimer) { clearTimeout(SM.anTimer); SM.anTimer = 0; } }
+  function anLoad() {
+    return callTo('/smm', { action: 'analysis_status' }).then(function (r) {
+      if (S.view !== 'smm') return;
+      var prev = SM.an ? [SM.an.running, SM.an.status, SM.an.shag, SM.an.error] : null;
+      if (r.ok) { SM.an = r; SM.anErr = ''; } else if (!SM.an) SM.an = { error: r.error || TX('не удалось загрузить') };
+      var cur = SM.an ? [SM.an.running, SM.an.status, SM.an.shag, SM.an.error] : null;
+      var ae = document.activeElement, typing = !!(ae && (ae.id === 'sm-plan' || ae.id === 'sm-cap'));
+      anSchedule();
+      if (!typing || JSON.stringify(prev) !== JSON.stringify(cur)) render();
+    });
+  }
+  function anSchedule() {
+    anStop();
+    if (S.view === 'smm' && SM.an && SM.an.running) SM.anTimer = setTimeout(function () { SM.anTimer = 0; if (S.view === 'smm') anLoad(); }, 8000);
+  }
+  function anStart() {
+    if (SM.anBusy || (SM.an && SM.an.running)) return;
+    SM.anBusy = true; SM.anErr = ''; SM.anCopied = false; render();
+    callTo('/smm', { action: 'analysis_start' }).then(function (r) {
+      SM.anBusy = false;
+      if (!r.ok) { SM.anErr = r.error || TX('Не получилось запустить анализ'); if (S.view === 'smm') render(); return; }
+      var left = SM.an && SM.an.left_this_month != null ? Math.max(0, SM.an.left_this_month - 1) : 0;
+      SM.an = { ok: true, running: true, status: 'running', shag: TX('Запущено'), otchet: '', left_this_month: left, extra_price_somoni: SM.an && SM.an.extra_price_somoni || 50 };
+      if (S.view === 'smm') { render(); anSchedule(); }
+    });
+  }
+  // Копирование: сначала буфер обмена браузера, если не разрешён — запасной способ через скрытое поле.
+  function copyText(text, done) {
+    function fallback() {
+      try {
+        var ta = document.createElement('textarea'); ta.value = String(text || ''); ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.appendChild(ta); ta.select(); var ok = document.execCommand && document.execCommand('copy'); document.body.removeChild(ta);
+        if (ok) done();
+      } catch (e) {}
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(String(text || '')).then(done, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  }
+  function anFmtDate(s) { var d = new Date(s); if (!s || isNaN(d.getTime())) return ''; return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear(); }
+  function anCard() {
+    var a = SM.an, conn = !!(SM.st && SM.st.connected);
+    var h = '<div style="display:grid;gap:8px;margin:6px 0 14px;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px">' +
+      '<b>🔎 ' + esc(TX('Полный анализ Instagram')) + '</b>' +
+      '<small style="opacity:.8">' + esc(TX('Разберу ваши видео (по тому, что в них сказано), комментарии и темы обращений в Директ, найду, что заходит, и дам план на неделю. Это занимает несколько минут, окно можно закрыть.')) + '</small>';
+    if (!a) return h + '<p style="margin:0">' + esc(TX('Загрузка…')) + '</p></div>';
+    if (a.error) return h + '<p class="err" style="margin:0">' + esc(a.error) + '</p><button class="btn sec" data-smm="an-reload" type="button">' + esc(TX('Ещё раз')) + '</button></div>';
+    var left = Number(a.left_this_month || 0), price = a.extra_price_somoni || 50;
+    if (a.running) {
+      h += '<p style="margin:0">⏳ ' + esc(a.shag || TX('Запущено')) + '</p><small style="opacity:.75">' + esc(TX('Можно закрыть окно и вернуться позже: отчёт сохранится.')) + '</small>';
+    } else {
+      h += '<small>' + esc(TX('Бесплатных анализов в этом месяце осталось')) + ': <b>' + esc(left) + '</b></small>';
+      if (!conn) h += '<small class="err">' + esc(TX('Сначала подключите Instagram в меню (каналы).')) + '</small>';
+      if (left > 0) h += '<button class="btn" data-smm="an-start" type="button"' + (SM.anBusy || !conn ? ' disabled' : '') + '>' + esc(TX(a.status === 'done' ? 'Сделать анализ заново' : 'Сделать полный анализ')) + '</button>';
+      else h += '<small>' + esc(TX('Бесплатный анализ в этом месяце уже использован. Дополнительный анализ стоит')) + ' ' + esc(price) + ' ' + esc(TX('сомони: напишите нам, и мы его включим.')) + '</small>';
+    }
+    if (SM.anErr) h += '<p class="err" style="margin:0">' + esc(SM.anErr) + '</p>';
+    if (a.status === 'error' && !a.running) h += '<p class="err" style="margin:0">' + esc(a.shag || TX('Анализ не завершился, запустите ещё раз')) + '</p>';
+    if (a.status === 'done' && a.otchet && !a.running) {
+      h += '<small style="opacity:.75">' + esc(TX('Отчёт от')) + ' ' + esc(anFmtDate(a.finished)) + (a.novyh_video ? ', ' + esc(TX('новых видео разобрано')) + ': ' + esc(a.novyh_video) : '') + '</small>' +
+        '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;font-size:14px;line-height:1.45" id="sm-an-res">' + esc(a.otchet) + '</div>' +
+        '<button class="btn sec" data-smm="an-copy" type="button">' + esc(TX(SM.anCopied ? 'Скопировано ✓' : 'Скопировать отчёт')) + '</button>';
+    }
+    return h + '</div>';
   }
   function renderSmm(el) {
     var h = backBtn() + '<h2 style="padding-right:36px">📣 ' + esc(TX('SMM-специалист')) + '</h2>';
@@ -181,6 +250,7 @@ if (S.view === 'mkt') return renderMkt(el);
       ? '✅ ' + esc(TX('Instagram подключён')) + (SM.st.username ? ': @' + esc(SM.st.username) : '')
       : '⚠️ ' + esc(TX('Instagram не подключён. Подключите его в меню (каналы), тогда я буду опираться на ваши посты.'))) + '</p>' +
       '<p style="margin:4px 0 10px"><small>' + esc(TX('Запросов сегодня осталось')) + ': <b>' + esc(SM.st.left) + '</b> ' + esc(TX('из')) + ' ' + esc(SM.st.limit || 5) + '</small></p>';
+    h += anCard();
     h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
       '<b>' + esc(TX('План на неделю')) + '</b>' +
       '<textarea class="in2" id="sm-plan" rows="2" maxlength="800" placeholder="' + esc(TX('Что было на этой неделе: вопросы клиентов, события (необязательно)')) + '">' + esc(SM.plan) + '</textarea>' +
@@ -212,7 +282,10 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function smmClick(a) {
     if (a === 'reload') return openSmm();
-    if (a === 'copy') { try { navigator.clipboard.writeText(SM.res); SM.copied = true; render(); } catch (e) {} return; }
+    if (a === 'an-reload') { SM.an = null; render(); return anLoad(); }
+    if (a === 'an-start') return anStart();
+    if (a === 'an-copy') return copyText((SM.an && SM.an.otchet) || '', function () { SM.anCopied = true; if (S.view === 'smm') render(); });
+    if (a === 'copy') return copyText(SM.res, function () { SM.copied = true; if (S.view === 'smm') render(); });
     if (a === 'plan' || a === 'caption' || a === 'profile') return runSmm(a);
   }
 

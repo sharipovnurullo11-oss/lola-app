@@ -2,6 +2,7 @@
 import subprocess, time, json
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8126'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
+AN = {'st': 'none', 'left': 1, 'polls': 0}
 SLOW = [0]; HELD = []; calls = []; ops = [{"id": "x1", "type": "in", "amount": "500", "note": "Продажа <b>x</b>", "date": time.strftime('%Y-%m-') + '01', "ts": 1}]; stock = [{"name": "Крем", "qty": 7}]
 def h(route):
     u = route.request.url
@@ -20,6 +21,18 @@ def h(route):
             return route.fulfill(json={"ok": True, "stock": stock})
     if u.endswith('/smm'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if a == 'analysis_status':
+            base = {"ok": True, "connected": True, "extra_price_somoni": 50, "left_this_month": AN['left'], "started": "", "finished": "", "novyh_video": 0}
+            if AN['st'] == 'running':
+                AN['polls'] += 1
+                if AN['polls'] >= 1: AN['st'] = 'done'
+            if AN['st'] == 'none': return route.fulfill(json=dict(base, running=False, status='none', shag='', otchet=''))
+            if AN['st'] == 'running': return route.fulfill(json=dict(base, running=True, status='running', shag='Разбираю видео', otchet=''))
+            return route.fulfill(json=dict(base, running=False, status='done', shag='Готово', otchet='ИТОГ <b>x</b>\nГЛАВНЫЙ ШАГ НА СЕГОДНЯ', finished='2026-10-22T05:00:00.000Z', novyh_video=5))
+        if a == 'analysis_start':
+            if AN['left'] <= 0: return route.fulfill(json={"ok": False, "error": "Бесплатный анализ в этом месяце уже использован"})
+            AN['left'] -= 1; AN['st'] = 'running'; AN['polls'] = 0
+            return route.fulfill(json={"ok": True, "started": True, "run_id": "r1"})
         if a == 'status': return route.fulfill(json={"ok": True, "connected": True, "username": "nurullo_psiholog", "left": 5, "limit": 5})
         if a == 'plan': return route.fulfill(json={"ok": True, "text": "ПЛАН <b>x</b>\nПН - рилс", "left": 4, "connected": True})
         if a == 'caption': return route.fulfill(json={"ok": True, "text": "Подпись готова", "left": 3, "connected": True})
@@ -37,7 +50,7 @@ try:
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(pg.is_visible('#sp-home'), 'первый экран владельца — ряд специалистов')
         t = pg.inner_text('#sp-home')
-        check(all(x in t for x in ['Бухгалтер', 'SMM-специалист', 'Юрист', 'Маркетолог-таргетолог', 'Менеджер по клиентам', 'Продавец-ассистент']), 'все шесть специалистов на первом экране')
+        check(all(x in t for x in ['Бухгалтер', 'SMM-специалист', 'Юрист', 'Маркетолог', 'Менеджер по клиентам', 'Продавец-ассистент']), 'все шесть специалистов на первом экране')
         check(not pg.is_visible('#list') and not pg.is_visible('#chs'), 'переписки спрятаны за главным экраном')
         check(not pg.is_visible('#m-specbtn'), 'кнопки «Специалисты» в меню больше нет')
         pg.click('[data-home="lawyer"]'); pg.wait_for_timeout(300); check('Скоро' in pg.inner_text('#sp-body'), 'юрист — скоро'); pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
@@ -46,6 +59,8 @@ try:
         check(not pg.is_visible('#sp-home') and pg.is_visible('#list') and pg.is_visible('#sp-back'), 'продавец-ассистент открывает переписки, сверху «← Специалисты»')
         pg.click('#sp-back button'); pg.wait_for_timeout(200); check(pg.is_visible('#sp-home') and not pg.is_visible('#list'), 'кнопка «← Специалисты» возвращает на главный экран')
         pg.click('[data-home="buh"]'); pg.wait_for_timeout(500)
+        check(pg.is_visible('[data-onb^="kind:"]'), 'бухгалтер: при первом входе просит выбрать вид деятельности')
+        pg.click('[data-onb="kind:health"]'); pg.click('[data-onb="stock:yes"]'); pg.click('[data-onb^="staff:"] >> nth=0'); pg.click('[data-onb="hire"]'); pg.wait_for_timeout(700)
         t = pg.inner_text('#sp-body'); check('500' in t and 'Крем' in t, 'бухгалтер: итоги и остатки загружены')
         check('<b>x</b>' in t and pg.locator('#sp-body b', has_text='x').count() == 0, 'текст записи экранирован')
         pg.fill('#bh-text', 'расход 150,5 такси'); pg.click('[data-buh="text"]'); pg.wait_for_timeout(500)
@@ -91,6 +106,22 @@ try:
         check('4' in pg.inner_text('#sp-body'), 'SMM: остаток запросов уменьшился')
         pg.fill('#sm-cap', 'пост про тревогу'); pg.click('[data-smm="caption"]'); pg.wait_for_timeout(500); check('Подпись готова' in pg.inner_text('#sm-res'), 'SMM: подпись получена')
         pg.click('[data-smm="profile"]'); pg.wait_for_timeout(500); check('Instagram' in pg.inner_text('#sp-body') and pg.is_visible('#sp-body .err'), 'SMM: ошибка разбора показана')
+        # SMM: полный анализ Instagram
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="smm"]'); pg.wait_for_timeout(600)
+        t = pg.inner_text('#sp-body'); check('Полный анализ Instagram' in t and 'Бесплатных анализов в этом месяце осталось: 1' in t, 'SMM: карточка полного анализа и остаток в месяце')
+        check(pg.is_visible('[data-smm="an-start"]') and not pg.is_visible('#sm-an-res'), 'SMM: кнопка запуска есть, отчёта ещё нет')
+        pg.fill('#sm-plan', 'текст не должен пропасть')
+        pg.click('[data-smm="an-start"]'); pg.wait_for_timeout(400)
+        check(any(c['action'] == 'analysis_start' for c in calls), 'SMM: анализ запущен на сервере')
+        t = pg.inner_text('#sp-body'); check('Разбираю' in t or 'Запущено' in t, 'SMM: показан ход анализа')
+        check(not pg.is_visible('[data-smm="an-start"]'), 'SMM: пока идёт анализ, кнопки запуска нет (нет двойного запуска)')
+        check(pg.input_value('#sm-plan') == 'текст не должен пропасть', 'SMM: набранный текст не пропал при запуске анализа')
+        pg.wait_for_timeout(9500)
+        check(pg.is_visible('#sm-an-res') and 'ИТОГ <b>x</b>' in pg.inner_text('#sm-an-res') and pg.locator('#sm-an-res b').count() == 0, 'SMM: готовый отчёт показан и экранирован')
+        t = pg.inner_text('#sp-body'); check('22.10.2026' in t and 'новых видео разобрано: 5' in t, 'SMM: дата отчёта и число разобранных видео')
+        check('50 сомони' in t and not pg.is_visible('[data-smm="an-start"]'), 'SMM: бесплатный анализ использован, дополнительный 50 сомони, кнопки нет')
+        check(pg.input_value('#sm-plan') == 'текст не должен пропасть', 'SMM: текст в поле плана сохранился после готового отчёта')
+        pg.click('[data-smm="an-copy"]'); pg.wait_for_timeout(200); check('Скопировано' in pg.inner_text('#sp-body') or pg.is_visible('[data-smm="an-copy"]'), 'SMM: кнопка копирования отчёта работает без ошибок')
         check(not errs, 'нет ошибок страницы ' + str(errs))
         check(pg.evaluate('document.documentElement.scrollWidth') <= pg.evaluate('innerWidth'), 'нет горизонтальной прокрутки на телефоне')
         # сотрудник не видит
