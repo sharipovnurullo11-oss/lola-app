@@ -1570,6 +1570,8 @@ function tl_html(sess){
     seg += '<i class="' + (q.online ? 'on' : '') + '" style="left:' + l.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></i>'; });
   return T('<div class="tl" role="img" aria-label="Когда был в сети сегодня">') + seg + '</div><div class="tlx"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>';
 }
+// «Все заходы» у сотрудника остаются раскрытыми между обновлениями списка, пока их не свернут повторным нажатием.
+var SOPEN = {};
 function render_staff(){
   var d = SDATA; if (!d) return;
   var list = d.staff.slice().sort(function(x,y){ if (x.online !== y.online) return x.online ? -1 : 1; return String(x.waitSince||'9').localeCompare(String(y.waitSince||'9')); });
@@ -1598,9 +1600,10 @@ function render_staff(){
      + T('<div class="grid"><div>Всего в работе<b>') + fmtMin(s.minutes) + T('</b></div><div>Включился<b>') + fmtT(s.firstIn) + T('</b></div><div>Выключился<b>') + (s.online ? T('в сети') : fmtT(s.lastOut)) + '</b></div>'
      + T('<div>Ответов<b>') + s.replies + T('</b></div><div>Написали ему<b>') + s.incoming + T('</b></div><div>Клиентов<b>') + s.clients + T('</b></div><div>Заказов<b>') + s.orders + T('</b></div><div>Мессенджеры<b class="chi">') + chIcons(s.channels) + '</b></div></div>'
      + T('<div style="font-size:13px;color:var(--muted)">Устройство: ') + (s.devices.length ? esc(s.devices.join('; ')) : '—') + '</div>'
-     + (sess ? T('<details><summary>Все заходы</summary>') + sess + '</details>' : '')
+     + (sess ? T('<details><summary>Все заходы</summary>').replace('<details>', '<details data-ph="' + esc(s.phone) + '"' + (SOPEN[s.phone] ? ' open' : '') + '>') + sess + '</details>' : '')
      + '<div class="acts"><button type="button" class="sm" data-act="reset" data-p="' + esc(s.phone) + T('">Новый код</button><button type="button" class="sm" data-act="') + (s.status==='off'?'on':'off') + '" data-p="' + esc(s.phone) + '">' + (s.status==='off'?T('Включить'):T('Отключить')) + '</button></div></div>';
   }).join('') : T('<p>Сотрудников пока нет. Добавьте первого ниже.</p>');
+  $('s-list').querySelectorAll('details[data-ph]').forEach(function(dt){ dt.addEventListener('toggle', function(){ SOPEN[dt.getAttribute('data-ph')] = dt.open; }); });
   $('s-list').querySelectorAll('[data-act]').forEach(function(b){ b.addEventListener('click', function(){
     var a = b.getAttribute('data-act'), body = { action:'staff_update', code: store('ew_cab')||'', phone: b.getAttribute('data-p') };
     if (a==='reset') body.reset = true; else body.status = a;
