@@ -2358,9 +2358,10 @@ $('ar-list').addEventListener('click', function(e){
         '<div class="k" style="cursor:default"><small>Сводка обновлена</small><b style="font-size:15px">' + esc(ago(k.updated)) + ' назад</b></div>';
       Array.prototype.forEach.call($('a-kpi').querySelectorAll('[data-f]'), function (e) { e.onclick = function () { STATE.filter = e.getAttribute('data-f'); $('a-f').value = STATE.filter; STATE.page = 1; loadList(); }; });
       $('a-list').innerHTML = j.items.length ? j.items.map(function (r, i) {
-        return '<div class="row" data-i="' + i + '"><span><b>' + esc(r.imya || r.telefon || 'без имени') + '</b><br><small>' + esc(r.imya ? r.telefon : 'имя не указано') + ' ' + esc(r.tarif) + ' ' + esc(r.do) + '</small></span><span>' + dots(r) + '</span><span>' + r.m24 + '<br><small>↓' + r.in24 + ' ↑' + r.out24 + '</small></span><span>' + (r.noans ? '<b style="color:#d93a3a">' + r.noans + '</b>' : '0') + '</span><span class="hide">' + esc(ago(r.last)) + '</span><span class="h ' + esc(r.h) + '">' + esc(HN[r.h] || r.h) + '</span></div>';
+        return '<div class="row" data-i="' + i + '"><span><b>' + esc(r.imya || r.telefon || 'без имени') + '</b><br><small>' + esc(r.imya ? r.telefon : 'имя не указано') + ' ' + esc(r.tarif) + ' ' + esc(r.do) + '</small> <a class="ren" data-ren="' + i + '" style="color:#5c6785;cursor:pointer;font-size:12px;text-decoration:underline">имя</a></span><span>' + dots(r) + '</span><span>' + r.m24 + '<br><small>↓' + r.in24 + ' ↑' + r.out24 + '</small></span><span>' + (r.noans ? '<b style="color:#d93a3a">' + r.noans + '</b>' : '0') + '</span><span class="hide">' + esc(ago(r.last)) + '</span><span class="h ' + esc(r.h) + '">' + esc(HN[r.h] || r.h) + '</span></div>';
       }).join('') : '<div class="note">Ничего не найдено.</div>';
-      Array.prototype.forEach.call($('a-list').querySelectorAll('[data-i]'), function (e) { e.onclick = function () { openCab(j.items[+e.getAttribute('data-i')]); }; });
+      Array.prototype.forEach.call($('a-list').querySelectorAll('[data-i]'), function (e) { e.onclick = function () { openAs(j.items[+e.getAttribute('data-i')]); }; });
+      Array.prototype.forEach.call($('a-list').querySelectorAll('[data-ren]'), function (e) { e.onclick = function (ev) { ev.stopPropagation(); renameCab(j.items[+e.getAttribute('data-ren')]); }; });
       $('a-pg').innerHTML = j.pages > 1 ? '<button id="a-p1"' + (j.page <= 1 ? ' disabled' : '') + '>←</button><span>' + j.page + ' / ' + j.pages + '</span><button id="a-p2"' + (j.page >= j.pages ? ' disabled' : '') + '>→</button>' : '';
       if ($('a-p1')) { $('a-p1').onclick = function () { STATE.page = j.page - 1; loadList(); }; $('a-p2').onclick = function () { STATE.page = j.page + 1; loadList(); }; }
     }).catch(function () { $('a-list').innerHTML = '<div class="err">Нет связи с сервером.</div>'; });
@@ -2374,9 +2375,10 @@ $('ar-list').addEventListener('click', function(e){
       if (x.s === 401) { save(''); showLogin(ERR.auth); return; }
       if (!x.j || !x.j.ok) { root.alert(errText(x)); return; }
       r.imya = x.j.imya || '';
-      var t = $('a-title'); if (t) t.textContent = r.imya || r.telefon || 'Кабинет';
+      var t = $('a-title'); if (t) t.textContent = r.imya || r.telefon || 'Кабинет'; else loadList();
     }).catch(function () { root.alert('Нет связи с сервером.'); });
   }
+  function openAs(r) { try { root.sessionStorage.setItem('adm_as_name', r.imya || r.telefon || ''); } catch (e) {} root.location.hash = '#as=' + r.kod; root.location.reload(); }
   function openCab(r) {
     CUR = r; clearInterval(TIMER);
     var chs = [['wa', 'WhatsApp'], ['ig', 'Instagram'], ['tg', 'Telegram'], ['fb', 'Facebook']];
