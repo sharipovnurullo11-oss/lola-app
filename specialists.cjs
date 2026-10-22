@@ -1285,7 +1285,6 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // Самый простой экран продавца: код, подсказки, корзина, «В долг» и «Оплатить». Больше ничего.
   function shStaffKassa() {
     var D = SH.d, h = '', box = 'border:1px solid #d6d6d6;border-radius:16px;background:#fff;padding:16px';
-    if (!D.products.length) return '<p>' + esc(sellerView() ? ui('Товаров пока нет. Скажите руководителю.', 'Ҳоло мол нест. Ба роҳбар гӯед.', 'Hozircha tovar yoʻq. Rahbarga ayting.') : ui('Сначала добавьте товары: кнопка «Учёт».', 'Аввал молҳоро илова кунед: тугмаи «Ҳисоб».', 'Avval tovar qoʻshing: «Hisob» tugmasi.')) + '</p>' + (sellerView() ? '' : shBtn('tab', ui('Учёт', 'Ҳисоб', 'Hisob'), null, 'tovar'));
     var cart = !SH.cart.length ? '<div style="opacity:.6;margin-top:8px">' + esc(ui('Пока пусто', 'Ҳоло холӣ', 'Hozircha boʻsh')) + '</div>' : '<div style="margin-top:6px">' + SH.cart.map(function (it) {
       var p = shProd(it.kod); if (!p) return '';
       return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee"><div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b><br><small>' + esc(shMoney(p.price)) + ' × ' + it.qty + ' = ' + esc(money(cents(p.price) * it.qty)) + '</small></div>' +
