@@ -17,7 +17,6 @@ async function pgDb() {
     userByPhone: (phone) => one('SELECT * FROM users WHERE phone=$1', [phone]),
     userById: (id) => one('SELECT * FROM users WHERE id=$1', [id]),
     setPassword: (id, hash) => pool.query('UPDATE users SET password_hash=$2 WHERE id=$1', [id, hash]),
-    userCount: async () => Number((await one('SELECT count(*) c FROM users')).c),
     createSession: (tokenHash, userId, ttlSec) => pool.query(
       `INSERT INTO sessions (token_hash,user_id,expires_at) VALUES ($1,$2,now()+($3||' seconds')::interval)`,
       [tokenHash, userId, String(ttlSec)]),
@@ -66,7 +65,6 @@ function memoryDb() {
     async userByPhone(p) { return users.find((x) => x.phone === p) || null; },
     async userById(id) { return users.find((x) => x.id === Number(id)) || null; },
     async setPassword(id, hash) { users.find((x) => x.id === Number(id)).password_hash = hash; },
-    async userCount() { return users.length; },
     async createSession(h, id, ttl) { sessions.set(h, { id, exp: Date.now() + ttl * 1000 }); },
     async userBySession(h) {
       const s = sessions.get(h); if (!s || s.exp < Date.now()) return null;
