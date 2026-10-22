@@ -106,7 +106,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   // Один вход ко всем специалистам: по каждому коротко, что он делает, кнопка «Подробнее» и поле, чтобы поручить задачу.
   // Задача уходит нужному специалисту по ключевым словам.
   // Живые цифры: переписки берём из уже загруженного списка, деньги и остатки тем же запросом, что и бухгалтер (с записями из телефона).
-  var AS = { draft: '', msg: '', rec: null, buh: null, month: '', st: {} };
+  var AS = { draft: '', msg: '', rec: null, busy: false, buh: null, month: '', st: {} };
   var ASST_ROWS = [
     { id: 'seller', line: 'Отвечает клиентам в Instagram, WhatsApp, Telegram и Messenger. Ждущие ответа смотрите в переписках.' },
     { id: 'buh', line: 'Приход, расход и остатки товара. Прибыль за месяц считается сама.' },
@@ -217,17 +217,24 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '<p>' + esc(TX('Все ваши специалисты в одном месте. Нажмите «Подробнее», чтобы открыть работу нужного.')) + '</p>' + rows +
       '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#e5e5e5)"><label for="as-in" style="display:block;font-weight:600;margin-bottom:6px">' + esc(TX('Поручить ассистенту задачу')) + '</label>' +
       '<textarea id="as-in" rows="2" style="width:100%;box-sizing:border-box" placeholder="' + esc(TX('Напишите или скажите, что нужно. Ассистент сам выберет специалиста.')) + '">' + esc(AS.draft) + '</textarea>' +
-      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-asst="send">' + esc(TX('Передать')) + '</button>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-asst="send"' + (AS.busy ? ' disabled' : '') + '>' + esc(TX('Передать')) + '</button>' +
       '<button type="button" class="btn sec' + (AS.rec ? ' rec' : '') + '" data-asst="mic">' + (AS.rec ? '⏹ ' + esc(TX('Слушаю… нажмите, когда закончите')) : '🎤 ' + esc(TX('Сказать голосом'))) + '</button></div>' +
       '<p id="as-msg" role="status" style="margin:8px 0 0;min-height:1.2em;opacity:.85">' + esc(AS.msg) + '</p></div>';
   }
   function asstSend() {
     var f = $s('as-in'), text = (f && f.value || AS.draft || '').trim();
     if (!text) { AS.msg = TX('Напишите задачу или скажите её голосом.'); return render(); }
-    var id = asstRoute(text);
-    if (!id) { AS.msg = TX('Не понял, какому специалисту передать. Выберите его в списке выше.'); return render(); }
-    AS.draft = ''; AS.msg = '';
-    openOne(id);
+    if (AS.busy) return;
+    // Специалиста выбирает ИИ (n8n /assistent, лимит в сутки); нет связи, ошибка или лимит — по ключевым словам, как раньше
+    AS.busy = true; AS.draft = text; AS.msg = ui('Думаю, кому передать…', 'Фикр мекунам, ба кӣ супорам…', 'Kimga topshirishni o‘ylayapman…'); render();
+    callTo('/assistent', { action: 'route', text: text, lang: window.LANG || 'ru' }).then(function (r) {
+      AS.busy = false;
+      if (S.view !== 'asst') return;
+      var id = r.ok ? r.id : asstRoute(text);
+      if (!id) { AS.msg = TX('Не понял, какому специалисту передать. Выберите его в списке выше.'); return render(); }
+      AS.draft = ''; AS.msg = '';
+      openOne(id);
+    });
   }
   function asstMic() {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;

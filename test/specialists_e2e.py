@@ -38,6 +38,11 @@ def h(route):
         if a == 'delete':
             KBC[:] = [c for c in KBC if c['id'] != b['id']]
             return route.fulfill(json={"ok": True, "deleted": True, "total": len([c for c in KBC if c['spec'] == b['spec']])})
+    if u.endswith('/assistent'):
+        b = json.loads(route.request.post_data); calls.append(b); t = b.get('text', '')
+        if 'обиделась' in t: return route.fulfill(json={"ok": True, "id": "manager", "left": 19})
+        if 'погод' in t: return route.fulfill(json={"ok": True, "id": "", "left": 18})
+        return route.fulfill(json={"ok": False, "error": "ai"})
     if u.endswith('/smm'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
         if a == 'analysis_status':
@@ -209,7 +214,11 @@ try:
         pg.fill('#as-in', 'расскажи погоду'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(200)
         check('Не понял' in pg.inner_text('#as-msg') and pg.input_value('#as-in') == 'расскажи погоду', 'ассистент: непонятная задача — подсказка, текст не пропал')
         pg.fill('#as-in', 'составь договор аренды'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(400)
-        check('Договор оказания услуг' in pg.inner_text('#sp-body'), 'ассистент: задача про договор ушла юристу')
+        check('Договор оказания услуг' in pg.inner_text('#sp-body'), 'ассистент: ИИ не ответил — задача про договор ушла юристу по ключевым словам')
+        check(any(c.get('action') == 'route' and c.get('text') == 'составь договор аренды' and c.get('code') == 'codetest1' for c in calls), 'ассистент: поручение отправлено ИИ с кодом кабинета')
+        pg.click('[data-sp-back]'); pg.wait_for_timeout(200); pg.click('[data-home="assistant"]'); pg.wait_for_timeout(300)
+        pg.fill('#as-in', 'клиентка обиделась, что делать?'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(400)
+        check('Менеджер по клиентам' in pg.inner_text('#sp-body'), 'ассистент: ИИ понял поручение без ключевых слов и передал менеджеру')
         pg.click('[data-sp-back]'); pg.wait_for_timeout(200); pg.click('[data-home="assistant"]'); pg.wait_for_timeout(300)
         pg.click('[data-asst="open"][data-id="smm"]'); pg.wait_for_timeout(400)
         check('SMM-специалист' in pg.inner_text('#sp-body'), 'ассистент: «Подробнее» открывает нужного специалиста')
