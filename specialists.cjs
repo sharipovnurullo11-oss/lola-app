@@ -91,7 +91,7 @@
       d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
-      d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; });
+      d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; else if (t && t.id === 'as-in') AS.draft = t.value; });
 d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'mk-in' && !/Mobi|Android|iPhone/i.test(navigator.userAgent)) { e.preventDefault(); mktClick('send'); } });
     }
     return true;
@@ -100,6 +100,75 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     if (!owner()) return; ensure();
     if (id === 'buh') openBuh(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
     open_dlg('m-spec');
+  }
+
+  /* ---------- Мой ассистент: сводка дня ---------- */
+  // Один вход ко всем специалистам: по каждому коротко, что он делает, кнопка «Подробнее» и поле, чтобы поручить задачу.
+  // Задача уходит нужному специалисту по ключевым словам. Живые цифры в сводке подключим отдельным шагом (эндпоинт n8n).
+  var AS = { draft: '', msg: '', rec: null };
+  var ASST_ROWS = [
+    { id: 'seller', line: 'Отвечает клиентам в Instagram, WhatsApp, Telegram и Messenger. Ждущие ответа смотрите в переписках.' },
+    { id: 'buh', line: 'Приход, расход и остатки товара. Прибыль за месяц считается сама.' },
+    { id: 'smm', line: 'План недели, подписи к постам и разбор вашего Instagram.' },
+    { id: 'mkt', line: 'Контент-план, где теряются клиенты и тексты для возврата.' },
+    { id: 'manager', line: 'Возвращает замолчавших клиентов и напоминает о повторных покупках.' },
+    { id: 'lawyer', line: 'Договоры на русском, таджикском и узбекском.' }
+  ];
+  var ASST_KEYS = [
+    ['buh', /(приход|расход|касс|деньг|прибыл|остат|трат|заплат|сомон|бухгалтер)/],
+    ['lawyer', /(договор|юрист|аренд|соглашени|контракт|закон)/],
+    ['smm', /(пост|подпис|рилс|reels|instagram|инстаграм|smm|смм|сторис|хэштег|хештег)/],
+    ['mkt', /(маркетолог|контент.?план|воронк|теря|реклам|продвиж)/],
+    ['manager', /(замолч|вернуть клиент|повторн|напомн|менеджер|не отвечает)/],
+    ['seller', /(переписк|сообщени|ответ|директ|whatsapp|ватсап|telegram|телеграм|продавец)/]
+  ];
+  function asstRoute(text) {
+    var t = String(text || '').toLowerCase();
+    for (var i = 0; i < ASST_KEYS.length; i++) if (ASST_KEYS[i][1].test(t)) return ASST_KEYS[i][0];
+    return '';
+  }
+  function openAsst() {
+    if (!owner()) return; ensure(); S.view = 'asst'; AS.msg = ''; render(); open_dlg('m-spec');
+  }
+  function renderAsst(el) {
+    var rows = ASST_ROWS.map(function (r) {
+      var s = LIST.filter(function (x) { return x.id === r.id; })[0] || { ico: '', name: r.id };
+      return '<div class="asst-row" style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line,#e5e5e5)">' +
+        '<span style="font-size:24px;flex:none" aria-hidden="true">' + s.ico + '</span>' +
+        '<span style="flex:1;min-width:0"><b style="display:block">' + esc(TX(s.name)) + '</b><small style="opacity:.8">' + esc(TX(r.line)) + '</small></span>' +
+        '<button type="button" class="btn sec" data-asst="open" data-id="' + r.id + '" style="flex:none;height:auto;padding:6px 10px">' + esc(TX('Подробнее')) + ' →</button></div>';
+    }).join('');
+    el.innerHTML = '<h2 style="padding-right:36px">✨ ' + esc(TX('Мой ассистент: сводка дня')) + '</h2>' +
+      '<p>' + esc(TX('Все ваши специалисты в одном месте. Нажмите «Подробнее», чтобы открыть работу нужного.')) + '</p>' + rows +
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#e5e5e5)"><label for="as-in" style="display:block;font-weight:600;margin-bottom:6px">' + esc(TX('Поручить ассистенту задачу')) + '</label>' +
+      '<textarea id="as-in" rows="2" style="width:100%;box-sizing:border-box" placeholder="' + esc(TX('Напишите или скажите, что нужно. Ассистент сам выберет специалиста.')) + '">' + esc(AS.draft) + '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-asst="send">' + esc(TX('Передать')) + '</button>' +
+      '<button type="button" class="btn sec' + (AS.rec ? ' rec' : '') + '" data-asst="mic">' + (AS.rec ? '⏹ ' + esc(TX('Слушаю… нажмите, когда закончите')) : '🎤 ' + esc(TX('Сказать голосом'))) + '</button></div>' +
+      '<p id="as-msg" role="status" style="margin:8px 0 0;min-height:1.2em;opacity:.85">' + esc(AS.msg) + '</p></div>';
+  }
+  function asstSend() {
+    var f = $s('as-in'), text = (f && f.value || AS.draft || '').trim();
+    if (!text) { AS.msg = TX('Напишите задачу или скажите её голосом.'); return render(); }
+    var id = asstRoute(text);
+    if (!id) { AS.msg = TX('Не понял, какому специалисту передать. Выберите его в списке выше.'); return render(); }
+    AS.draft = ''; AS.msg = '';
+    openOne(id);
+  }
+  function asstMic() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { AS.msg = TX('Голос не работает в этом браузере. Напишите текстом.'); return render(); }
+    if (AS.rec) { try { AS.rec.stop(); } catch (e) {} return; }
+    var r = new SR(); AS.rec = r; var L = window.LANG || 'ru'; r.lang = L === 'tg' ? 'tg-TJ' : (L === 'uz' ? 'uz-UZ' : 'ru-RU'); r.interimResults = false; r.maxAlternatives = 1;
+    r.onresult = function (e) { AS.draft = (AS.draft ? AS.draft + ' ' : '') + e.results[0][0].transcript; };
+    r.onerror = function (e) { AS.msg = e && e.error === 'not-allowed' ? TX('Разрешите микрофон в браузере') : TX('Не получилось услышать. Попробуйте ещё раз или напишите текстом.'); };
+    r.onend = function () { AS.rec = null; if (S.view === 'asst') render(); };
+    try { r.start(); render(); } catch (e) { AS.rec = null; }
+  }
+  function asstClick(b) {
+    var a = b.dataset.asst;
+    if (a === 'open') return openOne(b.dataset.id);
+    if (a === 'send') return asstSend();
+    if (a === 'mic') return asstMic();
   }
 
   /* ---------- Главный экран: ряд специалистов ---------- */
@@ -113,10 +182,16 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '#sp-home .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}' +
       '#sp-home .sp-tile{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:16px 10px;border:1px solid var(--line,#ddd);border-radius:16px;background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer}' +
       '#sp-home .sp-tile.soon{opacity:.6}#sp-home .sp-tile .ic{font-size:36px;line-height:1}#sp-home .sp-tile b{font-size:15px}#sp-home .sp-tile small{opacity:.75;font-size:12px}' +
+      '#sp-home .sp-hero{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin:0 0 16px;padding:22px 18px;border:0;border-radius:20px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font:inherit;cursor:pointer;box-shadow:0 6px 18px rgba(79,70,229,.35)}' +
+      '#sp-home .sp-hero .ic{font-size:40px;line-height:1;flex:none}#sp-home .sp-hero b{display:block;font-size:19px}#sp-home .sp-hero small{display:block;opacity:.9;font-size:13px;margin-top:2px}' +
+      '#sp-home .sp-hero:focus-visible{outline:3px solid #fff;outline-offset:2px}' +
+      '#sp-home .sp-grid{gap:8px!important}#sp-home .sp-tile{padding:10px 8px!important}#sp-home .sp-tile .ic{font-size:28px!important}#sp-home .sp-tile small{display:none}' +
       '#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
     document.head.appendChild(st);
     var home = document.createElement('section'); home.id = 'sp-home'; home.hidden = true; home.setAttribute('aria-label', TX('Специалисты'));
-    home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p><div class="sp-grid">' +
+    home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p>' +
+      '<button type="button" class="sp-hero" data-home="assistant"><span class="ic" aria-hidden="true">✨</span><span><b>' + esc(TX('Мой ассистент: сводка дня')) + '</b><small>' + esc(TX('Что происходит у всех ваших специалистов, в одном окне')) + '</small></span></button>' +
+      '<div class="sp-grid">' +
       LIST.map(function (x) {
         return '<button type="button" class="sp-tile' + (x.ready ? '' : ' soon') + '" data-home="' + x.id + '"><span class="ic" aria-hidden="true">' + x.ico + '</span><b>' + esc(TX(x.name)) + '</b><small>' + esc(TX(x.ready ? x.about : 'Скоро')) + '</small></button>';
       }).join('') + '</div>';
@@ -126,6 +201,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     app.insertBefore(back, ref);
     home.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-home]'); if (!b) return;
+      if (b.dataset.home === 'assistant') return openAsst();
       if (b.dataset.home === 'seller') { HOME = false; return applyHome(); }
       openOne(b.dataset.home);
     });
@@ -145,6 +221,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
 
   function render() {
     var el = $s('sp-body'); if (!el) return;
+    if (S.view === 'asst') return renderAsst(el);
     if (S.view === 'buh') return renderBuh(el);
     if (S.view === 'smm') return renderSmm(el);
     if (S.view === 'law') return renderLaw(el);
@@ -889,6 +966,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
     if (b.hasAttribute('data-sp-back')) { $s('m-spec').close(); return; }
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
+    if (b.dataset.asst) return asstClick(b);
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);
