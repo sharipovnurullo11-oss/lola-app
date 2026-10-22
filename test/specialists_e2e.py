@@ -192,7 +192,13 @@ try:
         hero = pg.locator('#sp-home .sp-hero'); tile = pg.locator('#sp-home .sp-tile').first
         check(hero.count() == 1 and pg.evaluate("document.querySelector('#sp-home .sp-hero').nextElementSibling.className") == 'sp-grid', 'ассистент: большая кнопка стоит над сеткой специалистов')
         check(hero.bounding_box()['width'] > 2 * tile.bounding_box()['width'] and hero.bounding_box()['height'] > tile.bounding_box()['height'], 'ассистент: кнопка заметно больше карточек специалистов')
-        pg.click('[data-home="assistant"]'); pg.wait_for_timeout(300); t = pg.inner_text('#sp-body')
+        ops.append({"id": "t1", "type": "in", "amount": "200", "note": "Продажа", "date": time.strftime('%Y-%m-%d'), "ts": 9}); stock.append({"name": "Мыло <i>", "qty": 1})
+        pg.evaluate("(function(){var n=new Date().toISOString(),o=new Date(Date.now()-30*864e5).toISOString();CHATS=[{kanal:'instagram',id:'a1',messages:[{d:'in',t:'привет',v:n}]},{kanal:'whatsapp',id:'b2',messages:[{d:'in',t:'спасибо',v:o},{d:'out',t:'пожалуйста',v:o}]}];})()")
+        pg.click('[data-home="assistant"]'); pg.wait_for_timeout(500); t = pg.inner_text('#sp-body')
+        fx = lambda k: pg.inner_text('.asst-fact[data-id="%s"]' % k) if pg.locator('.asst-fact[data-id="%s"]' % k).count() else ''
+        check('Ждут ответа: 1' in fx('seller'), 'ассистент: продавец показывает, сколько клиентов ждут ответа')
+        check('Молчат больше двух недель: 1' in fx('manager'), 'ассистент: менеджер показывает замолчавших клиентов')
+        check('Сегодня: пришло ' in fx('buh') and 'пришло 0,' not in fx('buh') and 'Прибыль за месяц' in fx('buh') and 'Мыло <i> (1)' in fx('buh') and pg.locator('.asst-fact i').count() == 0, 'ассистент: бухгалтер — приход за сегодня, прибыль, что заканчивается (экранировано)')
         check('Мой ассистент: сводка дня' in t and pg.locator('#sp-body [data-asst="open"]').count() == 6, 'ассистент: окно сводки с шестью специалистами и кнопками «Подробнее»')
         pg.fill('#as-in', 'расскажи погоду'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(200)
         check('Не понял' in pg.inner_text('#as-msg') and pg.input_value('#as-in') == 'расскажи погоду', 'ассистент: непонятная задача — подсказка, текст не пропал')

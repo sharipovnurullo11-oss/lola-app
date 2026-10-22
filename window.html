@@ -2522,8 +2522,9 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
 
   /* ---------- Мой ассистент: сводка дня ---------- */
   // Один вход ко всем специалистам: по каждому коротко, что он делает, кнопка «Подробнее» и поле, чтобы поручить задачу.
-  // Задача уходит нужному специалисту по ключевым словам. Живые цифры в сводке подключим отдельным шагом (эндпоинт n8n).
-  var AS = { draft: '', msg: '', rec: null };
+  // Задача уходит нужному специалисту по ключевым словам.
+  // Живые цифры: переписки берём из уже загруженного списка, деньги и остатки тем же запросом, что и бухгалтер (с записями из телефона).
+  var AS = { draft: '', msg: '', rec: null, buh: null, month: '' };
   var ASST_ROWS = [
     { id: 'seller', line: 'Отвечает клиентам в Instagram, WhatsApp, Telegram и Messenger. Ждущие ответа смотрите в переписках.' },
     { id: 'buh', line: 'Приход, расход и остатки товара. Прибыль за месяц считается сама.' },
@@ -2546,14 +2547,57 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     return '';
   }
   function openAsst() {
-    if (!owner()) return; ensure(); S.view = 'asst'; AS.msg = ''; render(); open_dlg('m-spec');
+    if (!owner()) return; ensure(); S.view = 'asst'; AS.msg = ''; asstLoad(); render(); open_dlg('m-spec');
+  }
+  function asstLoad() {
+    var m = today().slice(0, 7), my = AS.req = (AS.req || 0) + 1;
+    if (AS.month !== m) { AS.month = m; AS.buh = null; }
+    if (!AS.buh) AS.buh = readCache(m);
+    call({ action: 'list', month: m }).then(function (r) {
+      if (my !== AS.req) return;
+      if (r.ok) { AS.buh = { ops: r.ops || [], stock: r.stock || [] }; try { lstore(ckey(m), JSON.stringify(AS.buh)); } catch (e) {} }
+      else if (!AS.buh) AS.buh = { error: true };
+      if (S.view === 'asst') render();
+    });
+  }
+  var QUIET_DAYS = 14;
+  function asstFacts() {
+    var f = {}, now = Date.now();
+    try {
+      if (typeof CHATS !== 'undefined' && Array.isArray(CHATS) && typeof unread_of === 'function' && typeof MODE !== 'undefined' && MODE === 'user') {
+        var wait = 0, quiet = 0;
+        CHATS.forEach(function (c) {
+          if (unread_of(c) > 0) wait++;
+          var last = 0; (c.messages || []).forEach(function (x) { var t = Date.parse(x && x.v); if (t > last) last = t; });
+          if (last && now - last > QUIET_DAYS * 864e5) quiet++;
+        });
+        f.seller = wait ? ui('Ждут ответа: ', 'Мунтазири ҷавоб: ', 'Javob kutmoqda: ') + wait : ui('Все клиенты получили ответ ✓', 'Ба ҳамаи мизоҷон ҷавоб дода шуд ✓', 'Barcha mijozlarga javob berildi ✓');
+        f.manager = quiet ? ui('Молчат больше двух недель: ', 'Зиёда аз ду ҳафта хомӯшанд: ', 'Ikki haftadan ortiq jim: ') + quiet : ui('Никто не пропал надолго ✓', 'Ҳеҷ кас муддати дароз гум нашудааст ✓', 'Hech kim uzoq vaqt yo‘qolmagan ✓');
+      }
+    } catch (e) {}
+    var b = AS.buh;
+    if (!b) f.buh = TX('Загрузка…');
+    else if (!b.error) {
+      var d = today(), ti = 0, to = 0, mi = 0, mo = 0;
+      b.ops.forEach(function (p) {
+        if (monthOf(p.date) !== AS.month) return;
+        var c = cents(p.amount); if (p.type === 'in') { mi += c; if (p.date === d) ti += c; } else { mo += c; if (p.date === d) to += c; }
+      });
+      var low = b.stock.filter(function (g) { return g.qty <= 2; }).slice(0, 3).map(function (g) { return g.name + ' (' + g.qty + ')'; });
+      f.buh = ui('Сегодня: пришло ', 'Имрӯз: даромад ', 'Bugun: kirim ') + money(ti) + ui(', ушло ', ', хароҷот ', ', chiqim ') + money(to) +
+        ' · ' + ui('Прибыль за месяц: ', 'Фоидаи моҳ: ', 'Oylik foyda: ') + money(mi - mo) +
+        (low.length ? ' · ' + ui('Заканчивается: ', 'Тамом шуда истодааст: ', 'Tugayapti: ') + low.join(', ') : '');
+    }
+    return f;
   }
   function renderAsst(el) {
+    var facts = asstFacts();
     var rows = ASST_ROWS.map(function (r) {
       var s = LIST.filter(function (x) { return x.id === r.id; })[0] || { ico: '', name: r.id };
       return '<div class="asst-row" style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line,#e5e5e5)">' +
         '<span style="font-size:24px;flex:none" aria-hidden="true">' + s.ico + '</span>' +
-        '<span style="flex:1;min-width:0"><b style="display:block">' + esc(TX(s.name)) + '</b><small style="opacity:.8">' + esc(TX(r.line)) + '</small></span>' +
+        '<span style="flex:1;min-width:0"><b style="display:block">' + esc(TX(s.name)) + '</b><small style="opacity:.8">' + esc(TX(r.line)) + '</small>' +
+        (facts[r.id] ? '<span class="asst-fact" data-id="' + r.id + '" style="display:block;margin-top:4px;font-weight:600">' + esc(facts[r.id]) + '</span>' : '') + '</span>' +
         '<button type="button" class="btn sec" data-asst="open" data-id="' + r.id + '" style="flex:none;height:auto;padding:6px 10px">' + esc(TX('Подробнее')) + ' →</button></div>';
     }).join('');
     el.innerHTML = '<h2 style="padding-right:36px">✨ ' + esc(TX('Мой ассистент: сводка дня')) + '</h2>' +
