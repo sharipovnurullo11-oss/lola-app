@@ -346,7 +346,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
 
   function render() {
-    var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return;
+    var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop'), dbd = dl && dl.querySelector('.dbody'); if (dl) { dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; } } } catch (e) {}
     if (SELLER) return renderShop(el);
     if (S.view === 'asst') return renderAsst(el);
     if (S.view === 'fin') return renderFin(el);
