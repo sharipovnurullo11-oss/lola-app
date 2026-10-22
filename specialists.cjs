@@ -274,7 +274,10 @@ if (S.view === 'mkt') return renderMkt(el);
     if (SM.err) h += '<p class="err">' + esc(SM.err) + '</p>';
     if (SM.res) h += '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;margin:8px 0;font-size:14px;line-height:1.45" id="sm-res">' + esc(SM.res) + '</div>' +
       '<button class="btn sec" data-smm="copy" type="button">' + esc(TX(SM.copied ? 'Скопировано ✓' : 'Скопировать')) + '</button>' +
+      kbBtn('smm', SM.res ? { q: SM.q || '', a: SM.res } : null) +
       '<p><small>' + esc(TX('Я ничего не публикую сам: текст вставляете вы.')) + '</small></p>';
+    else KB.last.smm = null;
+    h += kbCard('smm');
     el.innerHTML = h;
   }
   function runSmm(act) {
@@ -282,10 +285,11 @@ if (S.view === 'mkt') return renderMkt(el);
     var text = act === 'plan' ? SM.plan : act === 'caption' ? SM.cap : act === 'ideas' ? SM.ideas : act === 'reply' ? SM.rep : '';
     if (act === 'caption' && String(text).trim().length < 5) { SM.err = TX('Напишите, о чём пост или ролик'); SM.res = ''; return render(); }
     if (act === 'reply' && String(text).trim().length < 5) { SM.err = TX('Вставьте комментарий или сообщение, на которое нужно ответить'); SM.res = ''; return render(); }
-    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; render();
+    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; KB.smm.saved = false; render();
+    var qLabel = { plan: 'План на неделю', caption: 'Подпись', ideas: 'Идеи роликов', reply: 'Ответ на сообщение', profile: 'Разбор профиля' }[act] + (String(text).trim() ? ': ' + String(text).trim().slice(0, 200) : '');
     callTo('/smm', { action: act, text: String(text).trim() }).then(function (r) {
       SM.busy = false;
-      if (r.ok) { SM.res = r.text || ''; if (SM.st && !SM.st.error) { SM.st.left = r.left; SM.st.connected = !!r.connected; } }
+      if (r.ok) { SM.res = r.text || ''; SM.q = qLabel; if (SM.st && !SM.st.error) { SM.st.left = r.left; SM.st.connected = !!r.connected; } }
       else SM.err = r.error || TX('Не получилось');
       if (S.view === 'smm') render();
     });
@@ -297,6 +301,66 @@ if (S.view === 'mkt') return renderMkt(el);
     if (a === 'an-copy') return copyText((SM.an && SM.an.otchet) || '', function () { SM.anCopied = true; if (S.view === 'smm') render(); });
     if (a === 'copy') return copyText(SM.res, function () { SM.copied = true; if (S.view === 'smm') render(); });
     if (a === 'plan' || a === 'caption' || a === 'profile' || a === 'ideas' || a === 'reply') return runSmm(a);
+  }
+
+  /* ---------- База знаний специалиста: отработанные дела этого кабинета ---------- */
+  var KB = { smm: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, lawyer: { c: null, total: 0, open: false, busy: false, msg: '', saved: false }, last: { smm: null, lawyer: null } };
+  function kbView() { return S.view === 'law' ? 'lawyer' : S.view === 'smm' ? 'smm' : ''; }
+  function kbLoad(spec) {
+    var k = KB[spec]; if (!k) return;
+    callTo('/znaniya', { action: 'list', spec: spec }).then(function (r) {
+      if (r.ok) { k.c = r.cases || []; k.total = r.total || 0; k.msg = ''; } else { k.msg = r.error || TX('не удалось загрузить'); if (!k.c) k.c = []; }
+      if (kbView() === spec) render();
+    });
+  }
+  function kbSave(spec) {
+    var k = KB[spec], ln = KB.last[spec]; if (!k || k.busy || !ln) return;
+    k.busy = true; k.msg = ''; render();
+    callTo('/znaniya', { action: 'save', spec: spec, q: ln.q, a: ln.a }).then(function (r) {
+      k.busy = false;
+      if (r.ok) { k.saved = true; k.total = r.total || k.total; k.msg = r.duplicate ? ui('Это уже есть в базе знаний', 'Ин аллакай дар пойгоҳи дониш ҳаст', 'Bu allaqachon bilimlar bazasida bor') : ''; kbLoad(spec); }
+      else k.msg = r.error || TX('Не получилось');
+      if (kbView() === spec) render();
+    });
+  }
+  function kbDel(spec, id) {
+    var k = KB[spec]; if (!k || k.busy) return;
+    if (k.ask !== id) { k.ask = id; return render(); }
+    k.ask = null; k.busy = true; render();
+    callTo('/znaniya', { action: 'delete', spec: spec, id: id }).then(function (r) {
+      k.busy = false; if (!r.ok) k.msg = r.error || TX('Не получилось'); else kbLoad(spec);
+      if (kbView() === spec) render();
+    });
+  }
+  function kbBtn(spec, text) {
+    var k = KB[spec];
+    KB.last[spec] = text;
+    if (!text) return '';
+    return '<button class="btn sec" data-kb="save:' + spec + '" type="button"' + (k.busy || k.saved ? ' disabled' : '') + '>' + esc(k.saved ? ui('Запомнено ✓', 'Дар ёд монд ✓', 'Eslab qolindi ✓') : ui('Это подошло — запомнить', 'Ин мувофиқ омад — дар ёд нигоҳ дор', 'Bu maʼqul boʻldi — eslab qol')) + '</button>';
+  }
+  function kbCard(spec) {
+    var k = KB[spec]; if (!k) return '';
+    if (k.c === null) { k.c = []; kbLoad(spec); }
+    var h = '<div style="margin-top:16px;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px;display:grid;gap:8px">' +
+      '<b>📚 ' + esc(ui('База знаний', 'Пойгоҳи дониш', 'Bilimlar bazasi')) + '</b>' +
+      '<small style="opacity:.8">' + esc(ui('Здесь сохраняются удачные дела. Специалист опирается на них, когда отвечает вам. Видите их только вы.', 'Дар ин ҷо корҳои хуб нигоҳ дошта мешаванд. Мутахассис ҳангоми ҷавоб ба шумо ба онҳо такя мекунад. Онҳоро танҳо шумо мебинед.', 'Bu yerda muvaffaqiyatli ishlar saqlanadi. Mutaxassis sizga javob berganda ularga tayanadi. Ularni faqat siz koʻrasiz.')) + '</small>' +
+      '<small>' + esc(ui('Запомнено дел', 'Корҳои дар ёдмонда', 'Eslab qolingan ishlar')) + ': <b>' + esc(k.total) + '</b></small>';
+    if (k.msg) h += '<small class="err">' + esc(k.msg) + '</small>';
+    if (k.total) h += '<button class="btn sec" data-kb="toggle:' + spec + '" type="button">' + esc(k.open ? ui('Скрыть', 'Пинҳон кардан', 'Yashirish') : ui('Показать', 'Нишон додан', 'Koʻrsatish')) + '</button>';
+    if (k.open && k.c.length) {
+      h += '<div style="display:grid;gap:8px">' + k.c.map(function (c) {
+        return '<div style="border:1px solid var(--line,#ddd);border-radius:10px;padding:8px"><b style="font-size:13px">' + esc(c.q) + '</b>' +
+          '<div style="white-space:pre-wrap;word-break:break-word;font-size:13px;opacity:.85;max-height:120px;overflow:auto;margin:4px 0">' + esc(c.a) + '</div>' +
+          '<button class="btn sec" data-kb="del:' + spec + ':' + c.id + '" type="button" style="padding:4px 10px;height:auto"' + (k.busy ? ' disabled' : '') + '>' + esc(k.ask === c.id ? ui('Точно удалить?', 'Ҳатман нест кунам?', 'Rostdan oʻchirilsinmi?') : ui('Удалить', 'Нест кардан', 'Oʻchirish')) + '</button></div>';
+      }).join('') + '</div>';
+    }
+    return h + '</div>';
+  }
+  function kbClick(a) {
+    var p = a.split(':'), spec = p[1];
+    if (p[0] === 'save') return kbSave(spec);
+    if (p[0] === 'toggle') { KB[spec].open = !KB[spec].open; return render(); }
+    if (p[0] === 'del') return kbDel(spec, Number(p[2]));
   }
 
   /* ---------- Юрист: договоры на трёх языках ---------- */
@@ -469,6 +533,7 @@ if (S.view === 'mkt') return renderMkt(el);
         h += '<button type="button" class="btn sec" data-law="kind:' + k + '" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:12px"><span style="font-size:26px;flex:none" aria-hidden="true">' + d.ico + '</span><span style="flex:1;min-width:0"><b style="display:block">' + esc([d.ru, d.tg, d.uz][i]) + '</b><small style="opacity:.75">' + esc(d.sub[i]) + '</small></span></button>';
       });
       h += '</div><p style="margin-top:12px"><small>' + esc(ui(DNOTE[0], DNOTE[1], DNOTE[2])) + '</small></p>';
+      h += kbCard('lawyer');
       el.innerHTML = h; return;
     }
     var d = DKIND[LW.kind], i2 = LI[window.LANG || 'ru'] || 0;
@@ -493,14 +558,16 @@ if (S.view === 'mkt') return renderMkt(el);
       '<button class="btn" data-law="copy" type="button">' + esc(LW.copied ? ui('Скопировано ✓', 'Нусха шуд ✓', 'Nusxalandi ✓') : ui('Скопировать', 'Нусха гирифтан', 'Nusxalash')) + '</button> ' +
       '<button class="btn sec" data-law="edit" type="button">' + esc(ui('Изменить ответы', 'Ҷавобҳоро тағйир додан', 'Javoblarni oʻzgartirish')) + '</button> ' +
       '<button class="btn sec" data-law="menu" type="button">' + esc(ui('Другой договор', 'Шартномаи дигар', 'Boshqa shartnoma')) + '</button>' +
+      kbBtn('lawyer', { q: ('Договор: ' + [d.ru][0] + ', ' + fv(LW.f, 'a') + ' и ' + fv(LW.f, 'b')).slice(0, 300), a: LW.res }) +
       '<p><small>' + esc(DNOTE[LI[lang]]) + '</small></p>';
+    h += kbCard('lawyer');
     el.innerHTML = h;
   }
   function lawClick(a) {
     if (a === 'menu') { LW.view = 'menu'; LW.res = ''; return render(); }
     if (a.indexOf('kind:') === 0) { LW.kind = a.slice(5); LW.f = { city: ui('Душанбе', 'Душанбе', 'Dushanbe') }; LW.lang = ''; LW.view = 'form'; return render(); }
     if (a.indexOf('lang:') === 0) { LW.lang = a.slice(5); return render(); }
-    if (a === 'make') { LW.res = buildDoc(LW.kind, lwLang(), LW.f); LW.view = 'doc'; LW.copied = false; return render(); }
+    if (a === 'make') { LW.res = buildDoc(LW.kind, lwLang(), LW.f); LW.view = 'doc'; LW.copied = false; KB.lawyer.saved = false; return render(); }
     if (a === 'edit') { LW.view = 'form'; return render(); }
     if (a === 'copy') return copyText(LW.res, function () { LW.copied = true; if (S.view === 'law') render(); });
   }
@@ -766,6 +833,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);
+if (b.dataset.kb) return kbClick(b.dataset.kb);
 if (b.dataset.mkt) return mktClick(b.dataset.mkt);
     var a = b.dataset.buh; if (!a) return;
     if (a === 'reload') { S.buh = readCache(S.month); load(); return render(); }

@@ -3,6 +3,7 @@ import subprocess, time, json
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8126'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
 AN = {'st': 'none', 'left': 1, 'polls': 0}
+KBC = []
 SLOW = [0]; HELD = []; calls = []; ops = [{"id": "x1", "type": "in", "amount": "500", "note": "Продажа <b>x</b>", "date": time.strftime('%Y-%m-') + '01', "ts": 1}]; stock = [{"name": "Крем", "qty": 7}]
 def h(route):
     u = route.request.url
@@ -19,6 +20,15 @@ def h(route):
                 if g['name'] == b['name']: g['qty'] += b['delta']; break
             else: stock.append({"name": b['name'], "qty": b['delta']})
             return route.fulfill(json={"ok": True, "stock": stock})
+    if u.endswith('/znaniya'):
+        b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if a == 'list': return route.fulfill(json={"ok": True, "cases": [c for c in KBC if c['spec'] == b['spec']], "total": len([c for c in KBC if c['spec'] == b['spec']])})
+        if a == 'save':
+            KBC.insert(0, {"id": len(KBC) + 1, "spec": b['spec'], "q": b['q'], "a": b['a'], "vremya": "2026-10-22T05:00:00.000Z"})
+            return route.fulfill(json={"ok": True, "saved": True, "total": len([c for c in KBC if c['spec'] == b['spec']])})
+        if a == 'delete':
+            KBC[:] = [c for c in KBC if c['id'] != b['id']]
+            return route.fulfill(json={"ok": True, "deleted": True, "total": len([c for c in KBC if c['spec'] == b['spec']])})
     if u.endswith('/smm'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
         if a == 'analysis_status':
@@ -66,6 +76,8 @@ try:
         pg.click('[data-law="edit"]'); pg.click('[data-law="lang:uz"]'); pg.click('[data-law="make"]'); check('SHARTNOMASI' in pg.inner_text('#law-res') and 'Ijrochi' in pg.inner_text('#law-res'), 'юрист: договор на узбекском')
         pg.click('[data-law="menu"]'); pg.click('[data-law="kind:rent"]'); pg.fill('[data-law-f="price"]', '1500'); pg.click('[data-law="make"]'); check('ДОГОВОР АРЕНДЫ' in pg.inner_text('#law-res') or 'IJARA' in pg.inner_text('#law-res') or 'ИҶОРА' in pg.inner_text('#law-res'), 'юрист: договор аренды')
         pg.click('[data-law="menu"]'); pg.click('[data-law="kind:sale"]'); pg.click('[data-law="make"]'); check('ПРОДАЖИ' in pg.inner_text('#law-res') or 'SOTDI' in pg.inner_text('#law-res') or 'ФУРӮШ' in pg.inner_text('#law-res'), 'юрист: договор купли-продажи')
+        pg.click('[data-kb="save:lawyer"]'); pg.wait_for_timeout(600)
+        check(any(x.get('action') == 'save' and x.get('spec') == 'lawyer' and x['q'].startswith('Договор') for x in calls) and 'Запомнено дел: 1' in pg.inner_text('#sp-body'), 'База знаний: договор Юриста записан')
         pg.click('[data-law="copy"]'); pg.wait_for_timeout(200); pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
         check(pg.is_visible('#sp-home'), 'после «назад» остаёмся на главном экране')
         pg.click('[data-home="seller"]'); pg.wait_for_timeout(300)
@@ -123,6 +135,15 @@ try:
         pg.click('[data-smm="reply"]'); check('вставьте комментарий' in pg.inner_text('#sp-body').lower() and not any(c['action'] == 'reply' for c in calls), 'SMM: пустой комментарий не уходит на сервер')
         pg.fill('#sm-rep', 'А сколько стоит консультация?'); pg.click('[data-smm="reply"]'); pg.wait_for_timeout(500)
         check(any(c['action'] == 'reply' and c['text'] == 'А сколько стоит консультация?' for c in calls) and 'ОТВЕТ готов' in pg.inner_text('#sm-res'), 'SMM: ответ на комментарий получен')
+        pg.click('[data-smm="ideas"]'); pg.wait_for_timeout(400)
+        check(pg.is_visible('[data-kb="save:smm"]') and 'База знаний' in pg.inner_text('#sp-body') and 'Запомнено дел: 0' in pg.inner_text('#sp-body'), 'База знаний: у SMM есть кнопка «запомнить» и карточка базы')
+        pg.click('[data-kb="save:smm"]'); pg.wait_for_timeout(600)
+        sv = [c for c in calls if c.get('action') == 'save' and c.get('spec') == 'smm']
+        check(len(sv) == 1 and sv[0]['q'].startswith('Идеи роликов') and 'ИДЕИ' in sv[0]['a'], 'База знаний: дело SMM записано с вопросом и ответом')
+        check('Запомнено дел: 1' in pg.inner_text('#sp-body') and 'Запомнено ✓' in pg.inner_text('#sp-body'), 'База знаний: счётчик вырос, кнопка стала «Запомнено»')
+        pg.click('[data-kb="toggle:smm"]'); check('Идеи роликов' in pg.inner_text('#sp-body') and pg.locator('#sp-body b', has_text='x').count() == 0, 'База знаний: дело видно в списке, текст экранирован')
+        pg.click('[data-kb^="del:smm"]'); check('Точно удалить?' in pg.inner_text('#sp-body') and not any(c.get('action') == 'delete' for c in calls), 'База знаний: первое нажатие только спрашивает')
+        pg.click('[data-kb^="del:smm"]'); pg.wait_for_timeout(600); check(any(c.get('action') == 'delete' for c in calls) and 'Запомнено дел: 0' in pg.inner_text('#sp-body'), 'База знаний: второе нажатие удаляет')
         pg.click('[data-smm="profile"]'); pg.wait_for_timeout(500); check('Instagram' in pg.inner_text('#sp-body') and pg.is_visible('#sp-body .err'), 'SMM: ошибка разбора показана')
         # SMM: полный анализ Instagram
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())"); pg.click('[data-home="smm"]'); pg.wait_for_timeout(600)
