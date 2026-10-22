@@ -4,6 +4,7 @@ from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8126'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
 AN = {'st': 'none', 'left': 1, 'polls': 0}
 KBC = []
+NOTES = []
 SLOW = [0]; HELD = []; calls = []; ops = [{"id": "x1", "type": "in", "amount": "500", "note": "Продажа <b>x</b>", "date": time.strftime('%Y-%m-') + '01', "ts": 1}]; stock = [{"name": "Крем", "qty": 7}]
 def h(route):
     u = route.request.url
@@ -31,6 +32,11 @@ def h(route):
         return route.fulfill(json={"ok": True, "text": "ПЛАН <b>x</b>\n- понедельник рилс", "left": 9})
     if u.endswith('/znaniya'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if a == 'nlist': return route.fulfill(json={"ok": True, "notes": NOTES, "total": len(NOTES)})
+        if a == 'nsave':
+            NOTES.insert(0, {"id": len(NOTES) + 10, "key": b['key'], "t": b['t'], "vremya": "2026-10-22T05:00:00.000Z"}); return route.fulfill(json={"ok": True, "saved": True})
+        if a == 'ndel':
+            NOTES[:] = [n for n in NOTES if n['id'] != b['id']]; return route.fulfill(json={"ok": True, "deleted": True})
         if a == 'list': return route.fulfill(json={"ok": True, "cases": [c for c in KBC if c['spec'] == b['spec']], "total": len([c for c in KBC if c['spec'] == b['spec']])})
         if a == 'save':
             KBC.insert(0, {"id": len(KBC) + 1, "spec": b['spec'], "q": b['q'], "a": b['a'], "vremya": "2026-10-22T05:00:00.000Z"})
@@ -110,6 +116,13 @@ try:
         pg.click('[data-mgr="quiet"]'); pg.wait_for_timeout(300); t = pg.inner_text('#sp-body')
         check('<b>Иван</b>' in t and 'Новый' not in t, 'менеджер: список замолчавших показывает только тех, кто молчит, текст не исполняется')
         pg.click('[data-mgr="quiet"]'); pg.wait_for_timeout(200); check('<b>Иван</b>' not in pg.inner_text('#sp-body'), 'менеджер: список можно скрыть')
+        pg.click('[data-mgr="cards"]'); pg.wait_for_timeout(300); check('Иван' in pg.inner_text('#sp-body'), 'менеджер: карточки клиентов показывают список клиентов')
+        pg.click('[data-mgr="cpick:0"]'); pg.wait_for_timeout(200)
+        pg.fill('#mg-note', 'Купил <i>курс</i>'); pg.click('[data-mgr="cadd"]'); pg.wait_for_timeout(600)
+        t = pg.inner_text('#sp-body'); check(any(x.get('action') == 'nsave' and x.get('key') == 'instagram:a1' for x in calls) and 'Купил <i>курс</i>' in t, 'менеджер: заметка к клиенту записана, текст не исполняется')
+        pg.click('[data-mgr^="cdel:"]'); check(not any(x.get('action') == 'ndel' for x in calls), 'менеджер: первое нажатие удаления только спрашивает')
+        pg.click('[data-mgr^="cdel:"]'); pg.wait_for_timeout(600); check(any(x.get('action') == 'ndel' for x in calls) and 'Купил' not in pg.inner_text('#sp-body'), 'менеджер: заметка удалена')
+        pg.click('[data-mgr="cards"]'); pg.wait_for_timeout(200)
         pg.click('[data-mgr="mkt"]'); pg.wait_for_timeout(400); check('Вернуть замолчавших' in pg.inner_text('#sp-body'), 'менеджер: кнопка открывает Маркетолога с возвратом замолчавших'); pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
         pg.click('[data-home="mkt"]'); pg.wait_for_timeout(600); pg.click('[data-mkt="task:plan"]'); pg.wait_for_timeout(500)
         check(pg.is_visible('[data-kb="save:mkt"]') and 'База знаний' in pg.inner_text('#sp-body'), 'Маркетолог: после ответа есть «запомнить» и карточка базы знаний')

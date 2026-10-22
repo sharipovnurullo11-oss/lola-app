@@ -2965,13 +2965,76 @@ if (S.view === 'mkt') return renderMkt(el);
     out.sort(function (x, y) { return x.days - y.days; });
     return out;
   }
-  function openMgr() { S.view = 'mgr'; MGQ = false; render(); }
+  var CARD = { open: false, notes: null, list: [], q: '', cur: null, busy: false, msg: '', ask: null };
+  function cardKey(c) { return String(c.kanal || '') + ':' + String(c.id || ''); }
+  function cardLoad() {
+    callTo('/znaniya', { action: 'nlist' }).then(function (r) {
+      if (r.ok) { CARD.notes = r.notes || []; CARD.msg = ''; } else { CARD.notes = CARD.notes || []; CARD.msg = r.error || TX('не удалось загрузить'); }
+      if (S.view === 'mgr') render();
+    });
+  }
+  function cardsHtml() {
+    if (!CARD.open) return '';
+    if (CARD.notes === null) { CARD.notes = []; cardLoad(); }
+    var box = 'border:1px solid var(--line,#ddd);border-radius:10px;padding:8px';
+    var h = '<div style="margin-top:12px;display:grid;gap:8px">';
+    if (CARD.msg) h += '<small class="err">' + esc(CARD.msg) + '</small>';
+    if (CARD.cur) {
+      var c = CARD.cur, key = cardKey(c), ns = CARD.notes.filter(function (n) { return n.key === key; });
+      var m = c.messages || [], last = m.length ? m[m.length - 1] : null, lt = last ? Date.parse(last.v) : NaN;
+      var nin = m.filter(function (x) { return x.d === 'in'; }).length, dis = CARD.busy ? ' disabled' : '';
+      h += '<button class="btn sec" data-mgr="cback" type="button">← ' + esc(ui('К списку клиентов', 'Ба рӯйхати мижозон', 'Mijozlar roʻyxatiga')) + '</button>' +
+        '<div style="' + box + ';display:grid;gap:4px"><b style="word-break:break-word">' + esc(c.imya || c.id) + '</b><small style="opacity:.85">' + esc(c.kanal || '') + ' · ' + esc(ui('сообщений от клиента', 'паёмҳои мижоз', 'mijoz xabarlari')) + ': ' + esc(nin) +
+        (isNaN(lt) ? '' : ' · ' + esc(ui('последнее', 'охирин', 'oxirgi')) + ': ' + esc(Math.floor((Date.now() - lt) / 86400000)) + ' ' + esc(ui('дн. назад', 'рӯз пеш', 'kun oldin'))) + '</small></div>' +
+        '<textarea class="in2" id="mg-note" rows="2" maxlength="500" placeholder="' + esc(ui('Что купил, что просил, о чём договорились', 'Чӣ харид, чӣ хост, дар бораи чӣ созиш карданд', 'Nima sotib oldi, nima soradi, nimaga kelishildi')) + '"></textarea>' +
+        '<button class="btn" data-mgr="cadd" type="button"' + dis + '>' + esc(ui('Добавить заметку', 'Илова кардани қайд', 'Qayd qoʻshish')) + '</button>';
+      h += ns.length ? ns.map(function (n) {
+        return '<div style="' + box + '"><div style="white-space:pre-wrap;word-break:break-word;font-size:14px">' + esc(n.t) + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><small style="opacity:.7">' + esc(String(n.vremya || '').slice(0, 10)) + '</small>' +
+          '<button class="btn sec" data-mgr="cdel:' + esc(Number(n.id)) + '" type="button" style="padding:4px 10px;height:auto"' + dis + '>' + esc(CARD.ask === Number(n.id) ? ui('Точно удалить?', 'Ҳатман нест кунам?', 'Rostdan oʻchiraymi?') : ui('Удалить', 'Нест кардан', 'Oʻchirish')) + '</button></div></div>';
+      }).join('') : '<small style="opacity:.8">' + esc(ui('Заметок пока нет.', 'Ҳоло қайд нест.', 'Hozircha qayd yoʻq.')) + '</small>';
+    } else {
+      var all = ((typeof CHATS !== 'undefined' && CHATS) || []).filter(function (c) { return c && c.id !== undefined && c.id !== null; }), q = CARD.q.toLowerCase();
+      CARD.list = all.filter(function (c) { return !q || String(c.imya || c.id).toLowerCase().indexOf(q) >= 0; }).slice(0, 30);
+      h += '<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input class="in2" id="mg-q" maxlength="60" value="' + esc(CARD.q) + '" placeholder="' + esc(ui('Имя клиента', 'Номи мижоз', 'Mijoz ismi')) + '"><button class="btn sec" data-mgr="csearch" type="button">' + esc(ui('Найти', 'Ёфтан', 'Qidirish')) + '</button></div>';
+      h += CARD.list.length ? CARD.list.map(function (c, i) {
+        var cnt = CARD.notes.filter(function (n) { return n.key === cardKey(c); }).length;
+        return '<button type="button" class="btn sec" data-mgr="cpick:' + i + '" style="text-align:left;height:auto;padding:8px 10px;display:flex;justify-content:space-between;gap:8px"><b style="word-break:break-word">' + esc(c.imya || c.id) + '</b><small style="flex:none;opacity:.8">' + esc(c.kanal || '') + (cnt ? ' · ' + esc(cnt) + ' ' + esc(ui('заметок', 'қайд', 'qayd')) : '') + '</small></button>';
+      }).join('') : '<small style="opacity:.8">' + esc(ui('Клиентов не найдено.', 'Мижозон ёфт нашуданд.', 'Mijozlar topilmadi.')) + '</small>';
+    }
+    return h + '</div>';
+  }
+  function cardClick(a) {
+    if (a === 'cards') { CARD.open = !CARD.open; CARD.cur = null; CARD.ask = null; return render(); }
+    if (a === 'csearch') { var f = $s('mg-q'); CARD.q = f ? String(f.value || '').slice(0, 60) : ''; return render(); }
+    if (a === 'cback') { CARD.cur = null; CARD.ask = null; return render(); }
+    if (a.indexOf('cpick:') === 0) { CARD.cur = CARD.list[Number(a.slice(6))] || null; CARD.ask = null; return render(); }
+    if (a === 'cadd') {
+      var t = $s('mg-note'), txt = t ? String(t.value || '').trim() : '';
+      if (!CARD.cur || CARD.busy || txt.length < 2) return;
+      CARD.busy = true; CARD.msg = ''; render();
+      callTo('/znaniya', { action: 'nsave', key: cardKey(CARD.cur), t: txt }).then(function (r) {
+        CARD.busy = false; if (!r.ok) CARD.msg = r.error || TX('Не получилось'); else cardLoad();
+        if (S.view === 'mgr') render();
+      });
+      return;
+    }
+    if (a.indexOf('cdel:') === 0) {
+      var id = Number(a.slice(5)); if (CARD.busy) return;
+      if (CARD.ask !== id) { CARD.ask = id; return render(); }
+      CARD.ask = null; CARD.busy = true; render();
+      callTo('/znaniya', { action: 'ndel', id: id }).then(function (r) {
+        CARD.busy = false; if (!r.ok) CARD.msg = r.error || TX('Не получилось'); else cardLoad();
+        if (S.view === 'mgr') render();
+      });
+    }
+  }
+  function openMgr() { S.view = 'mgr'; MGQ = false; CARD.open = false; CARD.cur = null; CARD.notes = null; render(); }
   function renderMgr(el) {
     var items = [
       { ico: '🔎', ok: true, t: ['Находит тех, кто замолчал', 'Онҳоро, ки хомӯш шудаанд, меёбад', 'Jim boʻlib qolganlarni topadi'], d: ['Смотрит ваши переписки и показывает клиентов, которые давно не писали.', 'Мукотибаҳои шуморо мебинад ва муштариёнеро нишон медиҳад, ки муддати дароз нанавиштаанд.', 'Yozishmalaringizni koʻrib, uzoq vaqt yozmagan mijozlarni koʻrsatadi.'] },
       { ico: '💌', ok: true, t: ['Пишет тексты для возврата', 'Матнҳо барои баргардонидан менависад', 'Qaytarish uchun matnlar yozadi'], d: ['Готовит мягкие сообщения для тех, кто замолчал. Отправляете вы или оператор, сам он никому не пишет. Работает сейчас через Маркетолога.', 'Паёмҳои мулоим барои хомӯшшудагон тайёр мекунад. Шумо ё оператор мефиристед, худаш ба касе наменависад. Ҳоло тавассути Маркетолог кор мекунад.', 'Jim boʻlib qolganlar uchun yumshoq xabarlar tayyorlaydi. Yuborishni siz yoki operator qilasiz, oʻzi hech kimga yozmaydi. Hozir Marketolog orqali ishlaydi.'] },
       { ico: '🔁', ok: false, t: ['Напоминает о повторной покупке или визите', 'Дар бораи харид ё ташрифи такрорӣ ёдовар мешавад', 'Qayta xarid yoki tashrif haqida eslatadi'], d: ['Подсказывает, когда пора написать клиенту снова: через месяц после услуги, когда заканчивается товар.', 'Мегӯяд, кай вақти дубора навиштан ба муштарӣ аст: баъди як моҳи хизмат, вақте ки мол тамом мешавад.', 'Mijozga qachon yana yozish vaqti kelganini aytadi: xizmatdan bir oy keyin, tovar tugaganda.'] },
-      { ico: '📋', ok: false, t: ['Ведёт карточку клиента', 'Корти муштариро пеш мебарад', 'Mijoz kartochkasini yuritadi'], d: ['Помнит, что клиент покупал, что просил и когда писал последний раз, чтобы вы отвечали по делу.', 'Дар хотир медорад, ки муштарӣ чӣ харидааст, чӣ талаб кардааст ва охирин бор кай навишта буд.', 'Mijoz nima sotib olgani, nima soragani va oxirgi marta qachon yozganini eslab qoladi.'] }
+      { ico: '📋', ok: true, t: ['Ведёт карточку клиента', 'Корти муштариро пеш мебарад', 'Mijoz kartochkasini yuritadi'], d: ['Помнит, что клиент покупал, что просил и когда писал последний раз, чтобы вы отвечали по делу.', 'Дар хотир медорад, ки муштарӣ чӣ харидааст, чӣ талаб кардааст ва охирин бор кай навишта буд.', 'Mijoz nima sotib olgani, nima soragani va oxirgi marta qachon yozganini eslab qoladi.'] }
     ], i = LI[window.LANG || 'ru'] || 0;
     var h = backBtn() + '<h2 style="padding-right:36px">🤝 ' + esc(TX('Менеджер по клиентам')) + '</h2>' +
       '<p>' + esc(ui('Его работа: чтобы клиенты не терялись. Он помогает вернуть тех, кто замолчал, и вовремя напомнить о себе. Сам он клиентам не пишет: тексты готовит, отправляете вы.', 'Вазифаи ӯ: муштариён гум нашаванд. Ӯ кӯмак мекунад хомӯшшудагонро баргардонед ва саривақт худро ёдовар шавед. Худаш ба муштариён наменависад: матнҳоро тайёр мекунад, шумо мефиристед.', 'Uning ishi: mijozlar yoʻqolib qolmasligi. U jim boʻlib qolganlarni qaytarishga va oʻz vaqtida eslatishga yordam beradi. Oʻzi mijozlarga yozmaydi: matnlarni tayyorlaydi, yuborishni siz qilasiz.')) + '</p><div style="display:grid;gap:10px">';
@@ -2987,6 +3050,7 @@ if (S.view === 'mkt') return renderMkt(el);
         return '<div style="border:1px solid var(--line,#ddd);border-radius:10px;padding:8px;display:flex;justify-content:space-between;gap:8px"><b style="word-break:break-word">' + esc(q.name) + '</b><small style="flex:none;opacity:.8">' + esc(q.kanal) + ' · ' + esc(q.days) + ' ' + esc(ui('дн. молчит', 'рӯз хомӯш аст', 'kun jim')) + '</small></div>';
       }).join('') + '</div><small style="opacity:.8">' + esc(ui('Показаны те, кому вы ответили последним и кто не отвечает от 3 до 60 дней.', 'Онҳое нишон дода шудаанд, ки шумо охирин ҷавоб додаед ва аз 3 то 60 рӯз ҷавоб намедиҳанд.', 'Oxirgi javobni siz bergan va 3 kundan 60 kungacha javob bermayotganlar koʻrsatilgan.')) + '</small>' : '<p><small>' + esc(ui('Сейчас таких клиентов нет.', 'Ҳоло чунин мижозон нест.', 'Hozir bunday mijozlar yoʻq.')) + '</small></p>';
     }
+    h += '<button class="btn sec" data-mgr="cards" type="button" style="margin-top:12px">' + esc(CARD.open ? ui('Скрыть карточки клиентов', 'Пинҳон кардани кортҳо', 'Kartochkalarni yashirish') : ui('Карточки клиентов', 'Кортҳои мижозон', 'Mijozlar kartochkalari')) + '</button>' + cardsHtml();
     h += '<button class="btn" data-mgr="mkt" type="button" style="margin-top:12px">' + esc(ui('Открыть тексты для возврата', 'Кушодани матнҳо барои баргардонидан', 'Qaytarish matnlarini ochish')) + '</button>' +
       '<p><small>' + esc(ui('В Маркетологе нажмите «Вернуть замолчавших».', 'Дар Маркетолог «Баргардонидани хомӯшшудагон»-ро пахш кунед.', 'Marketologda «Jim boʻlib qolganlarni qaytarish» tugmasini bosing.')) + '</small></p>';
     el.innerHTML = h;
@@ -3501,6 +3565,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);
 if (b.dataset.mgr === 'quiet') { MGQ = !MGQ; return render(); }
+    if (/^(cards|csearch|cback|cpick:|cadd|cdel:)/.test(b.dataset.mgr)) return cardClick(b.dataset.mgr);
     if (b.dataset.mgr) return openMkt();
 if (b.dataset.kb) return kbClick(b.dataset.kb);
 if (b.dataset.mkt) return mktClick(b.dataset.mkt);
