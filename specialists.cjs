@@ -1240,6 +1240,41 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     SH.busy = true; SH.err = ''; SH.ok = ''; body.month = SH.month; render();
     return callTo('/magazin', body).then(function (r) { SH.busy = false; if (!r.ok) SH.err = r.error || TX('Не удалось записать'); else { SH.d = r; SH.ok = okMsg || ''; if (r.warn && r.warn.length) SH.ok += ' · ' + ui('Внимание, на складе не хватало: ', 'Диққат, дар анбор намерасид: ', 'Diqqat, omborda yetmadi: ') + r.warn.map(function (w) { return w.name; }).join(', '); if (after) after(r); } if (S.view === 'shop') render(); });
   }
+  var SH_F = {}, SH_FQ = {};
+  function shFotoLoad(kod) {
+    if (!kod || SH_F[kod] !== undefined || SH_FQ[kod]) return; SH_FQ[kod] = 1;
+    callTo('/magazin', { action: 'foto_get', kod: kod }).then(function (r) { SH_FQ[kod] = 0; SH_F[kod] = (r && r.ok && r.foto) || ''; if (S.view === 'shop') render(); });
+  }
+  function shThumb(p, sz) {
+    if (!p || !p.foto) return ''; var f = SH_F[p.kod]; sz = sz || 44;
+    if (f === undefined) { shFotoLoad(p.kod); return '<span style="flex:none;width:' + sz + 'px;height:' + sz + 'px;border-radius:8px;background:#eee"></span>'; }
+    return f ? '<img alt="" src="' + f + '" style="flex:none;width:' + sz + 'px;height:' + sz + 'px;object-fit:cover;border-radius:8px">' : '';
+  }
+  function shFotoMake(file, cb) {
+    var rd = new FileReader();
+    rd.onerror = function () { cb(''); };
+    rd.onload = function () {
+      var im = new Image(); im.onerror = function () { cb(''); };
+      im.onload = function () {
+        var m = 240, k = Math.min(1, m / Math.max(im.width, im.height)), w = Math.max(1, Math.round(im.width * k)), h = Math.max(1, Math.round(im.height * k)), c = document.createElement('canvas'), out = '', q = 0.65;
+        c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h);
+        while (q > 0.2) { out = c.toDataURL('image/jpeg', q); if (out.length <= 16000) break; q -= 0.1; }
+        cb(out.length <= 20000 ? out : '');
+      };
+      im.src = String(rd.result);
+    };
+    rd.readAsDataURL(file);
+  }
+  function shFotoBox(inner) { return '<input type="file" id="sh-foto-in" accept="image/*" capture="environment" hidden>' + inner; }
+  function shRw() { try { return Number(lstore('ew_rw')) === 80 ? 80 : 58; } catch (e) { return 58; } }
+  function shPrintReceipt() {
+    var r = SH.last; if (!r) return; var w = shRw(), d = new Date(r.ts), pn = { nal: ui('наличные', 'нақд', 'naqd'), perevod: ui('перевод', 'гузаронидан', 'oʻtkazma'), dolg: ui('в долг', 'қарз', 'qarzga'), vladelec: ui('владелец', 'соҳиб', 'egasi') };
+    var rows = r.lines.map(function (l) { return '<tr><td colspan="2">' + esc(l.name) + '</td></tr><tr><td>' + l.qty + ' × ' + esc(money(l.price)) + '</td><td class="r">' + esc(money(l.price * l.qty)) + '</td></tr>'; }).join('');
+    var doc = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(ui('Чек', 'Чек', 'Chek')) + '</title><style>@page{size:' + w + 'mm auto;margin:2mm}body{font:' + (w === 80 ? 14 : 12) + 'px monospace;width:' + (w - 6) + 'mm;margin:0;color:#000}h1{font-size:1.2em;text-align:center;margin:0 0 4px}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}.r{text-align:right}hr{border:0;border-top:1px dashed #000;margin:4px 0}.c{text-align:center}</style></head><body><h1>' + esc(ui('Чек', 'Чек', 'Chek')) + '</h1><div class="c">' + esc(d.toLocaleDateString()) + ' ' + esc(d.toLocaleTimeString().slice(0, 5)) + '</div><hr><table>' + rows + '</table><hr><table><tr><td><b>' + esc(ui('Итого', 'Ҳамагӣ', 'Jami')) + '</b></td><td class="r"><b>' + esc(money(r.total)) + '</b></td></tr><tr><td>' + esc(pn[r.pay] || '') + '</td><td class="r">' + (r.pay === 'dolg' ? esc(r.who) : '') + '</td></tr></table><hr><div class="c">' + esc(ui('Спасибо за покупку!', 'Ташаккур барои харид!', 'Xaridingiz uchun rahmat!')) + '</div></body></html>';
+    var f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
+    var dw = f.contentWindow; dw.document.open(); dw.document.write(doc); dw.document.close();
+    setTimeout(function () { try { dw.focus(); dw.print(); } catch (e) {} setTimeout(function () { try { f.remove(); } catch (e) {} }, 60000); }, 200);
+  }
   function shCartSum() { var c = 0; SH.cart.forEach(function (it) { var p = shProd(it.kod); if (p) c += cents(SH.pay === 'vladelec' ? p.zakup : p.price) * it.qty; }); return c; }
   function shAdd(text) {
     var t = String(text || '').trim().toLowerCase(); if (!t || !SH.d) return;
@@ -1273,6 +1308,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (SH.low && SH.tab === 'kassa') h += '<p role="status" id="sh-low" style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#fff4d6;color:#7a5200">' + esc(SH.low) + '</p>';
     if (SH.err) h += '<p class="err" role="alert" id="sh-err">' + esc(SH.err) + '</p>';
     if (SH.ok) h += '<p id="sh-ok" style="background:#e3f6ea;color:#1f6b3d;padding:8px 10px;border-radius:8px">' + esc(SH.ok) + '</p>';
+    if (SH.ok && SH.last && SH.tab === 'kassa') { var rw = shRw(); h += '<div style="display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap">' + shBtn('print', '🖨 ' + ui('Печать чека', 'Чопи чек', 'Chek chop etish'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '<small style="opacity:.7">' + esc(ui('Лента', 'Лента', 'Lenta')) + '</small>' + shBtn('rw', '58', { sec: rw !== 58, st: 'min-height:40px;width:56px;padding:0;font-size:14px' }, 58) + shBtn('rw', '80', { sec: rw !== 80, st: 'min-height:40px;width:56px;padding:0;font-size:14px' }, 80) + '</div>'; }
     if (!SH.d) { el.innerHTML = h + '<p>' + esc(SH.err ? '' : TX('Загрузка…')) + '</p>' + (SH.err ? shBtn('reload', ui('Ещё раз', 'Боз кӯшиш кунед', 'Yana urinib koʻring'), { sec: true }) : ''); return; }
     h += SH.tab === 'kassa' ? shStaffKassa() : SH.tab === 'prihod' ? shPrihod() : SH.tab === 'tovar' ? shTovar() : SH.tab === 'dolg' ? shDolg() : shOtchet();
     el.innerHTML = h;
@@ -1312,7 +1348,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var D = SH.d, h = '', box = 'border:1px solid #d6d6d6;border-radius:16px;background:#fff;padding:16px';
     var cart = !SH.cart.length ? '<div style="opacity:.6;margin-top:8px">' + esc(ui('Пока пусто', 'Ҳоло холӣ', 'Hozircha boʻsh')) + '</div>' : '<div style="margin-top:6px">' + SH.cart.map(function (it) {
       var p = shProd(it.kod); if (!p) return '';
-      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee"><div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b><br><small>' + esc(shMoney(p.price)) + ' × ' + it.qty + ' = ' + esc(money(cents(p.price) * it.qty)) + '</small></div>' +
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee">' + shThumb(p) + '<div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b><br><small>' + esc(shMoney(p.price)) + ' × ' + it.qty + ' = ' + esc(money(cents(p.price) * it.qty)) + '</small></div>' +
         shBtn('minus', '−', { sec: true, st: 'width:48px;padding:0' }, it.kod) + '<b style="min-width:20px;text-align:center">' + it.qty + '</b>' + shBtn('plus', '+', { sec: true, st: 'width:48px;padding:0' }, it.kod) + '</div>';
     }).join('') + '</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start">' +
@@ -1335,7 +1371,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     else {
       h += '<div style="margin:10px 0">' + SH.cart.map(function (it) {
         var p = shProd(it.kod); if (!p) return ''; var pr = SH.pay === 'vladelec' ? p.zakup : p.price;
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #e6e6e6"><div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b><br><small>' + esc(p.kod) + ' · ' + esc(shMoney(pr)) + ' × ' + it.qty + ' = ' + esc(money(cents(pr) * it.qty)) + '</small></div>' +
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #e6e6e6">' + shThumb(p) + '<div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b><br><small>' + esc(p.kod) + ' · ' + esc(shMoney(pr)) + ' × ' + it.qty + ' = ' + esc(money(cents(pr) * it.qty)) + '</small></div>' +
           shBtn('minus', '−', { sec: true, st: 'width:48px;padding:0' }, it.kod) + '<b style="min-width:22px;text-align:center">' + it.qty + '</b>' + shBtn('plus', '+', { sec: true, st: 'width:48px;padding:0' }, it.kod) + shBtn('rm', '×', { sec: true, st: 'width:44px;padding:0' }, it.kod) + '</div>';
       }).join('') + '</div>';
       h += '<div style="font-size:22px;font-weight:700;margin:8px 0" id="sh-total">' + esc(ui('Итого', 'Ҳамагӣ', 'Jami')) + ': ' + esc(money(shCartSum())) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy')) + '</div>';
@@ -1363,10 +1399,11 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60"') +
         shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') +
         shIn('sh-f-marzha', ui('Маржа, %', 'Маржа, %', 'Marja, %'), f.marzha, 'inputmode="decimal"') +
+        shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + (SH.fotoNew ? '<img alt="" src="' + SH.fotoNew + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px">' : '') + shBtn('foto', '📷 ' + (SH.fotoNew ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'new') + '</div>') +
         '<div id="sh-f-price" style="font-size:18px"></div><div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('save', ui('Сохранить', 'Захира', 'Saqlash')) + shBtn('fcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></form>';
     } else if (SH.rcv) {
       var cur = shProd(SH.rcv.kod);
-      h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + (cur ? '<small>' + esc(ui('Сейчас на складе: ', 'Ҳоло дар анбор: ', 'Hozir omborda: ')) + cur.qty + '</small>' : '') +
+      h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px">' + shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + shThumb(cur, 56) + shBtn('foto', '📷 ' + (cur && cur.foto ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'rcv') + '</div>') + '<b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + (cur ? '<small>' + esc(ui('Сейчас на складе: ', 'Ҳоло дар анбор: ', 'Hozir omborda: ')) + cur.qty + '</small>' : '') +
         shIn('sh-r-qty', ui('Сколько штук пришло', 'Чанд дона омад', 'Necha dona keldi'), '', 'inputmode="numeric"') +
         shIn('sh-r-zakup', ui('Новая закупочная цена (если изменилась)', 'Нархи нави харид (агар тағйир ёфт)', 'Yangi xarid narxi (oʻzgargan boʻlsa)'), '', 'inputmode="decimal"') +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
@@ -1389,6 +1426,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60"') +
         shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') +
         shIn('sh-f-marzha', ui('Маржа, %', 'Маржа, %', 'Marja, %'), f.marzha, 'inputmode="decimal"') +
+        shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + (SH.fotoNew ? '<img alt="" src="' + SH.fotoNew + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px">' : '') + shBtn('foto', '📷 ' + (SH.fotoNew ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'new') + '</div>') +
         '<div id="sh-f-price" style="font-size:18px"></div><div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('save', ui('Сохранить', 'Захира', 'Saqlash')) + shBtn('fcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></form>';
     } else h += shBtn('fnew', '＋ ' + ui('Добавить товар', 'Илова кардани мол', 'Tovar qoʻshish'), { sec: true, st: 'width:100%;margin:8px 0' });
     if (SH.rcv) h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + shIn('sh-r-qty', ui('Сколько штук пришло', 'Чанд дона омад', 'Necha dona keldi'), '', 'inputmode="numeric"') + shIn('sh-r-zakup', ui('Новая закупочная цена (если изменилась)', 'Нархи нави харид (агар тағйир ёфт)', 'Yangi xarid narxi (oʻzgargan boʻlsa)'), '', 'inputmode="decimal"') + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
@@ -1436,6 +1474,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'reload') { SH.err = ''; render(); return shLoad(); }
     if (a === 'add') { var c = $s('sh-code'); SH.code = ''; shAdd(c ? c.value : ''); render(); var c2 = $s('sh-code'); if (c2) c2.focus(); return; }
     if (a === 'put') { SH.err = ''; SH.found = null; var pc = $s('sh-code'), pt = pc ? pc.value.trim().toLowerCase() : ''; shPut(k); SH.code = pt === String(k).toLowerCase() ? k : ''; render(); var c3 = $s('sh-code'); if (c3) c3.focus(); return; }
+    if (a === 'print') return shPrintReceipt();
+    if (a === 'foto') { var fi = $s('sh-foto-in'); if (fi) { fi.dataset.k = k; fi.value = ''; fi.click(); } return; }
+    if (a === 'rw') { try { lstore('ew_rw', String(k)); } catch (e) {} return render(); }
     if (a === 'who') { SH.who = k; SH.err = ''; render(); return; }
     if (a === 'plus') { SH.err = ''; shPut(k); return render(); }
     if (a === 'minus') { SH.cart.forEach(function (it) { if (it.kod === k) it.qty--; }); SH.cart = SH.cart.filter(function (it) { return it.qty > 0; }); return render(); }
@@ -1447,12 +1488,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (SH.busy) return; if (!SH.cart.length) { SH.err = ui('Сначала добавьте товар', 'Аввал мол илова кунед', 'Avval tovar qoʻshing'); return render(); } var w2 = $s('shx-who'); if (w2) SH.who = w2.value;
       if (!SH.pay) { SH.err = ui('Выберите, как заплатили', 'Интихоб кунед, чӣ тавр пардохт шуд', 'Qanday toʻlanganini tanlang'); return render(); }
       if (SH.pay === 'dolg' && !SH.who.trim()) { SH.err = ui('Для долга укажите покупателя', 'Барои қарз харидорро нависед', 'Qarz uchun xaridorni yozing'); return render(); }
-      var tot = shCartSum();
-      return shAct({ action: 'sell', id: SH.cid, items: SH.cart.map(function (it) { return { kod: it.kod, qty: it.qty }; }), pay: SH.pay, who: SH.who, date: today() }, ui('Продано на ', 'Фурӯхта шуд ба ', 'Sotildi: ') + money(tot) + ' ' + ui('сомони', 'сомонӣ', 'somoniy'), function () { SH.cart = []; SH.pay = ''; SH.who = ''; SH.code = ''; SH.low = ''; SH.cid = oid(); });
+      var tot = shCartSum(), rc = { total: tot, pay: SH.pay, who: SH.who, ts: Date.now(), lines: SH.cart.map(function (it) { var pp = shProd(it.kod) || {}; return { name: pp.name || it.kod, qty: it.qty, price: cents(SH.pay === 'vladelec' ? pp.zakup : pp.price) }; }) };
+      return shAct({ action: 'sell', id: SH.cid, items: SH.cart.map(function (it) { return { kod: it.kod, qty: it.qty }; }), pay: SH.pay, who: SH.who, date: today() }, ui('Продано на ', 'Фурӯхта шуд ба ', 'Sotildi: ') + money(tot) + ' ' + ui('сомони', 'сомонӣ', 'somoniy'), function () { SH.last = rc; SH.cart = []; SH.pay = ''; SH.who = ''; SH.code = ''; SH.low = ''; SH.cid = oid(); });
     }
-    if (a === 'fnew') { SH.form = { kod: '', name: '', zakup: '', marzha: '' }; SH.rcv = null; return render(); }
+    if (a === 'fnew') { SH.fotoNew = ''; SH.form = { kod: '', name: '', zakup: '', marzha: '' }; SH.rcv = null; return render(); }
     if (a === 'fedit') { var p = shProd(k); if (p) SH.form = { kod: p.kod, name: p.name, zakup: p.zakup, marzha: p.marzha, edit: true }; SH.rcv = null; return render(); }
-    if (a === 'fcancel') { SH.form = null; SH.err = ''; return render(); }
+    if (a === 'fcancel') { SH.fotoNew = ''; SH.form = null; SH.err = ''; return render(); }
     if (a === 'save') return shSave();
     if (a === 'rcv') { var p2 = shProd(k); if (p2) SH.rcv = { kod: p2.kod, name: p2.name }; SH.form = null; return render(); }
     if (a === 'rcancel') { SH.rcv = null; return render(); }
@@ -1479,7 +1520,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (!(Number(f.zakup) > 0)) { SH.err = ui('Закупочная цена должна быть больше нуля', 'Нархи харид аз сифр зиёд бошад', 'Xarid narxi noldan katta boʻlsin'); return render(); }
     if (f.marzha === '' || !(Number(f.marzha) >= 0 && Number(f.marzha) <= 1000)) { SH.err = ui('Маржа: число от 0 до 1000', 'Маржа: адад аз 0 то 1000', 'Marja: 0 dan 1000 gacha son'); return render(); }
     if (!SH.form.edit && shProd(f.kod)) { SH.err = ui('Товар с таким кодом уже есть', 'Чунин рамзи мол аллакай ҳаст', 'Bunday kodli tovar bor'); return render(); }
-    return shAct({ action: 'product', p: { kod: f.kod, name: f.name, zakup: Number(f.zakup), marzha: Number(f.marzha) } }, ui('Товар сохранён', 'Мол захира шуд', 'Tovar saqlandi'), function () { SH.form = null; });
+    return shAct({ action: 'product', p: { kod: f.kod, name: f.name, zakup: Number(f.zakup), marzha: Number(f.marzha), foto: SH.fotoNew || undefined } }, ui('Товар сохранён', 'Мол захира шуд', 'Tovar saqlandi'), function () { SH.form = null; if (SH.fotoNew) SH_F[f.kod] = SH.fotoNew; SH.fotoNew = ''; });
   }
   function shLive(e) {
     var t = e.target; if (!t) return;
@@ -1490,6 +1531,17 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && (t.id === 'sh-f-zakup' || t.id === 'sh-f-marzha')) { var z = Number(shNum('sh-f-zakup')), m = Number(shNum('sh-f-marzha')), o = $s('sh-f-price'); if (o) o.textContent = z > 0 && m >= 0 ? ui('Цена продажи: ', 'Нархи фурӯш: ', 'Sotuv narxi: ') + money(cents(Math.round(z * (1 + m / 100) * 100) / 100)) : ''; }
   }
   document.addEventListener('keydown', shLive); document.addEventListener('input', shLive);
+  document.addEventListener('change', function (e) {
+    var t = e.target; if (!t || t.id !== 'sh-foto-in' || !t.files || !t.files[0]) return; var mode = t.dataset.k, file = t.files[0];
+    shFotoMake(file, function (img) {
+      if (!img) { SH.err = ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'); return render(); }
+      if (mode === 'new') {
+        var g = function (id) { var x = $s(id); return x ? x.value : ''; }, ff = SH.form || {}; SH.form = Object.assign(ff, { kod: g('sh-f-kod'), name: g('sh-f-name'), zakup: g('sh-f-zakup'), marzha: g('sh-f-marzha') });
+        SH.fotoNew = img; SH.err = ''; return render();
+      }
+      if (mode === 'rcv' && SH.rcv) { var kd = SH.rcv.kod; return shAct({ action: 'foto', kod: kd, foto: img }, ui('Фото сохранено', 'Акс захира шуд', 'Rasm saqlandi'), function () { SH_F[kd] = img; }); }
+    });
+  });
   function onClick(e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
