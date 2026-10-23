@@ -3856,10 +3856,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         '<span style="font-size:18px">' + esc(shMoney(exact.price)) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy')) + '</span><br>' +
         '<small style="opacity:.75">' + esc(ui('Осталось ', 'Боқимонда ', 'Qoldi ')) + exact.qty + ' · ' + esc(line ? ui('В корзине: ', 'Дар сабад: ', 'Savatda: ') + line.qty + ui(' шт. Нажмите ещё раз, чтобы добавить.', ' дона. Боз пахш кунед, то илова шавад.', ' dona. Yana bossangiz, qoʻshiladi.') : ui('Нажмите на карточку, чтобы добавить.', 'Барои илова кардан ба корт пахш кунед.', 'Qoʻshish uchun kartani bosing.')) + '</small></button>';
     }
-    var r = D.products.filter(function (p) { return p.kod.toLowerCase().indexOf(t) === 0 || p.name.toLowerCase().indexOf(t) >= 0; }).slice(0, 5);
+    var r = D.products.filter(function (p) { return p.kod.toLowerCase().indexOf(t) === 0 || p.name.toLowerCase().indexOf(t) >= 0; }).slice(0, 8);
     if (!r.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Такого кода нет. Проверьте цифры.', 'Чунин рамз нест. Рақамҳоро санҷед.', 'Bunday kod yoʻq. Raqamlarni tekshiring.')) + '</p>';
-    return '<div style="display:grid;gap:6px;margin:8px 0">' + r.map(function (p) {
-      return shBtn('put', p.kod + ' · ' + p.name + ' · ' + shMoney(p.price) + ' · ' + ui('ост. ', 'бок. ', 'qol. ') + p.qty, { sec: true, st: 'text-align:left' }, p.kod);
+    return '<div style="display:grid;gap:10px;margin:8px 0">' + r.map(function (p) {
+      return '<button type="button" class="btn sec" data-shop="put" data-k="' + esc(p.kod) + '" style="display:flex;align-items:center;gap:12px;width:100%;height:auto;min-height:84px;text-align:left;padding:12px 14px">' + shThumb(p, 60) +
+        '<span style="flex:1;min-width:0"><b style="display:block;font-size:19px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.kod) + ' · ' + esc(ui('ост. ', 'бок. ', 'qol. ')) + p.qty + '</small></span>' +
+        '<b style="font-size:20px;white-space:nowrap">' + esc(shMoney(p.price)) + '</b></button>';
     }).join('') + '</div>';
   }
   // Покупатель для долга: список знакомых с их долгом и жёлтое предупреждение, если долг уже большой. Продажу не блокирует.
@@ -3885,7 +3887,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }).join('') + '</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start">' +
       '<div><div style="display:grid;grid-template-columns:1fr auto;gap:8px">' + shIn('sh-code', ui('Введите код товара', 'Рамзи молро ворид кунед', 'Tovar kodini kiriting'), SH.code, 'inputmode="text" enterkeyhint="done"') + shScanBtn('sell') + '</div>' +
-      '<div id="sh-hints" style="margin-top:12px;min-height:56px;' + box + '">' + shHintsHtml() + '</div></div>' +
+      '<div id="sh-hints" style="margin-top:12px;min-height:min(46vh,420px);' + box + '">' + shHintsHtml() + '</div></div>' +
       '<div style="' + box + ';display:flex;flex-direction:column;min-height:200px"><div style="opacity:.75">' + esc(ui('Корзина', 'Сабад', 'Savat')) + '</div><div style="flex:1">' + cart + '</div>' +
       '<div id="sh-total" style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #e3e3e3;margin-top:12px;padding-top:10px"><span style="opacity:.75">' + esc(ui('Итого', 'Ҳамагӣ', 'Jami')) + '</span><b style="font-size:30px">' + esc(money(shCartSum())) + ' ' + esc(ui('сом.', 'сом.', 'som')) + '</b></div></div></div>';
     h += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-top:16px">' + shBtn('dolgopen', ui('В долг', 'Қарз', 'Qarzga'), { sec: SH.pay !== 'dolg', st: 'height:64px;font-size:20px;font-weight:700' }) + shBtn('paynow', SH.busy ? TX('Загрузка…') : ui('Оплатить', 'Пардохт', 'Toʻlash'), { st: 'height:64px;font-size:20px;font-weight:700;background:#0b0b0b;color:#fff' }) + '</div>';
