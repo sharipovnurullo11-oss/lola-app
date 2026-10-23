@@ -2830,13 +2830,13 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Финансист проката строительных инструментов ---------- */
   // Данные хранит n8n по адресу /prokat. Кому показывать прокат, решает сервер: чужому кабинету он отвечает «нет доступа», и тогда открывается обычная бухгалтерия.
-  var PK = { points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false };
+  var PK = { points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null };
   var PK_ST = { minus: 'В минусе', plus: 'В плюсе', idle: 'Нет движения' };
   var PK_PAY = { cash: 'Наличные', ds: 'Душанбе Сити', alif: 'Алиф' };
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
   function pkMoney(x) { return money(cents(pkNum(x))); }
   function openFinOrProkat() {
-    S.view = 'prokat'; PK.folder = false; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
       if (S.view !== 'prokat') return;
@@ -2865,6 +2865,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function renderProkat(el) {
     if (PK.busy) { el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (PK.cur) return renderPkPoint(el);
+    if (PK.sk) return renderPkSklad(el);
     if (!PK.folder) return renderPkHome(el);
     var pts = PK.points.slice().sort(function (a, b) { return pkNum(a.profit) - pkNum(b.profit); });
     var plus = 0, minus = 0, idle = 0, sum = 0;
@@ -2887,11 +2888,76 @@ if (S.view === 'mkt') return renderMkt(el);
           '<span style="flex:none;text-align:right"><b style="display:block;color:' + (pr < 0 ? '#c0392b' : pr > 0 ? '#1f8a4c' : 'inherit') + '">' + pkMoney(pr) + '</b>' + pkBadge(p.status) + '</span></button>';
       }).join('') : '<p style="opacity:.75">' + esc(TX('Нет пунктов')) + '</p>') + '</div>';
   }
-  // Экран «Финансист» проката: одна папка «Пункты», внутри неё список пунктов со сводкой и фильтрами.
+  // Экран «Финансист» проката: папка «Пункты» (внутри список пунктов со сводкой и фильтрами) и «Склад».
   function renderPkHome(el) {
     var n = PK.total == null ? PK.points.length : PK.total;
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><div style="display:grid;gap:10px">' +
-      '<button type="button" class="btn sec" data-pk="folder" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📁</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Пункты')) + '</b><small style="opacity:.75">' + esc(TX('Пункты проката строительных инструментов')) + '</small></span><span style="flex:none;font-size:15px;font-weight:700;padding:3px 10px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(n) + '</span></button></div>';
+      '<button type="button" class="btn sec" data-pk="folder" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📍</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Пункты')) + '</b><small style="opacity:.75">' + esc(TX('Пункты проката строительных инструментов')) + '</small></span><span style="flex:none;font-size:15px;font-weight:700;padding:3px 10px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(n) + '</span></button>' +
+      '<button type="button" class="btn sec" data-pk="sklad" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🏠</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Склад')) + '</b><small style="opacity:.75">' + esc(TX('Что лежит у меня дома, не на пунктах')) + '</small></span></button></div>';
+  }
+  // «Склад»: инструменты дома, не на пунктах. Плюс — привезли домой, минус — забрали.
+  function pkSkOpen() {
+    PK.sk = { loading: true, stock: [], history: [], error: '', msg: '', form: { name: '', qty: '', dir: 1, note: '', id: oid(), busy: false, err: '' } }; PK.ride = false; render();
+    pkSkLoad();
+  }
+  function pkSkLoad() {
+    var sk = PK.sk;
+    callTo('/prokat', { action: 'stock' }).then(function (r) {
+      if (S.view !== 'prokat' || PK.sk !== sk) return;
+      sk.loading = false;
+      if (!r || !r.ok) sk.error = (r && r.error) || TX('не удалось загрузить');
+      else { sk.error = ''; sk.stock = Array.isArray(r.stock) ? r.stock : []; sk.history = Array.isArray(r.history) ? r.history : []; }
+      render();
+    });
+  }
+  function renderPkSklad(el) {
+    var sk = PK.sk, F = sk.form;
+    var h = pkBtn('home', '← ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">🏠 ' + esc(TX('Склад')) + '</h2><p style="margin-top:0;opacity:.8">' + esc(TX('Что лежит у меня дома, не на пунктах')) + '</p>';
+    if (sk.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
+    if (sk.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(sk.error) + '</p>' + pkBtn('sk-retry', esc(TX('Ещё раз')), true));
+    var stock = sk.stock.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ru'); });
+    h += stock.length ? stock.map(function (s) { return pkRow(s.name, '<b>' + esc(s.qty) + '</b> ' + esc(TX('шт.'))); }).join('') : '<p style="opacity:.75">' + esc(TX('На складе пока пусто')) + '</p>';
+    h += '<div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid rgba(127,127,127,.35)"><b style="display:block;margin-bottom:8px">' + esc(TX('Добавить или убрать')) + '</b>' +
+      '<label style="display:block;margin-bottom:8px">' + esc(TX('Название')) + '<input id="pk-sk-name" type="text" list="pk-sk-names" maxlength="120" autocomplete="off" value="' + esc(F.name) + '" style="display:block;width:100%"></label>' +
+      '<datalist id="pk-sk-names">' + stock.map(function (s) { return '<option value="' + esc(s.name) + '">'; }).join('') + '</datalist>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">' + pkBtn('sk-dir:1', '➕ ' + esc(TX('Привёз домой')), F.dir !== 1, 'height:auto;padding:8px') + pkBtn('sk-dir:-1', '➖ ' + esc(TX('Забрал')), F.dir !== -1, 'height:auto;padding:8px') + '</div>' +
+      '<label style="display:block;margin-bottom:8px">' + esc(TX('Количество')) + '<input id="pk-sk-qty" type="text" inputmode="numeric" autocomplete="off" value="' + esc(F.qty) + '" style="display:block;width:100%;font-size:20px"></label>' +
+      '<label style="display:block;margin-bottom:8px">' + esc(TX('Заметка')) + '<input id="pk-sk-note" type="text" maxlength="200" autocomplete="off" value="' + esc(F.note) + '" style="display:block;width:100%"></label>' +
+      (F.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(F.err) + '</p>' : '') +
+      (sk.msg ? '<p style="color:#1f8a4c;margin:0 0 8px">' + esc(sk.msg) + '</p>' : '') +
+      pkBtn('sk-save', esc(TX(F.busy ? 'Сохраняю…' : 'Сохранить')), false, 'width:100%' + (F.busy ? ';opacity:.6' : '')) + '</div>';
+    var hist = sk.history.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    h += '<h3 style="margin:16px 0 6px">' + esc(TX('История')) + '</h3>' + (hist.length ? hist.map(function (x) {
+      var d = pkNum(x.delta);
+      return pkRow((x.date || '') + ' · ' + (x.name || '') + (x.note ? ' · ' + x.note : ''), '<b style="color:' + (d < 0 ? '#c0392b' : '#1f8a4c') + '">' + (d > 0 ? '+' : d < 0 ? '−' : '') + esc(Math.abs(d)) + '</b>');
+    }).join('') : '<p style="opacity:.75">' + esc(TX('Пока пусто')) + '</p>');
+    el.innerHTML = h;
+  }
+  function pkSkKeep() { var F = PK.sk && PK.sk.form; if (!F) return; var a = $s('pk-sk-name'), q = $s('pk-sk-qty'), n = $s('pk-sk-note'); if (a) F.name = a.value; if (q) F.qty = q.value; if (n) F.note = n.value; }
+  function pkSkSave() {
+    var sk = PK.sk, F = sk && sk.form; if (!F || F.busy) return;
+    pkSkKeep(); sk.msg = '';
+    var name = String(F.name).trim().slice(0, 120), raw = String(F.qty).replace(/\s/g, '').replace('−', '-');
+    if (!name) { F.err = TX('Введите название'); return render(); }
+    if (!/^-?\d{1,6}$/.test(raw) || +raw === 0) { F.err = TX('Количество — целое число больше нуля'); return render(); }
+    // Минус, набранный в поле, тоже значит «забрал».
+    var delta = raw.charAt(0) === '-' ? +raw : F.dir * +raw;
+    F.busy = true; F.err = ''; render();
+    // id создан при открытии формы: повтор после обрыва связи не задвоит движение.
+    callTo('/prokat', { action: 'stock_move', name: name, delta: delta, note: String(F.note || '').trim().slice(0, 200), id: F.id }).then(function (r) {
+      if (PK.sk !== sk || sk.form !== F) return;
+      F.busy = false;
+      if (!r || !r.ok) {
+        F.err = (r && r.error) || TX('Не получилось сохранить');
+        // Сервер отказал (например, «на складе столько нет») — следующая попытка будет новым движением. При обрыве связи id сохраняем.
+        if (r && r.error && r.error !== TX('нет связи')) F.id = oid();
+        return render();
+      }
+      if (Array.isArray(r.stock)) sk.stock = r.stock;
+      sk.msg = TX('Записано') + ': ' + name + ' ' + (delta > 0 ? '+' : '−') + Math.abs(delta);
+      sk.form = { name: '', qty: '', dir: F.dir, note: '', id: oid(), busy: false, err: '' };
+      render(); pkSkLoad();
+    });
   }
   function pkRideNote() { return '<p style="padding:10px;border-radius:10px;background:rgba(127,127,127,.12);margin:0 0 10px">' + esc(TX('Объезд скоро: здесь будет маршрут по пунктам, где пора забрать деньги или проверить инструмент. Пока забранные деньги записывайте кнопкой «Забрал деньги» в карточке пункта.')) + '</p>'; }
   function renderPkPoint(el) {
@@ -2968,7 +3034,11 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k.indexOf('p:') === 0) { var p = PK.points[+k.slice(2)]; if (p) pkOpenPoint(p.name); return; }
     if (k.indexOf('m:') === 0) { if (PK.form && PK_PAY[k.slice(2)]) { pkKeep(); PK.form.method = k.slice(2); render(); } return; }
     if (k === 'folder') { PK.folder = true; PK.ride = false; return render(); }
-    if (k === 'home') { PK.folder = false; PK.ride = false; return render(); }
+    if (k === 'home') { PK.folder = false; PK.sk = null; PK.ride = false; return render(); }
+    if (k === 'sklad') return pkSkOpen();
+    if (k === 'sk-retry') { if (PK.sk) { PK.sk.loading = true; PK.sk.error = ''; render(); pkSkLoad(); } return; }
+    if (k.indexOf('sk-dir:') === 0) { if (PK.sk) { pkSkKeep(); PK.sk.form.dir = k.slice(7) === '-1' ? -1 : 1; render(); } return; }
+    if (k === 'sk-save') return pkSkSave();
     if (k === 'back') { PK.cur = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; return render(); }
     if (k === 'p-retry') { if (PK.cur) pkOpenPoint(PK.cur.name); return; }
     if (k === 'ride') { PK.ride = !PK.ride; return render(); }
