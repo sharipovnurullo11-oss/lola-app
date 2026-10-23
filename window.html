@@ -3834,7 +3834,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }
     if (!SELLER && !staffNow() && kl) h += '<div style="margin:0 0 8px"><div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('addst', '👥 ' + ui('Добавить сотрудника', 'Илова кардани корманд', 'Xodim qoʻshish'), { sec: true, st: 'min-height:40px;font-size:14px' }, 'kladovshchik') + shBtn('previewk', '👁 ' + ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
     if (!SELLER && !staffNow() && !kl) h += '<div style="margin:0 0 8px">' + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('addst', '👥 ' + ui('Добавить сотрудника', 'Илова кардани корманд', 'Xodim qoʻshish'), { sec: true, st: 'min-height:40px;font-size:14px' }, 'prodavec') + shBtn('preview', '👁 ' + ui('Как видит продавец', 'Фурӯшанда чӣ тавр мебинад', 'Sotuvchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
-    var tabs = [['kassa', 'Продажа', 'Фурӯш', 'Sotuv'], ['prihod', 'Приём', 'Қабул', 'Qabul'], ['tovar', 'Товары', 'Молҳо', 'Tovarlar'], ['dolg', 'Долги', 'Қарзҳо', 'Qarzlar'], ['zp', 'Зарплата', 'Маош', 'Maosh'], ['otchet', 'Отчёт', 'Ҳисобот', 'Hisobot']];
+    var tabs = [['kassa', 'Продажа', 'Фурӯш', 'Sotuv'], ['prihod', 'Приём', 'Қабул', 'Qabul'], ['tovar', 'Товары', 'Молҳо', 'Tovarlar'], ['dolg', 'Долги', 'Қарзҳо', 'Qarzlar'], ['zp', 'Зарплата', 'Маош', 'Maosh'], ['anal', 'Анализ', 'Таҳлил', 'Tahlil'], ['otchet', 'Отчёт', 'Ҳисобот', 'Hisobot']];
     if (kl) tabs = tabs.filter(function (t) { return t[0] === 'prihod' || t[0] === 'tovar'; });
     if (!SELLER && !staffNow()) h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px;margin:8px 0">' + tabs.map(function (t) { return shBtn('tab', ui(t[1], t[2], t[3]), { sec: SH.tab !== t[0] }, t[0]); }).join('') + '</div>';
     if (SH.low && SH.tab === 'kassa') h += '<p role="status" id="sh-low" style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#fff4d6;color:#7a5200">' + esc(SH.low) + '</p>';
@@ -3842,7 +3842,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (SH.ok) h += '<p id="sh-ok" style="background:#e3f6ea;color:#1f6b3d;padding:8px 10px;border-radius:8px">' + esc(SH.ok) + '</p>';
     if (SH.ok && SH.last && SH.tab === 'kassa') { var rw = shRw(); h += '<div style="display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap">' + shBtn('print', '🖨 ' + ui('Печать чека', 'Чопи чек', 'Chek chop etish'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '<small style="opacity:.7">' + esc(ui('Лента', 'Лента', 'Lenta')) + '</small>' + shBtn('rw', '58', { sec: rw !== 58, st: 'min-height:40px;width:56px;padding:0;font-size:14px' }, 58) + shBtn('rw', '80', { sec: rw !== 80, st: 'min-height:40px;width:56px;padding:0;font-size:14px' }, 80) + '</div>'; }
     if (!SH.d) { el.innerHTML = h + '<p>' + esc(SH.err ? '' : TX('Загрузка…')) + '</p>' + (SH.err ? shBtn('reload', ui('Ещё раз', 'Боз кӯшиш кунед', 'Yana urinib koʻring'), { sec: true }) : ''); return; }
-    h += SH.tab === 'kassa' ? shStaffKassa() : SH.tab === 'prihod' ? shPrihod() : SH.tab === 'tovar' ? shTovar() : SH.tab === 'dolg' ? shDolg() : SH.tab === 'zp' ? shZp() : shOtchet();
+    h += SH.tab === 'kassa' ? shStaffKassa() : SH.tab === 'prihod' ? shPrihod() : SH.tab === 'tovar' ? shTovar() : SH.tab === 'dolg' ? shDolg() : SH.tab === 'zp' ? shZp() : SH.tab === 'anal' ? shAnal() : shOtchet();
     el.innerHTML = h;
   }
   // Подсказки по первым цифрам кода; когда код набран целиком, остаётся одна крупная карточка (нажатие добавляет ещё одну штуку).
@@ -3941,6 +3941,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return '<div style="display:grid;gap:6px">' + r.map(function (p) { return shBtn('rcv', p.kod + ' · ' + p.name + ' · ' + ui('ост. ', 'бок. ', 'qol. ') + p.qty + ' · ' + ui('себестоимость ', 'арзиши аслӣ ', 'tannarx ') + shMoney(p.zakup), { sec: true, st: 'text-align:left' }, p.kod); }).join('') + '</div>';
   }
   function shPrihod() {
+    if (SH.cnt && SH.cnt.open) return shCnt();
     var D = SH.d, h = '', f = SH.form;
     if (f) {
       h += '<form data-shopform="save" style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(ui('Новый товар', 'Моли нав', 'Yangi tovar')) + '</b>' +
@@ -3958,7 +3959,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
     } else {
       h += '<h3 style="margin:4px 0 8px">' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) + '</h3><p style="margin:0 0 8px;opacity:.8"><small>' + esc(ui('1) Введите код или название товара и выберите его. 2) Укажите, сколько штук приняли и по какой цене.', '1) Рамз ё номи молро ворид карда, интихоб кунед. 2) Чанд дона ва бо кадом нарх қабул кардаед нависед.', '1) Tovar kodi yoki nomini kiriting va tanlang. 2) Necha dona va qaysi narxda qabul qilganingizni yozing.')) + '</small></p><div><div style="display:grid;grid-template-columns:1fr auto;gap:8px">' + shIn('sh-pcode', ui('Код или название товара', 'Рамз ё номи мол', 'Tovar kodi yoki nomi'), SH.pcode, 'inputmode="text" enterkeyhint="done"') + shScanBtn('recv') + '</div>' + '<div id="sh-phints" style="margin-top:10px;min-height:48px">' + shPHints() + '</div></div>' +
-        shBtn('fnew', '＋ ' + ui('Новый товар', 'Моли нав', 'Yangi tovar'), { sec: true, st: 'width:100%;margin:10px 0' });
+        shBtn('fnew', '＋ ' + ui('Новый товар', 'Моли нав', 'Yangi tovar'), { sec: true, st: 'width:100%;margin:10px 0' }) + shBtn('copen', '📋 ' + ui('Пересчёт товара', 'Ҳисобкунии мол', 'Tovarni qayta sanash'), { sec: true, st: 'width:100%;margin:0 0 10px' });
     }
     var rc = (D && D.receipts) || [];
     h += '<h3 style="margin-top:14px">' + esc(ui('Последние приёмы', 'Қабулҳои охирин', 'Oxirgi qabullar')) + '</h3>';
@@ -3986,6 +3987,63 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         '<div style="display:flex;gap:6px;margin-top:6px">' + shBtn('rcv', ui('Приход', 'Воридот', 'Kirim'), { sec: true, st: 'flex:1' }, p.kod) + shBtn('fedit', ui('Изменить', 'Тағйир', 'Oʻzgartirish'), { sec: true, st: 'flex:1' }, p.kod) + shBtn('pdel', ask ? ui('Удалить?', 'Нест кунем?', 'Oʻchiraymi?') : '×', { sec: true, st: 'width:56px;padding:0' + (ask ? ';background:#c0392b;color:#fff' : '') }, p.kod) + '</div></div>';
     }).join('');
     return h;
+  }
+  // «Анализ» (руководитель): прибыль по товарам, залежавшийся товар, подсказка для заказа, подтверждение пересчёта. Данные считает сервер (действия stats, minset, inv_list, inv_ok, inv_no).
+  function anState() { return SH.an || (SH.an = { sec: 'profit', days: 30, data: null, busy: false, err: '', inv: null, msg: '' }); }
+  function anLoad() {
+    var A = anState(); A.busy = true; A.err = '';
+    var p = A.sec === 'inv' ? callTo('/magazin', { action: 'inv_list' }) : callTo('/magazin', { action: 'stats', days: A.days });
+    p.then(function (r) { A.busy = false; if (!r || !r.ok) A.err = (r && r.error) || TX('Не удалось загрузить'); else if (A.sec === 'inv') A.inv = r.inv; else A.data = r.stats; if (S.view === 'shop') render(); });
+    render();
+  }
+  function anRow(l, r, neg) { return '<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #e6e6e6"><span style="min-width:0">' + l + '</span><span style="text-align:right;white-space:nowrap;' + (neg ? 'color:#c0392b' : '') + '">' + r + '</span></div>'; }
+  function shAnal() {
+    var A = anState(), h = '', T3 = [['profit', 'Прибыль', 'Фоида', 'Foyda'], ['stale', 'Залежался', 'Мондашуда', 'Eskirgan'], ['order', 'Заказать', 'Фармоиш', 'Buyurtma'], ['inv', 'Пересчёт', 'Ҳисобкунӣ', 'Qayta sanash']];
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin:6px 0">' + T3.map(function (t) { return shBtn('ansec', ui(t[1], t[2], t[3]), { sec: A.sec !== t[0] }, t[0]); }).join('') + '</div>';
+    if (A.sec !== 'inv') h += '<div style="display:flex;gap:6px;align-items:center;margin:6px 0"><small>' + esc(ui('За период:', 'Давра:', 'Davr:')) + '</small>' + [7, 30, 90].map(function (d) { return shBtn('andays', d + ' ' + ui('дн.', 'рӯз', 'kun'), { sec: A.days !== d, st: 'min-height:40px;padding:0 14px' }, d); }).join('') + '</div>';
+    if (A.err) h += '<p class="err" role="alert">' + esc(A.err) + '</p>';
+    if (A.msg) h += '<p style="background:#e3f6ea;color:#1f6b3d;padding:8px 10px;border-radius:8px">' + esc(A.msg) + '</p>';
+    if (A.busy) return h + '<p>' + esc(TX('Загрузка…')) + '</p>';
+    var D = A.data;
+    if (A.sec === 'inv') {
+      var I = A.inv; if (!I) return h + '<p>' + esc(TX('Загрузка…')) + '</p>';
+      h += '<p><small>' + esc(ui('Кладовщик пересчитал товар и отправил цифры. Остаток в учёте меняется только после вашего подтверждения.', 'Анбордор мол шумурд. Боқимонда танҳо пас аз тасдиқи шумо тағйир меёбад.', 'Omborchi tovarni sanadi. Qoldiq faqat sizning tasdigʻingizdan keyin oʻzgaradi.')) + '</small></p>';
+      h += shBtn('copen', '📋 ' + ui('Пересчитать самому', 'Худам мешуморам', 'Oʻzim sanayman'), { sec: true, st: 'width:100%;margin:6px 0' });
+      if (!I.list.length) return h + '<p style="opacity:.75">' + esc(ui('Пересчётов на подтверждение нет.', 'Ҳисобкунии интизор нест.', 'Tasdiqlash uchun sanoq yoʻq.')) + '</p>';
+      h += '<div style="padding:10px;border-radius:10px;background:#fff4d6;margin:8px 0">' + esc(ui('Недостача: ', 'Камомад: ', 'Yetishmovchilik: ')) + '<b>' + I.shortPcs + ' ' + esc(ui('шт.', 'дона', 'dona')) + ' · ' + esc(shMoney(I.shortSum)) + '</b><br>' + esc(ui('Излишек: ', 'Зиёдатӣ: ', 'Ortiqcha: ')) + '<b>' + I.plusPcs + ' ' + esc(ui('шт.', 'дона', 'dona')) + ' · ' + esc(shMoney(I.plusSum)) + '</b></div>';
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">' + shBtn('invok', ui('Подтвердить все', 'Ҳамаро тасдиқ', 'Hammasini tasdiqlash')) + shBtn('invno', ui('Отклонить все', 'Ҳамаро рад', 'Hammasini rad etish'), { sec: true }) + '</div>';
+      return h + I.list.map(function (x) {
+        return '<div style="padding:10px 0;border-bottom:1px solid #e6e6e6"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + esc(x.name) + '</b><b style="color:' + (x.diff < 0 ? '#c0392b' : x.diff > 0 ? '#1f8a4c' : '#555') + '">' + (x.diff > 0 ? '+' : '') + x.diff + '</b></div><small>' + esc(x.kod) + ' · ' + esc(ui('в учёте ', 'дар ҳисоб ', 'hisobda ')) + x.now + ' · ' + esc(ui('насчитано ', 'шумурда шуд ', 'sanaldi ')) + x.fact + ' · ' + esc(shMoney(x.money)) + ' · ' + esc(x.who) + '</small>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">' + shBtn('invok1', ui('Принять', 'Қабул', 'Qabul'), { sec: true, st: 'min-height:40px' }, x.id) + shBtn('invno1', ui('Отклонить', 'Рад', 'Rad etish'), { sec: true, st: 'min-height:40px' }, x.id) + '</div></div>';
+      }).join('');
+    }
+    if (!D) return h + '<p>' + esc(TX('Загрузка…')) + '</p>';
+    if (A.sec === 'profit') {
+      h += '<p><b>' + esc(ui('Прибыль за ' + D.days + ' дн.: ', 'Фоида барои ' + D.days + ' рӯз: ', D.days + ' kunlik foyda: ')) + esc(shMoney(D.profitSum)) + '</b><br><small>' + esc(ui('Продано товаров: ', 'Моли фурӯхташуда: ', 'Sotilgan tovar: ')) + D.profitN + '</small></p>';
+      if (!D.profit.length) return h + '<p style="opacity:.75">' + esc(ui('Продаж за период нет.', 'Дар ин давра фурӯш нест.', 'Bu davrda sotuv yoʻq.')) + '</p>';
+      h += D.profit.map(function (x) { return anRow('<b>' + esc(x.name) + '</b><br><small>' + esc(x.kod) + ' · ' + x.qty + ' ' + esc(ui('шт.', 'дона', 'dona')) + ' · ' + esc(ui('выручка ', 'даромад ', 'tushum ')) + esc(shMoney(x.rev)) + '</small>', '<b>' + esc(shMoney(x.profit)) + '</b>', x.profit < 0); }).join('');
+      if (D.profitTail && D.profitTail.length) h += '<h4 style="margin:14px 0 4px">' + esc(ui('Самые невыгодные', 'Бесамартарин', 'Eng foydasiz')) + '</h4>' + D.profitTail.map(function (x) { return anRow('<b>' + esc(x.name) + '</b><br><small>' + esc(x.kod) + '</small>', '<b>' + esc(shMoney(x.profit)) + '</b>', x.profit < 0); }).join('');
+      return h;
+    }
+    if (A.sec === 'stale') {
+      h += '<div style="padding:10px;border-radius:10px;background:#fff4d6;margin:8px 0">' + esc(ui('Без продаж ' + D.days + ' дней и больше: ', 'Бе фурӯш ' + D.days + ' рӯз ва зиёд: ', D.days + ' kun va undan koʻp sotilmagan: ')) + '<b>' + D.staleN + ' ' + esc(ui('товаров', 'мол', 'tovar')) + '</b><br>' + esc(ui('Заморожено денег (по закупке): ', 'Пули яхкарда (бо нархи харид): ', 'Muzlatilgan pul (xarid narxida): ')) + '<b>' + esc(shMoney(D.staleSum)) + '</b></div><p><small>' + esc(ui('Подумайте о скидке и не закупайте эти товары снова.', 'Дар бораи тахфиф фикр кунед ва ин молҳоро дубора нахаред.', 'Chegirma haqida oʻylang va bu tovarlarni qayta xarid qilmang.')) + '</small></p>';
+      return h + D.stale.map(function (x) { return anRow('<b>' + esc(x.name) + '</b><br><small>' + esc(x.kod) + ' · ' + x.qty + ' ' + esc(ui('шт.', 'дона', 'dona')) + ' · ' + esc(x.last ? ui('последняя продажа ', 'фурӯши охирин ', 'oxirgi sotuv ') + x.last : ui('ни разу не продавался', 'ягон бор нафурӯхта', 'hech sotilmagan')) + '</small>', '<b>' + esc(shMoney(x.frozen)) + '</b>'); }).join('');
+    }
+    h += '<form data-shopform="minset" style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin:8px 0;align-items:center">' + shIn('sh-m-kod', ui('Код товара', 'Рамзи мол', 'Tovar kodi'), '', 'maxlength="20"') + shIn('sh-m-min', ui('Минимум, шт.', 'Ҳадди ақал', 'Minimum'), '', 'inputmode="numeric"') + shBtn('minset', ui('Задать', 'Таъин', 'Belgilash'), { st: 'padding:0 14px' }) + '</form>';
+    h += '<p><small>' + esc(ui('Задано минимальных остатков: ', 'Ҳадди ақалҳо таъин шуд: ', 'Minimal qoldiqlar belgilangan: ')) + D.minN + '. ' + esc(ui('Когда остаток ниже минимума, товар попадает сюда с предложением, сколько заказать.', 'Вақте боқимонда аз ҳадди ақал кам шавад, мол дар ин ҷо пайдо мешавад.', 'Qoldiq minimumdan kam boʻlsa, tovar bu yerga tushadi.')) + '</small></p>';
+    if (!D.order.length) return h + '<p style="opacity:.75">' + esc(D.minN ? ui('Всё в достатке, заказывать пока нечего.', 'Ҳама чиз кофист.', 'Hammasi yetarli.') : ui('Минимумы ещё не заданы: введите код товара и минимум выше.', 'Ҳадди ақалҳо ҳоло таъин нашудаанд.', 'Minimumlar hali belgilanmagan.')) + '</p>';
+    h += shBtn('copyorder', '📄 ' + ui('Скопировать список для поставщика', 'Нусхаи рӯйхат барои таъминкунанда', 'Taʼminotchi uchun roʻyxatni nusxalash'), { sec: true, st: 'width:100%;margin:8px 0' });
+    return h + D.order.map(function (x) { return anRow('<b>' + esc(x.name) + '</b><br><small>' + esc(x.kod) + ' · ' + esc(ui('остаток ', 'боқимонда ', 'qoldiq ')) + x.qty + ' / ' + esc(ui('минимум ', 'ҳадди ақал ', 'minimum ')) + x.min + '</small>', '<b>' + esc(ui('заказать ', 'фармоиш ', 'buyurtma ')) + x.suggest + '</b>'); }).join('');
+  }
+  // Пересчёт (кладовщик и руководитель): вводит код и фактическое количество, список уходит руководителю на подтверждение.
+  function cntState() { return SH.cnt || (SH.cnt = { open: false, list: [], msg: '', err: '' }); }
+  function shCnt() {
+    var C = cntState(), h = '<h3 style="margin:4px 0 8px">' + esc(ui('Пересчёт товара', 'Ҳисобкунии мол', 'Tovarni qayta sanash')) + '</h3><p style="margin:0 0 8px;opacity:.8"><small>' + esc(ui('Введите код товара и сколько штук по факту лежит. Остаток в учёте поменяет руководитель после проверки.', 'Рамзи мол ва миқдори воқеиро нависед. Боқимондаро роҳбар пас аз санҷиш иваз мекунад.', 'Tovar kodi va haqiqiy sonini yozing. Qoldiqni rahbar tekshirgach oʻzgartiradi.')) + '</small></p>';
+    if (C.err) h += '<p class="err" role="alert">' + esc(C.err) + '</p>';
+    if (C.msg) h += '<p style="background:#e3f6ea;color:#1f6b3d;padding:8px 10px;border-radius:8px">' + esc(C.msg) + '</p>';
+    h += '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:6px;align-items:center">' + shIn('sh-c-kod', ui('Код товара', 'Рамзи мол', 'Tovar kodi'), '', 'maxlength="20"') + shIn('sh-c-fact', ui('Фактически, шт.', 'Воқеӣ, дона', 'Haqiqiy, dona'), '', 'inputmode="numeric"') + shBtn('cadd', '＋', { st: 'width:56px;padding:0' }) + '</div>';
+    h += C.list.length ? C.list.map(function (x, i) { return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #e6e6e6"><span><b>' + esc(x.name) + '</b><br><small>' + esc(x.kod) + '</small></span><span style="display:flex;align-items:center;gap:8px"><b style="font-size:18px">' + x.fact + '</b>' + shBtn('crm', '×', { sec: true, st: 'width:44px;padding:0;min-height:40px' }, i) + '</span></div>'; }).join('') : '<p style="opacity:.7">' + esc(ui('Список пуст.', 'Рӯйхат холӣ.', 'Roʻyxat boʻsh.')) + '</p>';
+    return h + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:10px">' + shBtn('csend', ui('Отправить на проверку', 'Барои санҷиш фиристодан', 'Tekshirishga yuborish')) + shBtn('cclose', ui('Закрыть', 'Пӯшидан', 'Yopish'), { sec: true }) + '</div>';
   }
   function shDolg() {
     var D = SH.d; if (!D.debts.length) return '<p>' + esc(ui('Долгов нет.', 'Қарз нест.', 'Qarz yoʻq.')) + '</p>';
@@ -4043,7 +4101,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'selout') { if (PREVIEW) { PREVIEW = false; setSeller(false); S.view = PREV_FIN ? 'fin' : 'shop'; PREV_FIN = false; SH.tab = PREV_TAB || 'kassa'; SH.cart = []; SH.pay = ''; SH.d = null; render(); open_dlg('m-spec'); shLoad(); return; } if (typeof window.logout === 'function') window.logout(); return; }
     if (SELLER && !KEEPER && ['tab', 'fnew', 'fedit', 'rcv', 'rok', 'pdel', 'pay-open', 'pok', 'void', 'mprev', 'mnext', 'fcancel', 'save', 'rcancel'].indexOf(a) >= 0) return;
     if (KEEPER && ['tab', 'fedit', 'pdel', 'pay-open', 'pok', 'void', 'mprev', 'mnext', 'sell', 'add', 'put', 'plus', 'minus', 'rm', 'pay', 'dolgopen', 'paynow', 'who', 'preview', 'previewk'].indexOf(a) >= 0) return;
-    if (a === 'tab') { SH.low = ''; SH.pcode = ''; SH.tab = k; SH.err = ''; SH.ok = ''; SH.form = null; SH.rcv = null; SH.payf = null; SH.delAsk = ''; SH.voidAsk = ''; SH.found = null; SH.code = ''; return render(); }
+    if (a === 'tab') { SH.low = ''; SH.pcode = ''; SH.tab = k; SH.err = ''; SH.ok = ''; SH.form = null; SH.rcv = null; SH.payf = null; SH.delAsk = ''; SH.voidAsk = ''; SH.found = null; SH.code = ''; if (k === 'anal') { anLoad(); return; } return render(); }
     if (a === 'goto') { openShop(); SH.tab = k; return render(); }
     if (a === 'reload') { SH.err = ''; render(); return shLoad(); }
     if (a === 'add') { var c = $s('sh-code'); SH.code = ''; shAdd(c ? c.value : ''); render(); var c2 = $s('sh-code'); if (c2) c2.focus(); return; }
@@ -4090,6 +4148,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }
     if (a === 'fnew') { SH.fotoNew = ''; SH.form = { kod: '', name: '', zakup: '', marzha: '' }; SH.rcv = null; return render(); }
     if (a === 'addst') { if (window.open_team) window.open_team(k); return; }
+    if (a === 'ansec') { var A1 = anState(); A1.sec = k; A1.msg = ''; return anLoad(); }
+    if (a === 'andays') { var A2 = anState(); A2.days = Number(k); return anLoad(); }
+    if (a === 'minset') { var mk0 = String(shNum('sh-m-kod') || '').trim(), mn = shNum('sh-m-min'); var A3 = anState(); if (!mk0 || mn === '') { A3.err = ui('Укажите код товара и минимум', 'Рамз ва ҳадди ақалро нависед', 'Kod va minimumni yozing'); return render(); } return callTo('/magazin', { action: 'minset', kod: mk0, min: Number(mn) }).then(function (r) { if (!r || !r.ok) A3.err = (r && r.error) || TX('Не удалось записать'); else { A3.err = ''; A3.msg = ui('Минимум сохранён', 'Ҳадди ақал захира шуд', 'Minimum saqlandi'); } anLoad(); }); }
+    if (a === 'copyorder') { var A4 = anState(), txt = ((A4.data && A4.data.order) || []).map(function (x) { return x.kod + ' ' + x.name + ' — ' + x.suggest; }).join('\n'); try { navigator.clipboard.writeText(txt); A4.msg = ui('Список скопирован', 'Рӯйхат нусха шуд', 'Roʻyxat nusxalandi'); } catch (e) { A4.err = ui('Не удалось скопировать', 'Нусха нашуд', 'Nusxalab boʻlmadi'); } return render(); }
+    if (a === 'invok' || a === 'invno' || a === 'invok1' || a === 'invno1') { var A5 = anState(), ok1 = a.indexOf('ok') === 3 || a === 'invok1', one = a.slice(-1) === '1', bd = { action: ok1 ? 'inv_ok' : 'inv_no' }; if (one) bd.ids = [k]; else bd.all = true; return callTo('/magazin', bd).then(function (r) { if (!r || !r.ok) A5.err = (r && r.error) || TX('Не удалось записать'); else { A5.err = ''; A5.msg = ok1 ? ui('Остатки исправлены по пересчёту', 'Боқимонда ислоҳ шуд', 'Qoldiqlar tuzatildi') : ui('Пересчёт отклонён', 'Ҳисобкунӣ рад шуд', 'Sanoq rad etildi'); } shLoad(); anLoad(); }); }
+    if (a === 'copen') { var C1 = cntState(); C1.open = true; C1.msg = ''; C1.err = ''; if (SH.tab !== 'prihod' && SH.tab !== 'anal') SH.tab = 'prihod'; if (SH.tab === 'anal') SH.tab = 'prihod'; return render(); }
+    if (a === 'cclose') { cntState().open = false; return render(); }
+    if (a === 'cadd') { var C2 = cntState(), ck = String(shNum('sh-c-kod') || '').trim().toLowerCase(), cf = Math.round(Number(shNum('sh-c-fact'))), cp = SH.d && SH.d.products.filter(function (p) { return p.kod.toLowerCase() === ck; })[0]; if (!cp) { C2.err = ui('Товара с таким кодом нет', 'Чунин рамзи мол нест', 'Bunday kodli tovar yoʻq'); return render(); } if (!(cf >= 0) || shNum('sh-c-fact') === '') { C2.err = ui('Укажите, сколько штук по факту', 'Миқдори воқеиро нависед', 'Haqiqiy sonini yozing'); return render(); } C2.err = ''; C2.list = C2.list.filter(function (x) { return x.kod !== cp.kod; }); C2.list.unshift({ kod: cp.kod, name: cp.name, fact: cf }); return render(); }
+    if (a === 'crm') { var C3 = cntState(); C3.list.splice(Number(k), 1); return render(); }
+    if (a === 'csend') { var C4 = cntState(); if (!C4.list.length) { C4.err = ui('Сначала добавьте товары в список', 'Аввал молҳоро илова кунед', 'Avval tovarlarni qoʻshing'); return render(); } return callTo('/magazin', { action: 'count', id: oid(), items: C4.list.map(function (x) { return { kod: x.kod, fact: x.fact }; }) }).then(function (r) { if (!r || !r.ok) C4.err = (r && r.error) || TX('Не удалось отправить'); else { C4.err = ''; C4.list = []; C4.msg = ui('Пересчёт отправлен руководителю', 'Ҳисобкунӣ ба роҳбар фиристода шуд', 'Sanoq rahbarga yuborildi'); } render(); }); }
     if (a === 'fedit') { var p = shProd(k); if (p) SH.form = { kod: p.kod, name: p.name, zakup: p.zakup, marzha: p.marzha, edit: true }; SH.rcv = null; return render(); }
     if (a === 'fcancel') { SH.fotoNew = ''; SH.form = null; SH.err = ''; return render(); }
     if (a === 'save') return shSave();
