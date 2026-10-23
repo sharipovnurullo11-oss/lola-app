@@ -80,7 +80,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   })();
 
-  var D = null, BAD = '', LOAD_ERR = '', SHEET = null, VIEW = 'main', ACT = {}, ACT_ERR = {};
+  var D = null, BAD = '', LOAD_ERR = '', SHEET = null, VIEW = 'main', ACT = {}, ACT_ERR = {}, HO = { busy: false, err: '' };
   var app = document.getElementById('app');
   var MAX_PHOTO = 1.5 * 1024 * 1024;
 
@@ -195,11 +195,19 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
         (x.check ? '<br>' + (bad ? '<span class="bad">повреждён' + (num(x.repair_paid) > 0 ? ', за ремонт ' + money(x.repair_paid) + ' сомони' : '') + '</span>' : 'работает') : '') + '</div>';
     }).join('') + '</div>' : '<p class="empty">Пока пусто.</p>';
 
-    var got = rs.reduce(function (s, x) { return s + Math.round(num(x.amount) * 100); }, 0) / 100, mine = num(D.earned);
+    // Цифры денег считает сервер: собрано, доля владельца, долг Нурулло после последней передачи.
+    var owed = num(D.owed), hos = (Array.isArray(D.handovers) ? D.handovers : []).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
     h += '<h2>Мои деньги</h2><div class="money">' +
-      '<div><span>Всего собрано</span><b>' + money(got) + ' сомони</b></div>' +
-      '<div><span>Моя доля 20%</span><b>' + money(mine) + ' сомони</b></div>' +
-      '<div><span>К отдаче Нурулло 80%</span><b>' + money(got - mine) + ' сомони</b></div></div>';
+      '<div><span>Всего собрано</span><b>' + money(D.collected) + ' сомони</b></div>' +
+      '<div><span>Моя доля 20%</span><b>' + money(D.earned) + ' сомони</b></div>' +
+      '<div><span>К передаче Нурулло 80%</span><b>' + money(owed) + ' сомони</b></div>' +
+      (num(D.handed) > 0 ? '<div><span>Уже передано</span><b>' + money(D.handed) + ' сомони</b></div>' : '') + '</div>' +
+      (HO.err ? '<p class="err">' + esc(HO.err) + '</p>' : '') +
+      '<div class="two"><button type="button" class="btn ok" data-a="handover"' + (owed > 0 && !HO.busy ? '' : ' disabled') + '>' +
+        (HO.busy ? 'Отправляю…' : owed > 0 ? 'Передал Нурулло ' + money(owed) + ' сомони' : 'Нурулло передавать нечего') + '</button></div>' +
+      '<h2>Передачи Нурулло</h2>' + (hos.length ? '<div class="money">' + hos.map(function (x) {
+        return '<div><span>' + esc(day(x.date)) + '</span><b>' + money(x.amount) + ' сомони</b></div>';
+      }).join('') + '</div>' : '<p class="empty">Передач пока не было.</p>');
 
     if (SHEET) h += SHEET.kind === 'rent' ? rentSheet() : retSheet();
     app.innerHTML = h;
@@ -325,11 +333,23 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
       render();
     });
   }
+  // «Передал Нурулло»: сумма ровно равна owed; если сервер посчитал иначе, он ответит «сумма изменилась».
+  function handover() {
+    var owed = num(D && D.owed); if (HO.busy || !(owed > 0) || SHEET) return;
+    if (!window.confirm('Вы передали ' + money(owed) + ' сомони?')) return;
+    HO.busy = true; HO.err = ''; render();
+    api('handover', { id: oid(), amount: owed }).then(function (r) {
+      HO.busy = false;
+      if (!take(r) && !BAD) HO.err = r.error || 'Не получилось сохранить';
+      render();
+    });
+  }
   app.addEventListener('click', function (e) {
     var b = e.target.closest('[data-a]'); if (!b) return;
     var a = b.getAttribute('data-a');
     if (a === 'ov') { if (e.target === b && SHEET && !SHEET.busy) { SHEET = null; render(); } return; }
     if (a === 'reload') { LOAD_ERR = ''; render(); return load(); }
+    if (a === 'handover') return handover();
     if (a === 'prices') { VIEW = 'prices'; render(); window.scrollTo(0, 0); return; }
     if (a === 'main') { VIEW = 'main'; render(); window.scrollTo(0, 0); return; }
     if (a === 'broken' || a === 'fixed') {
