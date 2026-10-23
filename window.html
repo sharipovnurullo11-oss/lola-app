@@ -2798,7 +2798,7 @@ if (S.view === 'mkt') return renderMkt(el);
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(ui('Деньги и товар в одном месте. Выберите раздел.', 'Пул ва мол дар як ҷо. Бахшро интихоб кунед.', 'Pul va tovar bir joyda. Boʻlimni tanlang.')) + '</p><div style="display:grid;gap:10px">' +
       card('buh', '📒', ui('Бухгалтерия', 'Ҳисобдорӣ', 'Buxgalteriya'), ui('Приход, расход, остатки и прибыль за месяц', 'Даромад, хароҷот, боқимонда ва фоидаи моҳ', 'Kirim, chiqim, qoldiq va oylik foyda')) +
       card('shop', '🛒', ui('Учёт магазина', 'Ҳисоби мағоза', 'Doʻkon hisobi'), ui('Продажа, приём товара, долги и итоги', 'Фурӯш, қабули мол, қарзҳо ва натиҷаҳо', 'Sotuv, tovar qabuli, qarzlar va natijalar')) +
-      (shopOn() ? card('kl', '📦', ui('Кладовщик', 'Анбордор', 'Omborchi'), ui('Приём товара, склад и остатки', 'Қабули мол, анбор ва боқимонда', 'Tovar qabuli, ombor va qoldiq')) : '') + '</div>';
+      (shopOn() ? card('kl', '📦', ui('Кладовщик', 'Анбордор', 'Omborchi'), ui('Проверка: приём товара и остатки. Сам кладовщик входит со своим логином', 'Санҷиш: қабули мол ва боқимонда. Анбордор бо логини худаш медарояд', 'Tekshiruv: tovar qabuli va qoldiq. Omborchi oʻz login bilan kiradi')) : '') + '</div>';
   }
   function renderSoon(el, id) {
     var s = LIST.filter(function (x) { return x.id === id; })[0]; if (!s) { S.view = 'list'; return render(); }
@@ -3883,7 +3883,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (!t) return '<span style="opacity:.65">' + esc(ui('Введите код или название товара', 'Рамз ё номи молро ворид кунед', 'Tovar kodi yoki nomini kiriting')) + '</span>';
     var r = ((SH.d && SH.d.products) || []).filter(function (p) { return p.kod.toLowerCase().indexOf(t) === 0 || p.name.toLowerCase().indexOf(t) >= 0; }).slice(0, 8);
     if (!r.length) return '<small>' + esc(ui('Такого товара нет. Нажмите «Новый товар».', 'Чунин мол нест. «Моли нав»-ро пахш кунед.', 'Bunday tovar yoʻq. «Yangi tovar»ni bosing.')) + '</small>';
-    return '<div style="display:grid;gap:6px">' + r.map(function (p) { return shBtn('rcv', p.kod + ' · ' + p.name + ' · ' + ui('ост. ', 'бок. ', 'qol. ') + p.qty, { sec: true, st: 'text-align:left' }, p.kod); }).join('') + '</div>';
+    return '<div style="display:grid;gap:6px">' + r.map(function (p) { return shBtn('rcv', p.kod + ' · ' + p.name + ' · ' + ui('ост. ', 'бок. ', 'qol. ') + p.qty + ' · ' + ui('себестоимость ', 'арзиши аслӣ ', 'tannarx ') + shMoney(p.zakup), { sec: true, st: 'text-align:left' }, p.kod); }).join('') + '</div>';
   }
   function shPrihod() {
     var D = SH.d, h = '', f = SH.form;
@@ -3898,7 +3898,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     } else if (SH.rcv) {
       var cur = shProd(SH.rcv.kod);
       h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px">' + shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + shThumb(cur, 56) + shBtn('foto', '📷 ' + (cur && cur.foto ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'rcv') + '</div>') + '<b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + (cur ? '<small>' + esc(ui('Сейчас на складе: ', 'Ҳоло дар анбор: ', 'Hozir omborda: ')) + cur.qty + '</small>' : '') +
-        shIn('sh-r-qty', ui('Сколько штук пришло', 'Чанд дона омад', 'Necha dona keldi'), '', 'inputmode="numeric"') +
+        '<div style="font-size:17px">' + esc(ui('Себестоимость сейчас', 'Арзиши аслии ҳозира', 'Joriy tannarx')) + ': <b>' + esc(cur ? shMoney(cur.zakup) : '') + '</b> ' + esc(ui('за штуку', 'барои як дона', 'dona uchun')) + '</div>' + shIn('sh-r-qty', ui('Сколько штук пришло', 'Чанд дона омад', 'Necha dona keldi'), '', 'inputmode="numeric"') +
         shIn('sh-r-zakup', ui('Новая закупочная цена (если изменилась)', 'Нархи нави харид (агар тағйир ёфт)', 'Yangi xarid narxi (oʻzgargan boʻlsa)'), '', 'inputmode="decimal"') +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
     } else {
