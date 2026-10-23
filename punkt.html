@@ -43,6 +43,9 @@ p{margin:8px 0}
 .money div{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .money div:last-child{border-bottom:0}
 .money b{white-space:nowrap}
+.price{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;font-size:20px}
+.price b{display:inline;font-size:22px;white-space:nowrap}
+.tool .btn.sec{background:var(--card)}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:10}
 .sheet{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:100dvh;overflow:auto}
 .sheet h3{margin:0 0 12px;font-size:22px}
@@ -77,7 +80,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   })();
 
-  var D = null, BAD = '', LOAD_ERR = '', SHEET = null;
+  var D = null, BAD = '', LOAD_ERR = '', SHEET = null, VIEW = 'main', ACT = {}, ACT_ERR = {};
   var app = document.getElementById('app');
   var MAX_PHOTO = 1.5 * 1024 * 1024;
 
@@ -133,11 +136,12 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     });
   }
 
-  // Цвет карточки: красный — последний возврат «поврежден», зелёный — есть свободные, жёлтый — всё в аренде.
-  function lastCheck(name, rs) {
-    var back = rs.filter(function (x) { return x.tool === name && x.status !== 'в аренде'; });
-    back.sort(function (a, b) { return String(b.returned || b.start || '').localeCompare(String(a.returned || a.start || '')); });
-    return back.length ? back[0].check : '';
+  // Цвет карточки: красный — есть сломанные, зелёный — есть свободные, жёлтый — всё в аренде.
+  function brokenOf(name, rs) { return rs.filter(function (x) { return x.tool === name && x.status === 'сломан'; }); }
+  function priceHint(t) {
+    var d = num(t.min_day), hr = num(t.min_hour);
+    if (!(d > 0) && !(hr > 0)) return '';
+    return 'минимум за сутки: ' + (d > 0 ? money(d) : '—') + (hr > 0 ? ', коротко (до 3 часов): ' + money(hr) : '');
   }
   function render() {
     if (BAD) { app.innerHTML = '<p class="big err">' + esc(BAD) + '</p>'; return; }
@@ -146,20 +150,30 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
       return;
     }
     var pt = D.point || {}, tools = Array.isArray(D.tools) ? D.tools : [], rs = Array.isArray(D.rentals) ? D.rentals : [];
+    if (VIEW === 'prices') return renderPrices(pt, tools);
     var now = rs.filter(function (x) { return x.status === 'в аренде'; });
-    var hist = rs.filter(function (x) { return x.status !== 'в аренде'; }).sort(function (a, b) { return String(b.returned || b.start || '').localeCompare(String(a.returned || a.start || '')); }).slice(0, 20);
+    var hist = rs.filter(function (x) { return x.status === 'вернули'; }).sort(function (a, b) { return String(b.returned || b.start || '').localeCompare(String(a.returned || a.start || '')); }).slice(0, 20);
     var h = '<h1>' + esc(pt.name || 'Пункт проката') + '</h1>' + (pt.owner ? '<p class="muted">' + esc(pt.owner) + '</p>' : '') +
       '<div class="share">Ваша доля (20%): <b>' + money(D.earned) + '</b> сомони</div>' +
-      (LOAD_ERR ? '<p class="err">' + esc(LOAD_ERR) + '</p>' : '');
+      (LOAD_ERR ? '<p class="err">' + esc(LOAD_ERR) + '</p>' : '') +
+      '<button type="button" class="btn sec" data-a="prices">🏷 Цены для клиента</button>';
 
     h += '<h2>Инструменты</h2>';
     h += tools.length ? '<div class="list">' + tools.map(function (t, i) {
-      var free = num(t.free), qty = num(t.qty), out = num(t.out), broken = lastCheck(t.name, rs) === 'поврежден';
-      var cls = broken ? 'bad' : free > 0 ? 'free' : 'out';
-      var st = broken ? 'Последний возврат: повреждён' : free > 0 ? (out > 0 ? 'Свободен, ещё ' + out + ' в аренде' : 'Свободен') : 'В аренде';
+      var free = num(t.free), qty = num(t.qty), out = num(t.out), broken = num(t.broken), recs = brokenOf(t.name, rs), busy = !!ACT[t.name];
+      var cls = broken > 0 ? 'bad' : free > 0 ? 'free' : 'out';
+      var st = [];
+      if (broken > 0) st.push('Сломано: ' + broken);
+      if (out > 0) st.push('в аренде: ' + out);
+      if (!st.length) st.push('Свободен');
       return '<div class="tool ' + cls + '"><b>' + esc(t.name) + '</b>свободно ' + esc(free) + ' из ' + esc(qty) +
-        '<div class="st">' + esc(st) + '</div>' +
-        (free > 0 ? '<button type="button" class="btn" data-a="tool" data-i="' + i + '">Дать в аренду</button>' : '') + '</div>';
+        '<div class="st">' + esc(st.join(', ')) + '</div>' +
+        (ACT_ERR[t.name] ? '<p class="err">' + esc(ACT_ERR[t.name]) + '</p>' : '') +
+        (free > 0 ? '<button type="button" class="btn" data-a="tool" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>Дать в аренду</button>' +
+          '<button type="button" class="btn sec" data-a="broken" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>' + (busy === 'broken' ? 'Отправляю…' : 'Сломался') + '</button>' : '') +
+        recs.map(function (x) {
+          return '<button type="button" class="btn ok" data-a="fixed" data-i="' + i + '" data-id="' + esc(x.id) + '"' + (busy ? ' disabled' : '') + '>' + (busy === 'fixed' ? 'Отправляю…' : 'Починили' + (recs.length > 1 && x.start ? ' (сломан ' + esc(day(x.start)) + ')' : '')) + '</button>';
+        }).join('') + '</div>';
     }).join('') + '</div>' : '<p class="empty">Инструментов пока нет.</p>';
 
     h += '<h2>Сейчас в аренде</h2>';
@@ -191,6 +205,18 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     app.innerHTML = h;
   }
 
+  // «Цены для клиента»: только этот пункт, только цены — без долей и сумм. Экран можно показать клиенту.
+  function renderPrices(pt, tools) {
+    var back = '<button type="button" class="btn sec" data-a="main">← Назад</button>';
+    app.innerHTML = back + '<h1>Цены на прокат</h1>' + (pt.name ? '<p class="muted">' + esc(pt.name) + '</p>' : '') +
+      (tools.length ? '<div class="list">' + tools.map(function (t) {
+        var d = num(t.min_day), hr = num(t.min_hour);
+        return '<div class="row"><b>' + esc(t.name) + '</b>' +
+          (hr > 0 ? '<div class="price"><span>Коротко (до 3 часов)</span><b>' + money(hr) + ' сомони</b></div>' : '') +
+          '<div class="price"><span>Сутки</span><b>' + (d > 0 ? money(d) + ' сомони' : 'уточните') + '</b></div></div>';
+      }).join('') + '</div>' : '<p class="empty">Инструментов пока нет.</p>') +
+      '<div class="two">' + back + '</div>';
+  }
   function photoField(key, label, url, busy) {
     return '<label class="photo' + (url ? ' done' : '') + '">' + (url ? '<img src="' + esc(url) + '" alt="">' : '📷') + '<span>' + esc(busy ? 'Обрабатываю фото…' : url ? label + ': готово, нажмите, чтобы переснять' : label) + '</span>' +
       '<input type="file" accept="image/*" capture="environment" data-photo="' + key + '"></label>';
@@ -202,7 +228,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     return '<div class="ov" data-a="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Дать в аренду">' +
       '<h3>' + esc(t.name) + '</h3>' +
       '<label for="f-price">Цена за день (сомони)</label><input id="f-price" type="text" inputmode="decimal" autocomplete="off" value="' + esc(S.price) + '">' +
-      (num(t.min_day) > 0 ? '<div class="hint">Не меньше ' + money(t.min_day) + ' сомони в день' + (num(t.min_hour) > 0 ? ' (за час — от ' + money(t.min_hour) + ')' : '') + '</div>' : '') +
+      (priceHint(t) ? '<div class="hint">' + esc(priceHint(t)) + '</div>' : '') +
       '<label for="f-days">На сколько дней</label><input id="f-days" type="text" inputmode="numeric" autocomplete="off" value="' + esc(S.days) + '">' +
       '<div class="calc" id="f-total">' + esc(totalText(S)) + '</div>' +
       '<label>Залог</label><div class="pick">' +
@@ -288,11 +314,29 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     });
   }
 
+  // «Сломался» и «Починили»: один запрос на нажатие, id для «Сломался» создаётся на каждое нажатие.
+  function toolAct(t, action, body, question) {
+    if (!t || ACT[t.name] || SHEET) return;
+    if (!window.confirm(question)) return;
+    ACT[t.name] = action; delete ACT_ERR[t.name]; render();
+    api(action, body).then(function (r) {
+      delete ACT[t.name];
+      if (!take(r) && !BAD) ACT_ERR[t.name] = r.error || 'Не получилось сохранить';
+      render();
+    });
+  }
   app.addEventListener('click', function (e) {
     var b = e.target.closest('[data-a]'); if (!b) return;
     var a = b.getAttribute('data-a');
     if (a === 'ov') { if (e.target === b && SHEET && !SHEET.busy) { SHEET = null; render(); } return; }
     if (a === 'reload') { LOAD_ERR = ''; render(); return load(); }
+    if (a === 'prices') { VIEW = 'prices'; render(); window.scrollTo(0, 0); return; }
+    if (a === 'main') { VIEW = 'main'; render(); window.scrollTo(0, 0); return; }
+    if (a === 'broken' || a === 'fixed') {
+      var tt = D && D.tools && D.tools[+b.getAttribute('data-i')]; if (!tt) return;
+      if (a === 'broken') return num(tt.free) > 0 && toolAct(tt, 'broken', { id: oid(), tool: tt.name }, 'Отметить «' + tt.name + '» сломанным?');
+      return toolAct(tt, 'fixed', { id: b.getAttribute('data-id') }, 'Инструмент «' + tt.name + '» починили?');
+    }
     if (a === 'tool') {
       var t = D && D.tools && D.tools[+b.getAttribute('data-i')]; if (!t || !(num(t.free) > 0)) return;
       SHEET = { kind: 'rent', tool: t, price: '', days: '', zalog: '', zsum: '', phone: '', person: '', passport: '', consent: false, wait: {}, err: '', busy: false, id: oid() }; LOAD_ERR = ''; render();
