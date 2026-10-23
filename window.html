@@ -3922,6 +3922,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var h = '<div style="margin-top:18px;padding-top:12px;border-top:1px dashed #cfcfcf">';
     if (!SH.expOpen) return h + shBtn('expopen', '💸 ' + ui('Личный расход', 'Хароҷоти шахсӣ', 'Shaxsiy xarajat'), { sec: true, st: 'width:100%' }) + '</div>';
     h += '<b>' + esc(ui('Личный расход', 'Хароҷоти шахсӣ', 'Shaxsiy xarajat')) + '</b><p style="margin:4px 0 8px"><small>' + esc(ui('Взяли деньги на себя (обед, проезд и т.п.). Это запись, а не долг: руководитель увидит её в отчёте.', 'Пул барои худ гирифта шуд (хӯрок, роҳкиро). Ин сабт аст, на қарз: роҳбар дар ҳисобот мебинад.', 'Oʻzingiz uchun pul oldingiz (ovqat, yoʻl haqi). Bu yozuv, qarz emas: rahbar hisobotda koʻradi.')) + '</small></p><div style="display:grid;gap:8px">';
+    if (!sellerView()) { var nm = ['Маруф', 'Абду']; try { ((SH.d && SH.d.report && SH.d.report.salary) || []).forEach(function (z) { if (z.name && nm.indexOf(z.name) < 0) nm.push(z.name); }); } catch (e) {} h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px">' + nm.map(function (n) { return shBtn('echip', n, { sec: true, st: 'min-height:40px;padding:0 16px' }, n); }).join('') + '</div>'; }
     if (!sellerView()) h += shIn('sh-e-who', ui('Чей расход (имя продавца)', 'Хароҷоти кӣ (номи фурӯшанда)', 'Kimning xarajati (sotuvchi ismi)'), '', 'maxlength="40"');
     h += shIn('sh-e-amt', ui('Сумма, сомони', 'Маблағ, сомонӣ', 'Summa, somoniy'), '', 'inputmode="decimal"') + shIn('sh-e-note', ui('На что (необязательно)', 'Барои чӣ (ихтиёрӣ)', 'Nimaga (ixtiyoriy)'), '', 'maxlength="60"') +
       '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('expsave', SH.busy ? TX('Загрузка…') : ui('Записать расход', 'Сабти хароҷот', 'Xarajatni yozish')) + shBtn('expopen', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div></div>';
@@ -4076,6 +4077,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (!(za > 0)) { SH.err = ui('Укажите сумму', 'Маблағро нависед', 'Summani yozing'); return render(); }
       return shAct({ action: 'sal_pay', who: zw, kind: zm, amount: za, id: oid(), date: today() }, ui('Записано', 'Сабт шуд', 'Yozildi'), function () { SH.zpf = null; });
     }
+    if (a === 'echip') { var ew = $s('sh-e-who'); if (ew) { ew.value = k; ew.focus(); } return; }
     if (a === 'expopen') { SH.expOpen = !SH.expOpen; SH.err = ''; return render(); }
     if (a === 'expsave') {
       if (SH.busy) return; var ea = Number(shNum('sh-e-amt')), en = $s('sh-e-note'), ew = $s('sh-e-who');
