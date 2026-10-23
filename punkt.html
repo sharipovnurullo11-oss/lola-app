@@ -24,6 +24,10 @@ p{margin:8px 0}
 .tool.out{border-color:var(--busy);background:var(--busybg)}
 .tool.bad{border-color:var(--bad);background:var(--badbg)}
 .tool b{display:block;font-size:20px}
+.tool .top{display:flex;align-items:center;gap:12px}
+.tool .info{flex:1;min-width:0}
+.th{flex:none;width:72px;height:72px;border-radius:12px;object-fit:cover;background:var(--line)}
+.th.ph{display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:var(--muted)}
 .tool .st{font-weight:600;margin-top:2px}
 .tool.free .st{color:var(--ok)}.tool.out .st{color:var(--busy)}.tool.bad .st{color:var(--bad)}
 .tool .btn{margin-top:10px}
@@ -80,7 +84,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   })();
 
-  var D = null, BAD = '', LOAD_ERR = '', SHEET = null, VIEW = 'main', ACT = {}, ACT_ERR = {}, HO = { busy: false, err: '' };
+  var D = null, BAD = '', LOAD_ERR = '', SHEET = null, VIEW = 'main', ACT = {}, ACT_ERR = {}, HO = { busy: false, err: '' }, THUMB = {}, BAD_TH = {}, ME_AT = 0;
   var app = document.getElementById('app');
   var MAX_PHOTO = 1.5 * 1024 * 1024;
 
@@ -102,11 +106,25 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
   }
   // Ответ сервера: при «ссылка не подходит» вся страница показывает одно сообщение.
   function take(r) {
-    if (r && r.ok) { D = r; LOAD_ERR = ''; return true; }
+    if (r && r.ok) { D = r; LOAD_ERR = ''; thumbs(r); return true; }
     if (r && r.error === 'ссылка не подходит') { BAD = 'Ссылка недействительна, позвоните Нурулло'; SHEET = null; }
     return false;
   }
+  // Миниатюры приходят только в ответе на 'me': запоминаем их по названию и подставляем в ответы других действий.
+  function thumbs(r) {
+    (Array.isArray(r.tools) ? r.tools : []).forEach(function (t) {
+      if (!t || t.name == null) return;
+      if (Object.prototype.hasOwnProperty.call(t, 'thumb')) THUMB[t.name] = String(t.thumb || '');
+      else t.thumb = THUMB[t.name] || '';
+    });
+  }
+  function thumbUrl(u) { u = String(u || ''); return /^https:\/\/lh3\.googleusercontent\.com\//.test(u) && !BAD_TH[u] ? u : ''; }
+  function thumbHtml(t) {
+    var u = thumbUrl(t.thumb), letter = String(t.name || '?').trim().charAt(0).toUpperCase() || '?';
+    return u ? '<img class="th" src="' + esc(u) + '" alt="" loading="lazy" referrerpolicy="no-referrer" data-letter="' + esc(letter) + '">' : '<span class="th ph" aria-hidden="true">' + esc(letter) + '</span>';
+  }
   function load() {
+    ME_AT = Date.now();
     api('me', {}).then(function (r) { if (!take(r)) LOAD_ERR = r.error || 'Не получилось загрузить'; render(); });
   }
 
@@ -166,8 +184,8 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
       if (broken > 0) st.push('Сломано: ' + broken);
       if (out > 0) st.push('в аренде: ' + out);
       if (!st.length) st.push('Свободен');
-      return '<div class="tool ' + cls + '"><b>' + esc(t.name) + '</b>свободно ' + esc(free) + ' из ' + esc(qty) +
-        '<div class="st">' + esc(st.join(', ')) + '</div>' +
+      return '<div class="tool ' + cls + '"><div class="top">' + thumbHtml(t) + '<div class="info"><b>' + esc(t.name) + '</b>свободно ' + esc(free) + ' из ' + esc(qty) +
+        '<div class="st">' + esc(st.join(', ')) + '</div></div></div>' +
         (ACT_ERR[t.name] ? '<p class="err">' + esc(ACT_ERR[t.name]) + '</p>' : '') +
         (free > 0 ? '<button type="button" class="btn" data-a="tool" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>Дать в аренду</button>' +
           '<button type="button" class="btn sec" data-a="broken" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>' + (busy === 'broken' ? 'Отправляю…' : 'Сломался') + '</button>' : '') +
@@ -383,6 +401,14 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     keep(); S.wait[key] = true; S.err = ''; render();
     shrink(file).then(function (url) { S[key] = url; }, function (er) { S.err = er.message; }).then(function () { S.wait[key] = false; if (SHEET === S) { keep(); render(); } });
   });
+  // Ссылка на миниатюру живёт около часа: если картинка не загрузилась — серый квадрат с буквой, а старые ссылки обновляем через 'me'.
+  app.addEventListener('error', function (e) {
+    var im = e.target; if (!im || im.tagName !== 'IMG' || !im.classList.contains('th')) return;
+    BAD_TH[im.getAttribute('src')] = 1; // не загружаем ту же битую ссылку при каждой перерисовке
+    var ph = document.createElement('span'); ph.className = 'th ph'; ph.setAttribute('aria-hidden', 'true'); ph.textContent = im.getAttribute('data-letter') || '?';
+    im.replaceWith(ph);
+    if (Date.now() - ME_AT > 30 * 60 * 1000 && !SHEET) load();
+  }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && SHEET && !SHEET.busy) { SHEET = null; render(); } });
 
   if (!TOKEN) { BAD = 'Ссылка недействительна, позвоните Нурулло'; render(); } else load();
