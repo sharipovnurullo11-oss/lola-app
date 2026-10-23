@@ -2799,7 +2799,25 @@ if (S.view === 'mkt') return renderMkt(el);
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(ui('Деньги и товар в одном месте. Выберите раздел.', 'Пул ва мол дар як ҷо. Бахшро интихоб кунед.', 'Pul va tovar bir joyda. Boʻlimni tanlang.')) + '</p><div style="display:grid;gap:10px">' +
       card('buh', '📒', ui('Бухгалтерия', 'Ҳисобдорӣ', 'Buxgalteriya'), ui('Приход, расход, остатки и прибыль за месяц', 'Даромад, хароҷот, боқимонда ва фоидаи моҳ', 'Kirim, chiqim, qoldiq va oylik foyda')) +
       card('shop', '🛒', ui('Учёт магазина', 'Ҳисоби мағоза', 'Doʻkon hisobi'), ui('Продажа, приём товара, долги и итоги', 'Фурӯш, қабули мол, қарзҳо ва натиҷаҳо', 'Sotuv, tovar qabuli, qarzlar va natijalar')) +
-      (shopOn() ? card('kl', '📦', ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), ui('Войти в экран кладовщика: приём товара и себестоимость. Сам кладовщик входит со своим логином', 'Ба экрани анбордор дароед: қабули мол ва арзиши аслӣ', 'Omborchi ekraniga kirish: tovar qabuli va tannarx')) : '') + '</div>';
+      (shopOn() ? card('kl', '📦', ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), ui('Войти в экран кладовщика: приём товара и себестоимость. Сам кладовщик входит со своим логином', 'Ба экрани анбордор дароед: қабули мол ва арзиши аслӣ', 'Omborchi ekraniga kirish: tovar qabuli va tannarx')) : '') +
+      (shopOn() && owner() ? card('push', '🔔', ui('Уведомления на этот телефон', 'Огоҳинома ба ин телефон', 'Bu telefonga bildirishnoma'), ui('Сообщим сразу, когда продавец запишет личный расход', 'Вақте фурӯшанда хароҷоти шахсӣ сабт кунад, фавран хабар медиҳем', 'Sotuvchi shaxsiy xarajat yozsa, darhol xabar beramiz')) : '') + '</div>' + (S.pushMsg ? '<p role="status" style="margin-top:10px">' + esc(S.pushMsg) + '</p>' : '');
+  }
+  // Push-уведомления владельцу: разрешение, подписка телефона и отправка её серверу
+  function pushKey(k) { var p = '='.repeat((4 - k.length % 4) % 4), b = (k + p).replace(/-/g, '+').replace(/_/g, '/'), r = atob(b), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+  function pushEnable() {
+    var say = function (t) { S.pushMsg = t; if (S.view === 'fin') render(); };
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return say(ui('Этот телефон или браузер не поддерживает уведомления. На iPhone сначала добавьте приложение на экран «Домой».', 'Ин телефон ё браузер огоҳиномаро дастгирӣ намекунад.', 'Bu telefon yoki brauzer bildirishnomani qoʻllamaydi.'));
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') return say(ui('Уведомления не разрешены. Разрешите их в настройках браузера для этого сайта.', 'Огоҳинома иҷозат нашуд. Дар танзимоти браузер иҷозат диҳед.', 'Bildirishnoma ruxsat etilmadi. Brauzer sozlamalarida ruxsat bering.'));
+      return fetch('/push/key', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (!j || !j.key) return say(ui('Сервер пока не готов к уведомлениям. Попробуйте позже.', 'Сервер ҳоло омода нест.', 'Server hali tayyor emas.'));
+        return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKey(j.key) }); }).then(function (sub) {
+          return fetch('/push/sub', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: store('ew_cab') || '', sub: sub.toJSON() }) }).then(function (r) { return r.json(); }).then(function (x) {
+            say(x && x.ok ? ui('Готово: уведомления включены на этом телефоне.', 'Тайёр: огоҳинома фаъол шуд.', 'Tayyor: bildirishnoma yoqildi.') : ui('Не удалось сохранить подписку.', 'Обуна захира нашуд.', 'Obuna saqlanmadi.'));
+          });
+        });
+      });
+    }).catch(function () { say(ui('Не получилось включить уведомления.', 'Огоҳинома фаъол нашуд.', 'Bildirishnomani yoqib boʻlmadi.')); });
   }
   function renderSoon(el, id) {
     var s = LIST.filter(function (x) { return x.id === id; })[0]; if (!s) { S.view = 'list'; return render(); }
@@ -4111,7 +4129,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     if (b.dataset.asst) return asstClick(b);
     if (b.dataset.onb) return onbClick(b);
-if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) openShop(); return; } if (b.dataset.fin === 'kl') { if (shopOn()) { PREV_FIN = true; KEEPER = true; PREVIEW = true; PREV_TAB = 'kassa'; var mdk = $s('m-spec'); if (mdk && mdk.open) mdk.close(); setSeller(true); } return; } return openBuh(); }
+if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) openShop(); return; } if (b.dataset.fin === 'push') { pushEnable(); return; }
+if (b.dataset.fin === 'kl') { if (shopOn()) { PREV_FIN = true; KEEPER = true; PREVIEW = true; PREV_TAB = 'kassa'; var mdk = $s('m-spec'); if (mdk && mdk.open) mdk.close(); setSeller(true); } return; } return openBuh(); }
 if (b.dataset.shop) return shopClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);

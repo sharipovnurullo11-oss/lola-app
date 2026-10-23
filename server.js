@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { openDb } from './db.js';
 import { pickLang, T } from './i18n.js';
 import * as V from './views.js';
+import { initPush, textFor } from './push.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const SECURE = process.env.COOKIE_SECURE !== '0';
@@ -104,6 +105,7 @@ async function readForm(req) {
 const clientIp = (req) => (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || req.socket.remoteAddress || '?';
 
 const db = await openDb();
+const PUSH = process.env.NODE_ENV === 'test' ? null : await initPush(DATA_DIR, ownerEmail()).catch(() => null);
 setInterval(() => db.cleanup().catch(() => {}), 3600_000).unref();
 
 export const server = http.createServer(async (req, res) => {
@@ -122,6 +124,17 @@ export const server = http.createServer(async (req, res) => {
     const setCookies = [];
 
     if (req.method === 'GET' && p === '/healthz') return send(200, 'ok', { 'Content-Type': 'text/plain' });
+
+    // Push-уведомления владельцу: открытый ключ, подписка телефона и событие от n8n (код кабинета знает только владелец)
+    if (p === '/push/key' && req.method === 'GET') return PUSH ? send(200, JSON.stringify({ key: PUSH.publicKey }), { 'Content-Type': 'application/json' }) : send(503, '{"ok":false}', { 'Content-Type': 'application/json' });
+    if ((p === '/push/sub' || p === '/push/send') && req.method === 'POST') {
+      if (!PUSH) return send(503, '{"ok":false}', { 'Content-Type': 'application/json' });
+      if (tooMany('push|' + clientIp(req), 40, 60_000)) return send(429, '{"ok":false}', { 'Content-Type': 'application/json' });
+      let j = {}; try { j = JSON.parse((await readRaw(req, 4000)).toString('utf8')); } catch { return send(400, '{"ok":false}', { 'Content-Type': 'application/json' }); }
+      if (p === '/push/sub') return send(200, JSON.stringify({ ok: PUSH.subscribe(j.code, j.sub) }), { 'Content-Type': 'application/json' });
+      const t = textFor(j || {}); if (!t) return send(200, '{"ok":true,"sent":0}', { 'Content-Type': 'application/json' });
+      return send(200, JSON.stringify({ ok: true, sent: await PUSH.notify(j.code, t) }), { 'Content-Type': 'application/json' });
+    }
 
     // Частота запросов с одного адреса: общая, на изменения и на вход/регистрацию
     const ip = clientIp(req);
