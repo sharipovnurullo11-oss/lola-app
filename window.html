@@ -3842,8 +3842,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function shKassa() {
     var D = SH.d, h = '';
-    if (!D.products.length && sellerView()) return '<p>' + esc(ui('Товаров пока нет. Скажите владельцу.', 'Ҳоло мол нест. Ба соҳиб гӯед.', 'Hozircha tovar yoʻq. Egasiga ayting.')) + '</p>';
-    if (!D.products.length) return '<p>' + esc(ui('Сначала добавьте товары: вкладка «Товары».', 'Аввал молҳоро илова кунед: бахши «Молҳо».', 'Avval tovar qoʻshing: «Tovarlar» boʻlimi.')) + '</p>' + shBtn('tab', ui('Товары', 'Молҳо', 'Tovarlar'), null, 'tovar');
+    /* Касса открывается всегда; при пустом списке товаров — подсказка сверху, чек пустой */
+    if (!D.products.length) h += '<p style="opacity:.8;margin:0 0 10px">' + esc(sellerView() ? ui('Товаров пока нет. Скажите владельцу.', 'Ҳоло мол нест. Ба соҳиб гӯед.', 'Hozircha tovar yoʻq. Egasiga ayting.') : ui('Товаров пока нет. Добавьте их во вкладке «Товары».', 'Ҳоло мол нест. Онҳоро дар бахши «Молҳо» илова кунед.', 'Hozircha tovar yoʻq. «Tovarlar» boʻlimida qoʻshing.')) + '</p>';
     h += '<div style="display:grid;grid-template-columns:1fr auto;gap:8px">' + shIn('sh-code', ui('Код товара или название', 'Рамз ё номи мол', 'Tovar kodi yoki nomi'), SH.code, 'inputmode="text" enterkeyhint="done"') + shBtn('add', ui('Добавить', 'Илова', 'Qoʻshish'), { st: 'padding:0 18px' }) + '</div>';
     h += '<div id="sh-hints">' + shHintsHtml() + '</div>';
     if (SH.found) h += '<div style="display:grid;gap:6px;margin:8px 0">' + SH.found.map(function (p) { return shBtn('put', p.kod + ' · ' + p.name + ' · ' + shMoney(p.price), { sec: true, st: 'text-align:left' }, p.kod); }).join('') + '</div>';
@@ -3991,7 +3991,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return shAct({ action: 'pay', who: SH.payf, amount: Number(am), id: oid(), date: today() }, ui('Оплата принята', 'Пардохт қабул шуд', 'Toʻlov qabul qilindi'), function () { SH.payf = null; });
     }
     if (a === 'mprev' || a === 'mnext') { SH.month = shiftMonth(SH.month, a === 'mprev' ? -1 : 1); SH.voidAsk = ''; render(); return shLoad(); }
-    if (a === 'void') { if (SH.voidAsk !== k) { SH.voidAsk = k; return render(); } SH.voidAsk = ''; return shAct({ action: 'void', id: k }, ui('Продажа отменена, товар вернулся на склад', 'Фурӯш бекор шуд, мол ба анбор баргашт', 'Sotuv bekor qilindi, tovar omborga qaytdi')); }
+    if (a === 'void') { if (SH.voidAsk !== k) { SH.voidAsk = k; return render(); } SH.voidAsk = ''; return shAct({ action: 'void', id: k }, ui('Продажа отменена, товар вернулся на склад', 'Фурӯш бекор шуд, мол ба анбор баргашт', 'Sotuv bekor qilindi, tovar omborga qaytdi'), function () { /* убираем чек из списка сразу, без перезагрузки */ var RR = SH.d && SH.d.report; if (RR && RR.checks) RR.checks = RR.checks.filter(function (c) { return c.id !== k; }); }); }
   }
   function shSave() {
     var f = { kod: ($s('sh-f-kod').value || '').trim(), name: ($s('sh-f-name').value || '').trim(), zakup: shNum('sh-f-zakup'), marzha: shNum('sh-f-marzha') };
