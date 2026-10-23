@@ -3785,7 +3785,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px"><h2 style="margin:0">' + (KEEPER ? '📦 ' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) : '🛒 ' + esc(ui('Продажа', 'Фурӯш', 'Sotuv'))) + '</h2><span style="display:flex;align-items:center;gap:8px"><small>' + esc(who) + '</small>' + shBtn('selout', PREVIEW ? ui('Закрыть', 'Пӯшидан', 'Yopish') : ui('Выйти', 'Баромад', 'Chiqish'), { sec: true, st: 'min-height:40px;font-size:14px;padding:0 12px' }) + '</span></div>';
     }
     if (!SELLER && !staffNow() && !kl) h += '<div style="margin:0 0 8px">' + shBtn('preview', '👁 ' + ui('Как видит продавец', 'Фурӯшанда чӣ тавр мебинад', 'Sotuvchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div>';
-    var tabs = [['kassa', 'Продажа', 'Фурӯш', 'Sotuv'], ['prihod', 'Приём', 'Қабул', 'Qabul'], ['tovar', 'Товары', 'Молҳо', 'Tovarlar'], ['dolg', 'Долги', 'Қарзҳо', 'Qarzlar'], ['otchet', 'Отчёт', 'Ҳисобот', 'Hisobot']];
+    var tabs = [['kassa', 'Продажа', 'Фурӯш', 'Sotuv'], ['prihod', 'Приём', 'Қабул', 'Qabul'], ['tovar', 'Товары', 'Молҳо', 'Tovarlar'], ['dolg', 'Долги', 'Қарзҳо', 'Qarzlar'], ['zp', 'Зарплата', 'Маош', 'Maosh'], ['otchet', 'Отчёт', 'Ҳисобот', 'Hisobot']];
     if (kl) tabs = tabs.filter(function (t) { return t[0] === 'prihod' || t[0] === 'tovar'; });
     if (!SELLER && !staffNow()) h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px;margin:8px 0">' + tabs.map(function (t) { return shBtn('tab', ui(t[1], t[2], t[3]), { sec: SH.tab !== t[0] }, t[0]); }).join('') + '</div>';
     if (SH.low && SH.tab === 'kassa') h += '<p role="status" id="sh-low" style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#fff4d6;color:#7a5200">' + esc(SH.low) + '</p>';
@@ -3793,7 +3793,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (SH.ok) h += '<p id="sh-ok" style="background:#e3f6ea;color:#1f6b3d;padding:8px 10px;border-radius:8px">' + esc(SH.ok) + '</p>';
     if (SH.ok && SH.last && SH.tab === 'kassa') { var rw = shRw(); h += '<div style="display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap">' + shBtn('print', '🖨 ' + ui('Печать чека', 'Чопи чек', 'Chek chop etish'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '<small style="opacity:.7">' + esc(ui('Лента', 'Лента', 'Lenta')) + '</small>' + shBtn('rw', '58', { sec: rw !== 58, st: 'min-height:40px;width:56px;padding:0;font-size:14px' }, 58) + shBtn('rw', '80', { sec: rw !== 80, st: 'min-height:40px;width:56px;padding:0;font-size:14px' }, 80) + '</div>'; }
     if (!SH.d) { el.innerHTML = h + '<p>' + esc(SH.err ? '' : TX('Загрузка…')) + '</p>' + (SH.err ? shBtn('reload', ui('Ещё раз', 'Боз кӯшиш кунед', 'Yana urinib koʻring'), { sec: true }) : ''); return; }
-    h += SH.tab === 'kassa' ? shStaffKassa() : SH.tab === 'prihod' ? shPrihod() : SH.tab === 'tovar' ? shTovar() : SH.tab === 'dolg' ? shDolg() : shOtchet();
+    h += SH.tab === 'kassa' ? shStaffKassa() : SH.tab === 'prihod' ? shPrihod() : SH.tab === 'tovar' ? shTovar() : SH.tab === 'dolg' ? shDolg() : SH.tab === 'zp' ? shZp() : shOtchet();
     el.innerHTML = h;
   }
   // Подсказки по первым цифрам кода; когда код набран целиком, остаётся одна крупная карточка (нажатие добавляет ещё одну штуку).
@@ -3941,6 +3941,26 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         (open ? '<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-top:6px">' + shIn('sh-p-amt', ui('Сумма', 'Маблағ', 'Summa'), c.sum, 'inputmode="decimal"') + shBtn('pok', ui('Принять', 'Қабул', 'Qabul')) + shBtn('pcancel', '×', { sec: true, st: 'width:48px;padding:0' }) + '</div>' : '<div style="margin-top:6px">' + shBtn('pay-open', c.owner ? ui('Владелец рассчитался', 'Соҳиб ҳисоб кард', 'Egasi hisob qildi') : ui('Принял оплату', 'Пардохт қабул шуд', 'Toʻlov qabul qilindi'), { sec: true }, c.name) + '</div>') + '</div>';
     }).join('');
   }
+  // «Зарплата» (только руководитель): оклад + процент от выручки собственных чеков продавца − авансы − выдачи − личные расходы.
+  function shZp() {
+    var R = SH.d.report, h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">' + shBtn('mprev', '‹', { sec: true, st: 'width:56px;padding:0' }) + '<b>' + esc(monthName(R.month)) + '</b>' + shBtn('mnext', '›', { sec: true, st: 'width:56px;padding:0' }) + '</div>';
+    var L = R.salary || [], kn = { avans: ui('аванс', 'пеш', 'avans'), zp: ui('зарплата', 'маош', 'maosh') };
+    h += '<p style="margin:0 0 8px"><small>' + esc(ui('Начислено = оклад + процент от выручки чеков продавца (товар «Взял шеф» не считается). Остаток = начислено − авансы − выдачи − личные расходы.', 'Ҳисобшуда = маош + фоиз аз даромади чекҳо. Боқимонда = ҳисобшуда − пеш − супорида − хароҷоти шахсӣ.', 'Hisoblangan = maosh + chek tushumidan foiz. Qoldiq = hisoblangan − avans − toʻlangan − shaxsiy xarajat.')) + '</small></p>';
+    if (!L.length) return h + '<p>' + esc(ui('Продавцов пока нет. Добавьте их в «Команде».', 'Ҳоло фурӯшанда нест. Дар «Даста» илова кунед.', 'Hozircha sotuvchi yoʻq. «Jamoa»da qoʻshing.')) + '</p>';
+    h += L.map(function (x) {
+      var open = SH.zpf && SH.zpf.who === x.name, mode = open ? SH.zpf.mode : '';
+      var row = function (l, v, c) { return '<div style="display:flex;justify-content:space-between;padding:2px 0"><span style="opacity:.8">' + esc(l) + '</span><b' + (c ? ' style="color:' + c + '"' : '') + '>' + esc(money(cents(v))) + '</b></div>'; };
+      var b = '<div style="padding:10px;border:1px solid #e0e0e0;border-radius:10px;margin:8px 0"><div style="font-size:17px"><b>' + esc(x.name) + '</b> <small>· ' + esc(money(cents(x.oklad))) + ' + ' + esc(String(x.pct)) + '%</small></div>' +
+        row(ui('Выручка продавца', 'Даромади фурӯшанда', 'Sotuvchi tushumi'), x.rev) + row(ui('Начислено', 'Ҳисобшуда', 'Hisoblangan'), x.accrued) + row(ui('Авансы', 'Пеш', 'Avans'), x.avans) + row(ui('Выдано', 'Супорида шуд', 'Toʻlangan'), x.paid) + row(ui('Личные расходы', 'Хароҷоти шахсӣ', 'Shaxsiy xarajat'), x.exp) + row(ui('К выплате', 'Барои супоридан', 'Toʻlash kerak'), x.rest, x.rest < 0 ? '#c0392b' : '#1f8a4c');
+      if (!open) b += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px">' + shBtn('zpopen', ui('Оклад и %', 'Маош ва %', 'Maosh va %'), { sec: true, st: 'min-height:40px;font-size:14px' }, x.name + '|set') + shBtn('zpopen', ui('Аванс', 'Пеш', 'Avans'), { sec: true, st: 'min-height:40px;font-size:14px' }, x.name + '|avans') + shBtn('zpopen', ui('Выдать', 'Додан', 'Berish'), { sec: true, st: 'min-height:40px;font-size:14px' }, x.name + '|zp') + '</div>';
+      else if (mode === 'set') b += '<div style="display:grid;gap:8px;margin-top:8px">' + shIn('sh-z-oklad', ui('Оклад в месяц, сомони', 'Маоши моҳона, сомонӣ', 'Oylik maosh, somoniy'), x.oklad, 'inputmode="decimal"') + shIn('sh-z-pct', ui('Процент от выручки', 'Фоиз аз даромад', 'Tushumdan foiz'), x.pct, 'inputmode="decimal"') + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('zpsave', ui('Сохранить', 'Захира', 'Saqlash'), {}, x.name + '|set') + shBtn('zpcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
+      else b += '<div style="display:grid;gap:8px;margin-top:8px">' + shIn('sh-z-amt', (mode === 'avans' ? ui('Сумма аванса', 'Маблағи пеш', 'Avans summasi') : ui('Сумма выдачи', 'Маблағи додан', 'Berilgan summa')), mode === 'zp' && x.rest > 0 ? x.rest : '', 'inputmode="decimal"') + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('zpsave', ui('Записать', 'Сабт', 'Yozish'), {}, x.name + '|' + mode) + shBtn('zpcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
+      return b + '</div>';
+    }).join('');
+    var pl = R.payList || [];
+    if (pl.length) h += '<h3 style="margin-top:14px">' + esc(ui('Выплаты', 'Супоришҳо', 'Toʻlovlar')) + '</h3>' + pl.map(function (x) { var ask = SH.voidAsk === x.id; return '<div style="padding:6px 0;border-bottom:1px solid #eee;display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><small>' + esc(x.date) + ' · ' + esc(x.who) + ' · ' + esc(kn[x.kind] || x.kind) + '</small></div><b>' + esc(money(cents(x.sum))) + '</b>' + shBtn('void', ask ? ui('Точно?', 'Боварӣ?', 'Aniqmi?') : '×', { sec: true, st: 'width:56px;padding:0' }, x.id) + '</div>'; }).join('');
+    return h;
+  }
   function shOtchet() {
     var R = SH.d.report, h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">' + shBtn('mprev', '‹', { sec: true, st: 'width:56px;padding:0' }) + '<b>' + esc(monthName(R.month)) + '</b>' + shBtn('mnext', '›', { sec: true, st: 'width:56px;padding:0' }) + '</div>';
     var cell = function (l, v, c) { return '<div style="padding:10px;border:1px solid #e0e0e0;border-radius:10px"><small>' + esc(l) + '</small><div style="font-size:20px;font-weight:700;' + (c ? 'color:' + c : '') + '">' + esc(money(cents(v))) + '</div></div>'; };
@@ -3990,6 +4010,19 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (SH.pay === 'dolg' && !SH.who.trim()) { SH.err = ui('Для долга укажите покупателя', 'Барои қарз харидорро нависед', 'Qarz uchun xaridorni yozing'); return render(); }
       var tot = shCartSum(), rc = { total: tot, pay: SH.pay, who: SH.who, ts: Date.now(), lines: SH.cart.map(function (it) { var pp = shProd(it.kod) || {}; return { name: pp.name || it.kod, qty: it.qty, price: cents(SH.pay === 'vladelec' ? pp.zakup : pp.price) }; }) };
       return shAct({ action: 'sell', id: SH.cid, items: SH.cart.map(function (it) { return { kod: it.kod, qty: it.qty }; }), pay: SH.pay, who: SH.who, date: today() }, ui('Продано на ', 'Фурӯхта шуд ба ', 'Sotildi: ') + money(tot) + ' ' + ui('сомони', 'сомонӣ', 'somoniy'), function () { SH.last = rc; SH.cart = []; SH.pay = ''; SH.who = ''; SH.code = ''; SH.low = ''; SH.cid = oid(); });
+    }
+    if (a === 'zpopen') { var zp = String(k).split('|'); SH.zpf = { who: zp[0], mode: zp[1] }; SH.err = ''; return render(); }
+    if (a === 'zpcancel') { SH.zpf = null; SH.err = ''; return render(); }
+    if (a === 'zpsave') {
+      if (SH.busy) return; var zq = String(k).split('|'), zw = zq[0], zm = zq[1];
+      if (zm === 'set') {
+        var zo = Number(shNum('sh-z-oklad') || 0), zc = Number(shNum('sh-z-pct') || 0);
+        if (!(zo >= 0) || !(zc >= 0 && zc <= 100)) { SH.err = ui('Оклад не меньше 0, процент от 0 до 100', 'Маош аз 0 кам не, фоиз аз 0 то 100', 'Maosh 0 dan kam emas, foiz 0 dan 100 gacha'); return render(); }
+        return shAct({ action: 'sal_set', who: zw, oklad: zo, pct: zc }, ui('Оклад и процент сохранены', 'Маош ва фоиз захира шуд', 'Maosh va foiz saqlandi'), function () { SH.zpf = null; });
+      }
+      var za = Number(shNum('sh-z-amt'));
+      if (!(za > 0)) { SH.err = ui('Укажите сумму', 'Маблағро нависед', 'Summani yozing'); return render(); }
+      return shAct({ action: 'sal_pay', who: zw, kind: zm, amount: za, id: oid(), date: today() }, ui('Записано', 'Сабт шуд', 'Yozildi'), function () { SH.zpf = null; });
     }
     if (a === 'expopen') { SH.expOpen = !SH.expOpen; SH.err = ''; return render(); }
     if (a === 'expsave') {
