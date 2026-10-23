@@ -3889,7 +3889,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       '<div style="' + box + ';display:flex;flex-direction:column;min-height:200px"><div style="opacity:.75">' + esc(ui('Корзина', 'Сабад', 'Savat')) + '</div><div style="flex:1">' + cart + '</div>' +
       '<div id="sh-total" style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #e3e3e3;margin-top:12px;padding-top:10px"><span style="opacity:.75">' + esc(ui('Итого', 'Ҳамагӣ', 'Jami')) + '</span><b style="font-size:30px">' + esc(money(shCartSum())) + ' ' + esc(ui('сом.', 'сом.', 'som')) + '</b></div></div></div>';
     h += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-top:16px">' + shBtn('dolgopen', ui('В долг', 'Қарз', 'Qarzga'), { sec: SH.pay !== 'dolg', st: 'height:64px;font-size:20px;font-weight:700' }) + shBtn('paynow', SH.busy ? TX('Загрузка…') : ui('Оплатить', 'Пардохт', 'Toʻlash'), { st: 'height:64px;font-size:20px;font-weight:700;background:#0b0b0b;color:#fff' }) + '</div>';
+    h += '<div style="margin-top:12px">' + shBtn('shef', '👑 ' + ui('Взял шеф', 'Сардор гирифт', 'Boshliq oldi'), { sec: true, st: 'width:100%;min-height:52px;border:2px dashed #b36b00' }) + '<small style="display:block;opacity:.7;margin-top:4px">' + esc(ui('Товар, который взял руководитель: сначала добавьте его в корзину, потом нажмите. Спишется со склада по закупочной цене, в выручку не входит.', 'Моле, ки сардор гирифт: аввал ба сабад илова кунед, баъд пахш кунед.', 'Boshliq olgan tovar: avval savatga qoʻshing, keyin bosing.')) + '</small></div>';
     if (SH.pay === 'dolg') h += '<div style="margin-top:12px">' + shIn('shx-who', ui('Кто покупатель (имя)', 'Харидор кист (ном)', 'Xaridor kim (ism)'), SH.who, 'maxlength="40"') + '<div id="sh-whohint">' + shWhoHtml() + '</div>' + shBtn('sell', ui('Записать в долг', 'Ба қарз сабт кардан', 'Qarzga yozish'), { st: 'width:100%;height:56px;margin-top:8px' }) + '</div>';
+    h += shExpBox();
     return h;
   }
   function shKassa() {
@@ -4053,6 +4055,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'pay') { var w = $s('shx-who'); if (w) SH.who = w.value; SH.pay = k; SH.err = ''; return render(); }
     if (a === 'dolgopen') { if (!SH.cart.length) { SH.err = ui('Сначала добавьте товар', 'Аввал мол илова кунед', 'Avval tovar qoʻshing'); return render(); } SH.err = ''; SH.pay = SH.pay === 'dolg' ? '' : 'dolg'; return render(); }
     if (a === 'paynow') SH.pay = 'nal';
+    if (a === 'shef') { if (!SH.cart.length) { SH.err = ui('Сначала добавьте в корзину товар, который взял шеф (введите код), потом нажмите «Взял шеф»', 'Аввал моли гирифтаи сардорро ба сабад илова кунед, баъд «Сардор гирифт»-ро пахш кунед', 'Avval boshliq olgan tovarni savatga qoʻshing, keyin «Boshliq oldi»ni bosing'); return render(); } SH.pay = 'vladelec'; SH.err = ''; a = 'sell'; }
     if (a === 'sell' || a === 'paynow') {
       if (SH.busy) return; if (!SH.cart.length) { SH.err = ui('Сначала добавьте товар', 'Аввал мол илова кунед', 'Avval tovar qoʻshing'); return render(); } var w2 = $s('shx-who'); if (w2) SH.who = w2.value;
       if (!SH.pay) { SH.err = ui('Выберите, как заплатили', 'Интихоб кунед, чӣ тавр пардохт шуд', 'Qanday toʻlanganini tanlang'); return render(); }
