@@ -650,7 +650,7 @@ dialog::backdrop{touch-action:none}
 <!-- Сотрудники (для руководителя) -->
 <dialog id="m-staff"><div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto">
   <button class="x" data-close type="button" aria-label="Закрыть">×</button>
-  <h2 style="padding-right:36px">Команда</h2>
+  <h2 id="s-title" style="padding-right:36px">Команда</h2>
   <div class="seg" id="s-days"><button type="button" class="on" data-d="1">Сегодня</button><button type="button" data-d="7">7 дней</button></div>
   <div class="sum" id="s-sum"></div>
   <div id="s-list"></div>
@@ -667,7 +667,7 @@ dialog::backdrop{touch-action:none}
     <button class="btn" id="s-add" type="submit">Добавить</button>
   </form>
   <div class="okb" id="s-new" hidden></div>
-  <h3>Кому какой диалог</h3>
+  <h3 id="s-dlgh">Кому какой диалог</h3>
   <div id="s-dlgs"></div>
 </div></dialog>
 
@@ -1552,7 +1552,7 @@ function render_devs(list){
 }
 
 /* Сотрудники (руководитель) */
-var SDAYS = 1, SDATA = null;
+var SDAYS = 1, SDATA = null, TEAM_SCOPE = '';
 function fmtMin(m){ var h = Math.floor(m/60), mm = m%60; return (h ? h + T(' ч ') : '') + mm + T(' мин'); }
 function fmtT(v){ if (!v) return '—'; var d = new Date(v); if (isNaN(d)) return '—'; var t = hm(v); return SDAYS > 1 ? ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+t : t; }
 function chIcons(list){ return (list||[]).map(function(id){ var c = chan(id); return c ? '<span class="chi" title="' + esc(c.name) + '">' + c.svg + '</span>' : ''; }).join('') || '—'; }
@@ -1577,7 +1577,7 @@ function tl_html(sess){
 var SOPEN = {};
 function render_staff(){
   var d = SDATA; if (!d) return;
-  var list = d.staff.slice().sort(function(x,y){ if (x.online !== y.online) return x.online ? -1 : 1; return String(x.waitSince||'9').localeCompare(String(y.waitSince||'9')); });
+  var list = d.staff.filter(function(x){ return TEAM_SCOPE !== 'fin' || x.rol === 'prodavec' || x.rol === 'kladovshchik'; }).sort(function(x,y){ if (x.online !== y.online) return x.online ? -1 : 1; return String(x.waitSince||'9').localeCompare(String(y.waitSince||'9')); });
   var onl = list.filter(function(x){ return x.online; }).length, tot = list.reduce(function(a,x){ return a + (x.minutes||0); }, 0);
   var wsum = (d.freeWaiting||0), wmax = d.freeWaitSince ? agoMin(d.freeWaitSince) : null;
   list.forEach(function(x){ wsum += (x.waiting||0); var m = agoMin(x.waitSince); if (m !== null && (wmax === null || m > wmax)) wmax = m; });
@@ -1630,8 +1630,16 @@ function render_staff(){
   });
 }
 function show_new(t){ var n = $('s-new'); n.textContent = t + T('. Передайте сотруднику номер и код: он входит через кнопку «Сотрудник».'); n.hidden = false; }
-function open_team(){ var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff();}
-$('b-team').addEventListener('click', open_team);
+function team_scope_ui(){
+  var fin = TEAM_SCOPE === 'fin';
+  $('s-title').textContent = fin ? T('Команда: Финансист') : T('Команда');
+  var sel = $('s-rol'); Array.prototype.forEach.call(sel.options, function(o){ o.hidden = fin && !o.value; o.disabled = fin && !o.value; });
+  if (fin && !sel.value) sel.value = 'prodavec';
+  ['s-dlgh','s-dlgs','s-pres'].forEach(function(id){ var e = $(id); if (e) e.hidden = fin; });
+}
+function open_team(sc){ TEAM_SCOPE = sc === 'fin' ? 'fin' : ''; team_scope_ui(); var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff();}
+window.open_team = open_team;
+$('b-team').addEventListener('click', function(){ open_team(''); });
 document.querySelectorAll('#s-days button').forEach(function(b){ b.addEventListener('click', function(){ SDAYS = +b.getAttribute('data-d'); document.querySelectorAll('#s-days button').forEach(function(x){ x.classList.toggle('on', x===b); }); load_staff(); }); });
 $('f-staff').addEventListener('submit', function(ev){
   ev.preventDefault(); showErr('s-err','');
@@ -2799,6 +2807,7 @@ if (S.view === 'mkt') return renderMkt(el);
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(ui('Деньги и товар в одном месте. Выберите раздел.', 'Пул ва мол дар як ҷо. Бахшро интихоб кунед.', 'Pul va tovar bir joyda. Boʻlimni tanlang.')) + '</p><div style="display:grid;gap:10px">' +
       card('buh', '📒', ui('Бухгалтерия', 'Ҳисобдорӣ', 'Buxgalteriya'), ui('Приход, расход, остатки и прибыль за месяц', 'Даромад, хароҷот, боқимонда ва фоидаи моҳ', 'Kirim, chiqim, qoldiq va oylik foyda')) +
       card('shop', '🛒', ui('Учёт магазина', 'Ҳисоби мағоза', 'Doʻkon hisobi'), ui('Продажа, приём товара, долги и итоги', 'Фурӯш, қабули мол, қарзҳо ва натиҷаҳо', 'Sotuv, tovar qabuli, qarzlar va natijalar')) +
+      (shopOn() && owner() ? card('team', '👥', ui('Команда', 'Даста', 'Jamoa'), ui('Продавцы и кладовщики: добавить, отключить, новый код', 'Фурӯшандагон ва анбордорон: илова, ғайрифаъол, рамзи нав', 'Sotuvchilar va omborchilar: qoʻshish, oʻchirish, yangi kod')) : '') +
       (shopOn() ? card('kl', '📦', ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), ui('Войти в экран кладовщика: приём товара и себестоимость. Сам кладовщик входит со своим логином', 'Ба экрани анбордор дароед: қабули мол ва арзиши аслӣ', 'Omborchi ekraniga kirish: tovar qabuli va tannarx')) : '') +
       (shopOn() && owner() ? card('push', '🔔', ui('Уведомления на этот телефон', 'Огоҳинома ба ин телефон', 'Bu telefonga bildirishnoma'), ui('Сообщим сразу, когда продавец запишет личный расход', 'Вақте фурӯшанда хароҷоти шахсӣ сабт кунад, фавран хабар медиҳем', 'Sotuvchi shaxsiy xarajat yozsa, darhol xabar beramiz')) : '') + '</div>' + (S.pushMsg ? '<p role="status" style="margin-top:10px">' + esc(S.pushMsg) + '</p>' : '');
   }
@@ -4129,7 +4138,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     if (b.dataset.asst) return asstClick(b);
     if (b.dataset.onb) return onbClick(b);
-if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) { S.fromFin = true; openShop(); } return; } if (b.dataset.fin === 'push') { pushEnable(); return; }
+if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) { S.fromFin = true; openShop(); } return; } if (b.dataset.fin === 'push') { pushEnable(); return; } if (b.dataset.fin === 'team') { if (shopOn() && owner() && window.open_team) { var mst = $s('m-spec'); window.open_team('fin'); } return; }
 if (b.dataset.fin === 'kl') { if (shopOn()) { PREV_FIN = true; KEEPER = true; PREVIEW = true; PREV_TAB = 'kassa'; var mdk = $s('m-spec'); if (mdk && mdk.open) mdk.close(); setSeller(true); } return; } S.fromFin = true; return openBuh(); }
 if (b.dataset.shop) return shopClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
