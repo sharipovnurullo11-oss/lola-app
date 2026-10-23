@@ -28,9 +28,16 @@ ok('CSP: только свой скрипт и стиль по хешу, зап�
 
 for (const bad of ['/prokat\'', '/prokat-foto', '/buhgalter', 'ew_cab', 'ew_sid', 'localStorage', 'sessionStorage', 'document.cookie', 'console.']) assert.ok(!html.includes(bad), `в странице не должно быть ${bad}`);
 assert.ok(html.includes('history.replaceState'));
+assert.ok(!/blob:|createObjectURL|eval\(|new Function/.test(html), 'никаких blob: и eval — CSP не ослабляем');
+assert.ok(!/style="/.test(html), 'нет встроенных style= (CSP их не пустит)');
 ok('ни кабинетов, ни других вебхуков, токен не сохраняется и убирается из адреса');
 
 assert.equal((await fetch(base + '/punkt/x', { headers: { 'x-forwarded-for': '9.9.8.1' } })).status, 404);
 ok('лишний хвост пути — 404');
+
+// Этап 2: аренда с залогом и фото, возврат с проверкой и фото, «Мои деньги»
+for (const need of ['accept="image/*" capture="environment"', "toDataURL('image/jpeg', ", '900, 0.6', 'Арендатор согласен на фото', 'Включил, работает', 'Повреждён', 'Мои деньги', 'К отдаче Нурулло 80%', 'min_day', "api('return'", "api('rent'", 'photo_person', 'photo_passport', 'zalog_sum', 'repair_pay', 'consent: true']) assert.ok(html.includes(need), `нет в странице: ${need}`);
+assert.ok(!/Продать|Сломался|Цены для клиента/.test(html), 'кнопки следующего этапа не сделаны');
+ok('этап 2: формы аренды и возврата с фото, «Мои деньги»; «Продать», «Сломался» и «Цены» не добавлены');
 console.log('PUNKT PASSED');
 server.close(); process.exit(0);
