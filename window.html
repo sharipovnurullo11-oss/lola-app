@@ -3542,9 +3542,29 @@ function load() {
           if (cents(x.cashIn) > 0) ops.push({ id: 'shop-in-' + d, type: 'in', amount: x.cashIn, date: d, note: 'Магазин: продажи и оплаты долгов', ts: 0, virt: true });
           if (cents(x.purchase) > 0) ops.push({ id: 'shop-out-' + d, type: 'out', amount: x.purchase, date: d, note: 'Магазин: закупка товара', ts: 0, virt: true });
         });
-        S.shopOps = ops; if (S.view === 'buh') render();
+        Object.keys(days).forEach(function (d) {
+          var x = days[d] || {};
+          if (cents(x.salary) > 0) ops.push({ id: 'shop-sal-' + d, type: 'out', amount: x.salary, date: d, note: 'Магазин: зарплата продавцам', ts: 0, virt: true });
+          if (cents(x.pers) > 0) ops.push({ id: 'shop-pers-' + d, type: 'out', amount: x.pers, date: d, note: 'Магазин: личные расходы продавцов', ts: 0, virt: true });
+        });
+        S.shopOps = ops; S.shopRep = (r && r.ok && r.report) || null; if (S.view === 'buh') render();
       });
-    } else S.shopOps = [];
+    } else { S.shopOps = []; S.shopRep = null; }
+  }
+  function buhShopBlock() {
+    var R = S.shopRep; if (!R || !shopOn() || !owner()) return '';
+    var D = R.days || {}, pur = 0, i; Object.keys(D).forEach(function (d) { pur += cents(D[d].purchase); });
+    var acc = 0, pd = 0, ex = 0; (R.salary || []).forEach(function (x) { acc += cents(x.accrued); pd += cents(x.avans) + cents(x.paid); ex += cents(x.exp); });
+    var row = function (l, v, c, b) { return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0' + (b ? ';border-top:1px solid #ddd;margin-top:4px;font-weight:700' : '') + '"><span>' + esc(l) + '</span><b' + (c ? ' style="color:' + c + '"' : '') + '>' + esc(money(v)) + '</b></div>'; };
+    var h = '<h3 style="margin:14px 0 4px">🛒 ' + esc(ui('Касса магазина за месяц', 'Сандуқи мағоза дар моҳ', 'Doʻkon kassasi oy boʻyicha')) + '</h3><div style="padding:10px;border:1px solid #ddd;border-radius:12px">' +
+      row(ui('Выручка', 'Даромад', 'Tushum'), cents(R.revenue)) + row(ui('Закуплено товара', 'Хариди мол', 'Xarid qilingan tovar'), pur) + row(ui('Прибыль с продаж (наценка)', 'Фоида аз фурӯш', 'Sotuvdan foyda'), cents(R.profit), '#1f8a4c') +
+      row(ui('Зарплата продавцам (начислено)', 'Маош (ҳисобшуда)', 'Maosh (hisoblangan)'), -acc, '#c0392b') + row(ui('Прибыль после зарплаты', 'Фоида пас аз маош', 'Maoshdan keyingi foyda'), cents(R.profit) - acc, cents(R.profit) - acc < 0 ? '#c0392b' : '#1f8a4c', true) +
+      '<div style="margin-top:6px;opacity:.8"><small>' + esc(ui('Взял шеф', 'Роҳбар гирифт', 'Rahbar oldi')) + ': ' + esc(money(cents(R.owner))) + ' · ' + esc(ui('Долги', 'Қарзҳо', 'Qarzlar')) + ': ' + esc(money(cents(R.debt))) + '</small></div></div>';
+    if ((R.salary || []).length) {
+      h += '<h3 style="margin:14px 0 4px">' + esc(ui('Зарплата продавцов', 'Маоши фурӯшандагон', 'Sotuvchilar maoshi')) + '</h3>' + R.salary.map(function (x) { return '<div style="padding:6px 0;border-bottom:1px solid #eee"><div style="display:flex;justify-content:space-between"><b>' + esc(x.name) + '</b><span>' + esc(ui('к выплате', 'барои супоридан', 'toʻlash kerak')) + ' <b style="color:' + (x.rest < 0 ? '#c0392b' : '#1f8a4c') + '">' + esc(money(cents(x.rest))) + '</b></span></div><small style="opacity:.75">' + esc(ui('начислено', 'ҳисобшуда', 'hisoblangan')) + ' ' + esc(money(cents(x.accrued))) + ' · ' + esc(ui('выдано', 'додашуда', 'berilgan')) + ' ' + esc(money(cents(x.avans) + cents(x.paid))) + ' · ' + esc(ui('расходы', 'хароҷот', 'xarajat')) + ' ' + esc(money(cents(x.exp))) + '</small></div>'; }).join('') +
+        '<button class="btn sec" data-buh="zp-go" type="button" style="margin-top:8px;width:100%">' + esc(ui('Оклады, авансы, выдачи', 'Маош, пеш, додан', 'Maosh, avans, berish')) + '</button>';
+    }
+    return h;
   }
   function allOps() { return (S.buh.ops || []).concat(S.shopOps || []); }
   function sums() {
@@ -3603,6 +3623,7 @@ var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухга�
         '<button class="btn sec" data-buh="mic" type="button" style="height:44px">🎤 ' + esc(TX('Сказать голосом')) + '</button></div>';
     }
     h += '<p class="err" id="bh-err" hidden></p>';
+    h += buhShopBlock();
     var bo = breakdown(ops, 'out', t.o, '#c0392b'), bi = breakdown(ops, 'in', t.i, '#1f8a4c');
     if (bo) h += '<h3 style="margin:14px 0 4px">' + esc(TX('Куда ушли деньги')) + '</h3>' + bo;
     if (bi) h += '<h3 style="margin:14px 0 4px">' + esc(TX('Откуда пришли деньги')) + '</h3>' + bi;
@@ -4102,6 +4123,7 @@ if (b.dataset.mgr === 'quiet') { MGQ = !MGQ; return render(); }
 if (b.dataset.kb) return kbClick(b.dataset.kb);
 if (b.dataset.mkt) return mktClick(b.dataset.mkt);
     var a = b.dataset.buh; if (!a) return;
+    if (a === 'zp-go') { if (shopOn()) { openShop(); SH.tab = 'zp'; SH.month = S.month; render(); shLoad(); } return; }
     if (a === 'reload') { S.buh = readCache(S.month); load(); return render(); }
     if (a === 'prev' || a === 'next') { S.month = shiftMonth(S.month, a === 'prev' ? -1 : 1); S.buh = readCache(S.month); load(); return render(); }
     if (a === 'open-in' || a === 'open-out') { S.edit = null; S.pre = null; S.form = a === 'open-in' ? 'in' : 'out'; S.delAsk = null; render(); var sf = $s('bh-sum'); if (sf) sf.focus(); return; }
