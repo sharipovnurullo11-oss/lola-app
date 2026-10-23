@@ -1577,7 +1577,7 @@ function tl_html(sess){
 var SOPEN = {};
 function render_staff(){
   var d = SDATA; if (!d) return;
-  var list = d.staff.filter(function(x){ return TEAM_SCOPE !== 'fin' || x.rol === 'prodavec' || x.rol === 'kladovshchik'; }).sort(function(x,y){ if (x.online !== y.online) return x.online ? -1 : 1; return String(x.waitSince||'9').localeCompare(String(y.waitSince||'9')); });
+  var list = d.staff.filter(function(x){ return !TEAM_SCOPE || x.rol === TEAM_SCOPE; }).sort(function(x,y){ if (x.online !== y.online) return x.online ? -1 : 1; return String(x.waitSince||'9').localeCompare(String(y.waitSince||'9')); });
   var onl = list.filter(function(x){ return x.online; }).length, tot = list.reduce(function(a,x){ return a + (x.minutes||0); }, 0);
   var wsum = (d.freeWaiting||0), wmax = d.freeWaitSince ? agoMin(d.freeWaitSince) : null;
   list.forEach(function(x){ wsum += (x.waiting||0); var m = agoMin(x.waitSince); if (m !== null && (wmax === null || m > wmax)) wmax = m; });
@@ -1631,13 +1631,13 @@ function render_staff(){
 }
 function show_new(t){ var n = $('s-new'); n.textContent = t + T('. Передайте сотруднику номер и код: он входит через кнопку «Сотрудник».'); n.hidden = false; }
 function team_scope_ui(){
-  var fin = TEAM_SCOPE === 'fin';
-  $('s-title').textContent = fin ? T('Команда: Финансист') : T('Команда');
-  var sel = $('s-rol'); Array.prototype.forEach.call(sel.options, function(o){ o.hidden = fin && !o.value; o.disabled = fin && !o.value; });
-  if (fin && !sel.value) sel.value = 'prodavec';
+  var fin = !!TEAM_SCOPE;
+  $('s-title').textContent = TEAM_SCOPE === 'prodavec' ? T('Продавцы') : TEAM_SCOPE === 'kladovshchik' ? T('Кладовщики') : T('Команда');
+  var sel = $('s-rol'); Array.prototype.forEach.call(sel.options, function(o){ o.hidden = fin && o.value !== TEAM_SCOPE; o.disabled = fin && o.value !== TEAM_SCOPE; });
+  if (fin) sel.value = TEAM_SCOPE;
   ['s-dlgh','s-dlgs','s-pres'].forEach(function(id){ var e = $(id); if (e) e.hidden = fin; });
 }
-function open_team(sc){ TEAM_SCOPE = sc === 'fin' ? 'fin' : ''; team_scope_ui(); var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff();}
+function open_team(sc){ TEAM_SCOPE = (sc === 'prodavec' || sc === 'kladovshchik') ? sc : ''; team_scope_ui(); var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff();}
 window.open_team = open_team;
 $('b-team').addEventListener('click', function(){ open_team(''); });
 document.querySelectorAll('#s-days button').forEach(function(b){ b.addEventListener('click', function(){ SDAYS = +b.getAttribute('data-d'); document.querySelectorAll('#s-days button').forEach(function(x){ x.classList.toggle('on', x===b); }); load_staff(); }); });
@@ -2807,9 +2807,8 @@ if (S.view === 'mkt') return renderMkt(el);
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(ui('Деньги и товар в одном месте. Выберите раздел.', 'Пул ва мол дар як ҷо. Бахшро интихоб кунед.', 'Pul va tovar bir joyda. Boʻlimni tanlang.')) + '</p><div style="display:grid;gap:10px">' +
       card('buh', '📒', ui('Бухгалтерия', 'Ҳисобдорӣ', 'Buxgalteriya'), ui('Приход, расход, остатки и прибыль за месяц', 'Даромад, хароҷот, боқимонда ва фоидаи моҳ', 'Kirim, chiqim, qoldiq va oylik foyda')) +
       card('shop', '🛒', ui('Учёт магазина', 'Ҳисоби мағоза', 'Doʻkon hisobi'), ui('Продажа, приём товара, долги и итоги', 'Фурӯш, қабули мол, қарзҳо ва натиҷаҳо', 'Sotuv, tovar qabuli, qarzlar va natijalar')) +
-      (shopOn() && owner() ? card('team', '👥', ui('Команда', 'Даста', 'Jamoa'), ui('Продавцы и кладовщики: добавить, отключить, новый код', 'Фурӯшандагон ва анбордорон: илова, ғайрифаъол, рамзи нав', 'Sotuvchilar va omborchilar: qoʻshish, oʻchirish, yangi kod')) : '') +
-      (shopOn() ? card('kl', '📦', ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), ui('Войти в экран кладовщика: приём товара и себестоимость. Сам кладовщик входит со своим логином', 'Ба экрани анбордор дароед: қабули мол ва арзиши аслӣ', 'Omborchi ekraniga kirish: tovar qabuli va tannarx')) : '') +
-      (shopOn() && owner() ? card('push', '🔔', ui('Уведомления на этот телефон', 'Огоҳинома ба ин телефон', 'Bu telefonga bildirishnoma'), ui('Сообщим сразу, когда продавец запишет личный расход', 'Вақте фурӯшанда хароҷоти шахсӣ сабт кунад, фавран хабар медиҳем', 'Sotuvchi shaxsiy xarajat yozsa, darhol xabar beramiz')) : '') + '</div>' + (S.pushMsg ? '<p role="status" style="margin-top:10px">' + esc(S.pushMsg) + '</p>' : '');
+      (shopOn() ? card('kl', '📦', ui('Кладовщик', 'Анбордор', 'Omborchi'), ui('Приём товара, товары и закупочные цены; здесь же добавить кладовщика', 'Қабули мол, молҳо ва нархи харид; дар ҳамин ҷо анбордор илова кунед', 'Tovar qabuli, tovarlar va xarid narxlari; omborchini shu yerda qoʻshing')) : '') +
+      '' + '</div>' + (shopOn() && owner() ? '<p style="margin-top:12px"><button type="button" class="btn sec" data-fin="push" style="height:36px;font-size:14px">🔔 ' + esc(ui('Включить уведомления на этом телефоне', 'Огоҳиномаро дар ин телефон фаъол кунед', 'Bu telefonda bildirishnomani yoqish')) + '</button></p>' : '') + (S.pushMsg ? '<p role="status" style="margin-top:10px">' + esc(S.pushMsg) + '</p>' : '');
   }
   // Push-уведомления владельцу: разрешение, подписка телефона и отправка её серверу
   function pushKey(k) { var p = '='.repeat((4 - k.length % 4) % 4), b = (k + p).replace(/-/g, '+').replace(/_/g, '/'), r = atob(b), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
@@ -3833,7 +3832,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var who = ''; try { who = PREVIEW ? ui('Так видит продавец', 'Фурӯшанда чунин мебинад', 'Sotuvchi shunday koʻradi') : (store('ew_sname') || ''); } catch (e) {}
       h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px"><h2 style="margin:0">' + (KEEPER ? '📦 ' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) : '🛒 ' + esc(ui('Продажа', 'Фурӯш', 'Sotuv'))) + '</h2><span style="display:flex;align-items:center;gap:8px"><small>' + esc(who) + '</small>' + shBtn('selout', PREVIEW ? ui('Закрыть', 'Пӯшидан', 'Yopish') : ui('Выйти', 'Баромад', 'Chiqish'), { sec: true, st: 'min-height:40px;font-size:14px;padding:0 12px' }) + '</span></div>';
     }
-    if (!SELLER && !staffNow() && !kl) h += '<div style="margin:0 0 8px">' + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('preview', '👁 ' + ui('Как видит продавец', 'Фурӯшанда чӣ тавр мебинад', 'Sotuvchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
+    if (!SELLER && !staffNow() && kl) h += '<div style="margin:0 0 8px"><div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('addst', '👥 ' + ui('Добавить сотрудника', 'Илова кардани корманд', 'Xodim qoʻshish'), { sec: true, st: 'min-height:40px;font-size:14px' }, 'kladovshchik') + shBtn('previewk', '👁 ' + ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
+    if (!SELLER && !staffNow() && !kl) h += '<div style="margin:0 0 8px">' + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('addst', '👥 ' + ui('Добавить сотрудника', 'Илова кардани корманд', 'Xodim qoʻshish'), { sec: true, st: 'min-height:40px;font-size:14px' }, 'prodavec') + shBtn('preview', '👁 ' + ui('Как видит продавец', 'Фурӯшанда чӣ тавр мебинад', 'Sotuvchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
     var tabs = [['kassa', 'Продажа', 'Фурӯш', 'Sotuv'], ['prihod', 'Приём', 'Қабул', 'Qabul'], ['tovar', 'Товары', 'Молҳо', 'Tovarlar'], ['dolg', 'Долги', 'Қарзҳо', 'Qarzlar'], ['zp', 'Зарплата', 'Маош', 'Maosh'], ['otchet', 'Отчёт', 'Ҳисобот', 'Hisobot']];
     if (kl) tabs = tabs.filter(function (t) { return t[0] === 'prihod' || t[0] === 'tovar'; });
     if (!SELLER && !staffNow()) h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px;margin:8px 0">' + tabs.map(function (t) { return shBtn('tab', ui(t[1], t[2], t[3]), { sec: SH.tab !== t[0] }, t[0]); }).join('') + '</div>';
@@ -4081,6 +4081,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return shAct({ action: 'expense', id: oid(), amount: ea, note: en ? en.value : '', who: ew ? ew.value : '', date: today() }, ui('Расход записан', 'Хароҷот сабт шуд', 'Xarajat yozildi'), function () { SH.expOpen = false; });
     }
     if (a === 'fnew') { SH.fotoNew = ''; SH.form = { kod: '', name: '', zakup: '', marzha: '' }; SH.rcv = null; return render(); }
+    if (a === 'addst') { if (window.open_team) window.open_team(k); return; }
     if (a === 'fedit') { var p = shProd(k); if (p) SH.form = { kod: p.kod, name: p.name, zakup: p.zakup, marzha: p.marzha, edit: true }; SH.rcv = null; return render(); }
     if (a === 'fcancel') { SH.fotoNew = ''; SH.form = null; SH.err = ''; return render(); }
     if (a === 'save') return shSave();
@@ -4139,7 +4140,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.asst) return asstClick(b);
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) { S.fromFin = true; openShop(); } return; } if (b.dataset.fin === 'push') { pushEnable(); return; } if (b.dataset.fin === 'team') { if (shopOn() && owner() && window.open_team) { var mst = $s('m-spec'); window.open_team('fin'); } return; }
-if (b.dataset.fin === 'kl') { if (shopOn()) { PREV_FIN = true; KEEPER = true; PREVIEW = true; PREV_TAB = 'kassa'; var mdk = $s('m-spec'); if (mdk && mdk.open) mdk.close(); setSeller(true); } return; } S.fromFin = true; return openBuh(); }
+if (b.dataset.fin === 'kl') { if (shopOn()) { S.fromFin = true; openShop(); SH.kl = true; SH.tab = 'prihod'; render(); } return; } S.fromFin = true; return openBuh(); }
 if (b.dataset.shop) return shopClick(b);
 if (b.dataset.smm) return smmClick(b.dataset.smm);
 if (b.dataset.law) return lawClick(b.dataset.law);
