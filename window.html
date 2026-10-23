@@ -662,6 +662,7 @@ dialog::backdrop{touch-action:none}
     <div class="ph"><select class="cc" id="s-cc" aria-label="Страна"></select><input class="in2" id="s-phone" type="tel" inputmode="numeric" autocomplete="off" placeholder="900 00 00 00"></div>
     <label for="s-rol" style="display:block;margin:8px 0 4px;font-size:13px;opacity:.8">Кто это</label>
     <select class="in2" id="s-rol" aria-label="Роль сотрудника"><option value="">Оператор: отвечает клиентам в переписках</option><option value="prodavec">Продавец в магазине: видит только кассу</option><option value="kladovshchik">Кладовщик: принимает товар на склад</option></select>
+    <input class="in2" id="s-dolzh" type="text" maxlength="40" autocomplete="off" placeholder="Должность (необязательно), например: старший продавец">
     <p class="err" id="s-err" hidden></p>
     <button class="btn" id="s-add" type="submit">Добавить</button>
   </form>
@@ -1597,7 +1598,7 @@ function render_staff(){
         ? '<div class="act ' + lvl(wm) + '"><b>' + (wm !== null && wm < 5 ? T('Новое сообщение, ждёт ') : T('Не отвечает уже ')) + fmtMin(wm||0) + T('</b><small>Ждут ответа: ') + s.waiting + T(' · последний ответ: ') + (s.lastReply ? fmtAgo(lr) : T('ещё не отвечал')) + '</small></div>'
         : T('<div class="act ok"><b>Все клиенты отвечены</b><small>Последний ответ: ') + (s.lastReply ? fmtAgo(lr) : T('ещё не отвечал')) + '</small></div>';
     }
-    return '<div class="sc' + (s.online ? ' on' : '') + '"><div class="sctop"><span class="dot2' + (s.online?' on':'') + '"></span><div class="nm"><b>' + esc(s.name) + (s.rol === 'prodavec' ? ' <small class="pill">Продавец</small>' : s.rol === 'kladovshchik' ? ' <small class="pill">Кладовщик</small>' : '') + '</b><span>' + esc(showPhone(s.phone)) + '</span></div>' + pill + '</div>'
+    return '<div class="sc' + (s.online ? ' on' : '') + '"><div class="sctop"><span class="dot2' + (s.online?' on':'') + '"></span><div class="nm"><b>' + esc(s.name) + (s.rol === 'prodavec' ? ' <small class="pill">Продавец</small>' : s.rol === 'kladovshchik' ? ' <small class="pill">Кладовщик</small>' : '') + '</b>' + (s.dolzhnost ? '<small>' + esc(s.dolzhnost) + '</small> ' : '') + '<span>' + esc(showPhone(s.phone)) + '</span></div>' + pill + '</div>'
      + act + (SDAYS === 1 ? tl_html(s.sessions) : '')
      + T('<div class="grid"><div>Всего в работе<b>') + fmtMin(s.minutes) + T('</b></div><div>Включился<b>') + fmtT(s.firstIn) + T('</b></div><div>Выключился<b>') + (s.online ? T('в сети') : fmtT(s.lastOut)) + '</b></div>'
      + T('<div>Ответов<b>') + s.replies + T('</b></div><div>Написали ему<b>') + s.incoming + T('</b></div><div>Клиентов<b>') + s.clients + T('</b></div><div>Заказов<b>') + s.orders + T('</b></div><div>Мессенджеры<b class="chi">') + chIcons(s.channels) + '</b></div></div>'
@@ -1638,7 +1639,7 @@ $('f-staff').addEventListener('submit', function(ev){
   if (!name) return showErr('s-err',T('Введите имя сотрудника.'));
   if (!ph) return showErr('s-err',T('Выберите страну и введите номер без кода страны.'));
   var btn = $('s-add'); btn.disabled = true; var rolV = $('s-rol').value, isProd = rolV === 'prodavec', isKl = rolV === 'kladovshchik';
-  post('/staff', { action:'staff_add', code: store('ew_cab')||'', name: name, phone: ph, rol: isProd ? 'prodavec' : isKl ? 'kladovshchik' : '' }).then(function(x){
+  post('/staff', { action:'staff_add', code: store('ew_cab')||'', name: name, phone: ph, dolzhnost: ($('s-dolzh') ? $('s-dolzh').value : ''), rol: isProd ? 'prodavec' : isKl ? 'kladovshchik' : '' }).then(function(x){
     if (x.j && x.j.ok) { $('f-staff').reset(); show_new(T('Сотрудник ') + x.j.name + (isProd ? T(' (продавец, видит только кассу)') : isKl ? T(' (кладовщик, принимает товар)') : '') + T(' добавлен. Номер: ') + showPhone(x.j.phone) + T(', код: ') + x.j.code); load_staff(); }
     else showErr('s-err', (x.j && x.j.error) || T('Не удалось добавить.'));
   }).catch(function(){ showErr('s-err',T('Нет связи с сервером.')); }).then(function(){ btn.disabled = false; });
