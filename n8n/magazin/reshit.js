@@ -19,12 +19,13 @@ const PAYS = ['nal', 'perevod', 'alif', 'dushanbe', 'mix', 'dolg', 'vladelec'];
 const PARTS = ['nal', 'alif', 'dushanbe', 'perevod'];
 // Единицы измерения товара (24.10.2026, магазин Шамсуло): штуки, метры (до сантиметра), килограммы (до грамма), граммы, рулоны.
 // В строке товара (tip=tovar) единица лежит в столбце oplata, а «сколько единиц в одной штуке» (труба 4 м, рулон 25 м) — в столбце summa.
+// Цена продажи, заданная вручную (24.10.2026), лежит в столбце cena строки товара; 0 — цену считаем из закупки и маржи.
 const UNITS = ['sht', 'm', 'kg', 'g', 'rulon'];
 const unitOk = u => UNITS.indexOf(String(u || '')) >= 0 ? String(u) : 'sht';
 const qr = (u, x) => { const f = u === 'm' ? 100 : u === 'kg' ? 1000 : 1; return Math.round(Number(x) * f) / f; };
-const prodOf = r => { const u = unitOk(r.oplata), per = Number(r.summa) > 0 && u !== 'sht' ? qr(u, r.summa) : 0; return { kod: r.kod, name: String(r.nazvanie), zakup: Number(r.zakup), marzha: Number(r.marzha), unit: u, per }; };
+const prodOf = r => { const u = unitOk(r.oplata), per = Number(r.summa) > 0 && u !== 'sht' ? qr(u, r.summa) : 0; return { kod: r.kod, name: String(r.nazvanie), zakup: Number(r.zakup), marzha: Number(r.marzha), unit: u, per, sell: Number(r.cena) > 0 ? r2(r.cena) : 0 }; };
 // строка товара с теми же единицей, «в штуке» и фото, если их не меняют
-const tovRow = (p, o) => mk(Object.assign({ tip: 'tovar', kod: p.kod, nazvanie: p.name, zakup: p.zakup, marzha: p.marzha, oplata: p.unit, summa: p.per, ssylka: fotoOf[p.kod] || '' }, o));
+const tovRow = (p, o) => mk(Object.assign({ tip: 'tovar', kod: p.kod, nazvanie: p.name, zakup: p.zakup, marzha: p.marzha, oplata: p.unit, summa: p.per, cena: p.sell, ssylka: fotoOf[p.kod] || '' }, o));
 
 // ---- состояние из журнала ----
 const voided = new Set(all.filter(r => r.tip === 'void').map(r => String(r.ssylka)));
@@ -37,8 +38,8 @@ all.forEach(r => {
   if (r.tip === 'prihod' || r.tip === 'korrekt') stock[r.kod] = (stock[r.kod] || 0) + Number(r.kolvo);
   else if (r.tip === 'prodazha' && !voided.has(String(r.chek))) stock[r.kod] = (stock[r.kod] || 0) - Number(r.kolvo);
 });
-const priceOf = p => r2(p.zakup * (1 + p.marzha / 100));
-const products = () => Object.keys(prod).sort().map(k => ({ kod: k, name: prod[k].name, zakup: prod[k].zakup, marzha: prod[k].marzha, price: priceOf(prod[k]), qty: r3(stock[k] || 0), unit: prod[k].unit, per: prod[k].per, foto: fotoOf[k] ? 1 : 0 }));
+const priceOf = p => p.sell > 0 ? p.sell : r2(p.zakup * (1 + p.marzha / 100));
+const products = () => Object.keys(prod).sort().map(k => ({ kod: k, name: prod[k].name, zakup: prod[k].zakup, marzha: prod[k].marzha, price: priceOf(prod[k]), qty: r3(stock[k] || 0), unit: prod[k].unit, per: prod[k].per, sell: prod[k].sell, foto: fotoOf[k] ? 1 : 0 }));
 const sales = all.filter(r => r.tip === 'prodazha' && !voided.has(String(r.chek)));
 const pays = all.filter(r => r.tip === 'oplata' && !voided.has(String(r.oid)));
 const chastOf = () => { const m = {}; all.filter(r => r.tip === 'chast' && !voided.has(String(r.chek))).forEach(r => { (m[String(r.chek)] = m[String(r.chek)] || []).push(r); }); return m; };
@@ -114,7 +115,10 @@ if (act === 'product') {
   if (ID.role === 'staff' && prod[k]) return fail('товар уже есть — цену меняет руководитель, а приход оформляйте вкладкой «Приём товара»');
   if (!name) return fail('нужно название товара');
   if (!(z > 0 && z <= 1000000000)) return fail('закупочная цена должна быть больше нуля');
-  if (!(m >= 0 && m <= 1000)) return fail('маржа от 0 до 1000 процентов');
+  // цена продажи: если не прислали — остаётся прежняя; 0 или пусто — считаем из закупки и маржи
+  const sell = p.sell === undefined ? (prod[k] ? prod[k].sell : 0) : (p.sell === '' || p.sell === null || Number(p.sell) === 0 ? 0 : r2(p.sell));
+  if (!(sell >= 0 && sell <= 1000000000)) return fail('неверная цена продажи');
+  if (!sell && !(m >= 0 && m <= 1000)) return fail('маржа от 0 до 1000 процентов');
   // единица: если не прислали — остаётся прежняя (или «штуки» у нового товара)
   const u = p.unit === undefined && prod[k] ? prod[k].unit : unitOk(p.unit);
   if (p.unit !== undefined && UNITS.indexOf(String(p.unit)) < 0) return fail('неверная единица измерения');
@@ -122,7 +126,8 @@ if (act === 'product') {
   if (u === 'sht') per = 0;
   if (!(per >= 0 && per <= 100000)) return fail('неверное количество в одной штуке');
   const f = okFoto(p.foto) ? p.foto : (fotoOf[k] || '');
-  const rw = [mk({ oid: ('t' + Date.now().toString(36) + k).slice(0, 40), tip: 'tovar', kod: k, nazvanie: name, zakup: z, marzha: m, oplata: u, summa: per, ssylka: f })];
+  // при заданной цене маржа — для справки: сколько процентов цена выше закупки
+  const rw = [mk({ oid: ('t' + Date.now().toString(36) + k).slice(0, 40), tip: 'tovar', kod: k, nazvanie: name, zakup: z, marzha: sell ? r2((sell / z - 1) * 100) : m, oplata: u, summa: per, cena: sell, ssylka: f })];
   withRows(rw);
   return out(respond(), rw);
 }
@@ -144,7 +149,7 @@ if (act === 'receive') {
   if (all.some(r => String(r.oid) === id)) return out(respond());
   const rw = [mk({ oid: id, tip: B.fix ? 'korrekt' : 'prihod', kod: k, nazvanie: prod[k].name, kolvo: q, zakup: prod[k].zakup })];
   const z = r2(B.zakup);
-  if (!B.fix && z > 0 && z !== prod[k].zakup) rw.push(tovRow(prod[k], { oid: ('t' + id).slice(0, 40), zakup: z }));
+  if (!B.fix && z > 0 && z !== prod[k].zakup) rw.push(tovRow(prod[k], { oid: ('t' + id).slice(0, 40), zakup: z, marzha: prod[k].sell ? r2((prod[k].sell / z - 1) * 100) : prod[k].marzha }));
   withRows(rw);
   return out(respond(), rw);
 }

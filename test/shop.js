@@ -72,10 +72,25 @@ assert.equal(call({ action: 'find_photo', foto: 'data:image/png;base64,AAAA' }, 
 assert.equal(call({ action: 'find_photo', foto: 'data:image/jpeg;base64,AAAA' }, 'owner', () => ({ error: { message: 'x' } })).ok, false);
 ok('поиск по фото: только коды из списка, без закупки, кладовщику без цены, ошибка ИИ — понятный отказ');
 
+// цена продажи вручную: хранится ровно такой, маржа — для справки; при новой закупке цена не меняется
+r = call({ action: 'product', p: { kod: 'KRAN', name: 'Кран 1/2', zakup: 3, marzha: 0, sell: 10, unit: 'sht' } });
+assert.deepEqual([P(r, 'KRAN').price, P(r, 'KRAN').sell, P(r, 'KRAN').marzha], [10, 10, 233.33]);
+r = call({ action: 'receive', kod: 'KRAN', qty: 5, id: 'rcv000005', zakup: 4 });
+assert.deepEqual([P(r, 'KRAN').price, P(r, 'KRAN').zakup, P(r, 'KRAN').marzha], [10, 4, 150]);
+r = call({ action: 'sell', id: 'chek00003', items: [{ kod: 'KRAN', qty: 2 }], pay: 'nal', date: '2026-10-24' });
+assert.equal(r.report.checks.find((c) => c.id === 'chek00003').total, 20);
+r = call({ action: 'product', p: { kod: 'KRAN', name: 'Кран 1/2', zakup: 4, marzha: 50 } });
+assert.deepEqual([P(r, 'KRAN').price, P(r, 'KRAN').sell], [10, 10]);
+r = call({ action: 'product', p: { kod: 'KRAN', name: 'Кран 1/2', zakup: 4, marzha: 50, sell: 0 } });
+assert.deepEqual([P(r, 'KRAN').price, P(r, 'KRAN').sell], [6, 0]);
+assert.equal(call({ action: 'product', p: { kod: 'KRAN2', name: 'К', zakup: 4, marzha: 5000 } }).error, 'маржа от 0 до 1000 процентов');
+assert.ok(call({ action: 'product', p: { kod: 'KRAN3', name: 'Ниже закупки', zakup: 4, marzha: 0, sell: 3 } }).ok);
+ok('цена продажи вручную: ровно 10, маржа для справки, не меняется при новой закупке; 0 — снова из маржи');
+
 // экран: window.html собран из specialists.cjs, в кассе и приёме есть единицы и «По фото»
 const src = rd('specialists.cjs'), html = rd('window.html');
 const A = '/*specialists:start*/', B = '/*specialists:end*/';
 assert.equal(html.slice(html.indexOf(A) + A.length, html.indexOf(B)), '\n' + src + '\n', 'window.html не пересобран: node build-specialists.js');
-for (const need of ["action: 'find_photo'", 'data-cq=', 'function shRcvQty(', 'id="sh-f-unit"', "['m', 'Метры (до сантиметра)'", 'id="sh-ff-in" accept="image/*" capture="environment" hidden']) assert.ok(src.includes(need), 'нет: ' + need);
+for (const need of ["action: 'find_photo'", 'data-cq=', 'function shRcvQty(', 'id="sh-f-unit"', "['m', 'Метры (до сантиметра)'", 'id="sh-ff-in" accept="image/*" capture="environment" hidden', 'function shSellFields(', "sell: f.fsm ? shR2(shParse(f.sell)) : 0"]) assert.ok(src.includes(need), 'нет: ' + need);
 ok('экран магазина: единицы, количество в метрах, кнопка «По фото»');
 console.log('SHOP PASSED');
