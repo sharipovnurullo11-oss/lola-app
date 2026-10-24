@@ -42,7 +42,7 @@ if (process.env.NODE_ENV !== 'test') { refreshWindow(); setInterval(refreshWindo
 // «Окно владельца пункта» проката: отдельная страница без входа и без кабинетов. Встроенные стиль и скрипт разрешены только по хешу.
 const PUNKT_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'punkt.html'));
 const inlineHashes = (tag) => [...PUNKT_HTML.toString('utf8').matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`).join(' ');
-const PUNKT_CSP = `default-src 'none'; script-src ${inlineHashes('script')}; style-src ${inlineHashes('style')}; img-src 'self' data:; connect-src https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/prokat-owner; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+const PUNKT_CSP = `default-src 'none'; script-src ${inlineHashes('script')}; style-src ${inlineHashes('style')}; img-src 'self' data: https://lh3.googleusercontent.com; connect-src https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/prokat-owner; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
 
 const MIME = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
