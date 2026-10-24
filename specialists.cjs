@@ -2073,7 +2073,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (t.id === 'sh-code' && e.type === 'input') { SH.code = t.value; SH.found = null; var hb = $s('sh-hints'); if (hb) hb.innerHTML = shHintsHtml(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
     if (t.id === 'shx-who' && e.type === 'input') { SH.who = t.value; var wb = $s('sh-whohint'); if (wb) wb.innerHTML = shWhoHtml(); return; }
-    if (e.type === 'input' && (t.id === 'sh-f-zakup' || t.id === 'sh-f-marzha')) { var z = Number(shNum('sh-f-zakup')), m = Number(shNum('sh-f-marzha')), o = $s('sh-f-price'); if (o) o.textContent = z > 0 && m >= 0 ? ui('Цена продажи: ', 'Нархи фурӯш: ', 'Sotuv narxi: ') + money(cents(Math.round(z * (1 + m / 100) * 100) / 100)) : ''; }
+    if (e.type === 'input' && t.id === 'sh-f-zakup') return; if (e.type === 'input' && t.id === 'sh-f-sell') { var z1 = Number(shNum('sh-f-zakup')), s1 = Number(shNum('sh-f-sell')), mf = $s('sh-f-marzha'); if (mf && z1 > 0 && s1 > 0) mf.value = String(Math.round((s1 / z1 - 1) * 10000) / 100); return; } if (e.type === 'input' && t.id === 'sh-f-marzha') { var z2 = Number(shNum('sh-f-zakup')), m2 = Number(shNum('sh-f-marzha')), sf = $s('sh-f-sell'); if (sf && z2 > 0 && m2 >= 0) sf.value = String(Math.round(z2 * (1 + m2 / 100) * 100) / 100); return; }
   }
   document.addEventListener('keydown', shLive); document.addEventListener('input', shLive);
   document.addEventListener('change', function (e) {
