@@ -454,7 +454,8 @@ if (S.view === 'mkt') return renderMkt(el);
         var i = PK.points.indexOf(p), pr = pkNum(p.profit);
         return '<button type="button" class="btn sec" data-pk="p:' + i + '" style="display:flex;align-items:center;gap:10px;text-align:left;height:auto;padding:12px;width:100%">' +
           '<span style="flex:1;min-width:0"><b style="display:block">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.city || '') + (p.months ? ' · ' + esc(TX('месяцев')) + ': ' + esc(p.months) : '') + '</small></span>' +
-          '<span style="flex:none;text-align:right"><b style="display:block;color:' + (pr < 0 ? '#c0392b' : pr > 0 ? '#1f8a4c' : 'inherit') + '">' + pkMoney(pr) + '</b>' + pkBadge(p.status) + '</span></button>';
+          '<span style="flex:none;text-align:right"><b style="display:block;color:' + (pr < 0 ? '#c0392b' : pr > 0 ? '#1f8a4c' : 'inherit') + '">' + pkMoney(pr) + '</b>' + pkBadge(p.status) +
+            (pkNum(p.rent_owed) > 0 ? '<small style="display:block;margin-top:4px;color:#b26a00;font-weight:600;white-space:nowrap">' + esc(TX('к передаче')) + ': ' + pkMoney(p.rent_owed) + '</small>' : '') + '</span></button>';
       }).join('') : '<p style="opacity:.75">' + esc(TX('Нет пунктов')) + '</p>') + '</div>';
   }
   // Экран «Финансист» проката: папка «Пункты» (внутри список пунктов со сводкой и фильтрами), «Склад» и «Все инструменты».
@@ -549,7 +550,8 @@ if (S.view === 'mkt') return renderMkt(el);
       '<p style="margin:10px 0 4px;opacity:.75"><small>' + esc(TX('Расчётные цифры')) + '</small></p>' +
       pkRow(TX('Вся аренда (доход / 0,8)'), pkMoney(inc / 0.8)) +
       pkRow(TX('Доля владельца пункта (доход / 4)'), pkMoney(inc / 4)) +
-      pkRow(TX('Уже забрано'), pkMoney(p.taken), true);
+      pkRow(TX('Уже забрано'), pkMoney(p.taken), true) +
+      pkRentBlock(p.rent);
     if (PK.msg) h += '<p style="color:#1f8a4c;margin:10px 0 0">' + esc(PK.msg) + '</p>';
     if (PK.form) h += pkForm();
     else h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' + pkBtn('take', '💵 ' + esc(TX('Забрал деньги'))) + pkBtn('ride', '🚗 ' + esc(TX('Объезд')), true) + '</div>' + (PK.ride ? '<div style="margin-top:8px">' + pkRideNote() + '</div>' : '');
@@ -565,6 +567,20 @@ if (S.view === 'mkt') return renderMkt(el);
     h += '<h3 style="margin:16px 0 6px">' + esc(TX('Журнал: забранные деньги')) + '</h3>';
     h += journal.length ? journal.map(function (j) { return pkRow((j.date || '') + (j.note ? ' · ' + j.note : ''), pkMoney(j.amount)); }).join('') : '<p style="opacity:.75">' + esc(TX('Пока ничего не забирали')) + '</p>';
     el.innerHTML = h + pkBigPhoto();
+  }
+  // Аренды, которые владелец пункта записал в своём окне (/punkt): сколько собрал и сколько должен передать Нурулло.
+  function pkRentBlock(r) {
+    if (!r || typeof r !== 'object') return '';
+    var hos = (Array.isArray(r.handovers) ? r.handovers : []).slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    var owed = pkNum(r.owed);
+    return '<h3 style="margin:16px 0 6px">🔑 ' + esc(TX('Аренда через окно владельца')) + '</h3>' +
+      pkRow(TX('Аренд'), esc(pkNum(r.count))) +
+      pkRow(TX('Собрано владельцем'), pkMoney(r.collected)) +
+      pkRow(TX('Доля владельца 20%'), pkMoney(r.owner_share)) +
+      pkRow(TX('К передаче Нурулло 80%'), '<span style="color:' + (owed > 0 ? '#b26a00' : 'inherit') + '">' + pkMoney(owed) + '</span>', true) +
+      pkRow(TX('Уже передано'), pkMoney(r.handed)) +
+      '<p style="margin:10px 0 4px;opacity:.75"><small>' + esc(TX('Передачи')) + '</small></p>' +
+      (hos.length ? hos.map(function (x) { return pkRow(/^\d{4}-\d{2}-\d{2}/.test(x.date || '') ? String(x.date).slice(8, 10) + '.' + String(x.date).slice(5, 7) + '.' + String(x.date).slice(0, 4) : (x.date || ''), pkMoney(x.amount)); }).join('') : '<p style="opacity:.75;margin:4px 0">' + esc(TX('Передач пока не было')) + '</p>');
   }
   function pkForm() {
     var F = PK.form;
@@ -674,7 +690,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'back') { PK.cur = null; PK.ph = null; PK.big = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; return render(); }
     if (k === 'p-retry') { if (PK.cur) pkOpenPoint(PK.cur.name); return; }
     if (k === 'ride') { PK.ride = !PK.ride; return render(); }
-    if (k === 'take') { PK.form = { sum: '', method: 'cash', note: '', id: oid(), busy: false }; PK.err = ''; PK.msg = ''; PK.ride = false; render(); var s = $s('pk-sum'); if (s) s.focus(); return; }
+    if (k === 'take') { var ro = PK.cur && PK.cur.rent ? pkNum(PK.cur.rent.owed) : 0; PK.form = { sum: ro > 0 ? String(Math.round(ro * 100) / 100) : '', method: 'cash', note: '', id: oid(), busy: false }; PK.err = ''; PK.msg = ''; PK.ride = false; render(); var s = $s('pk-sum'); if (s) s.focus(); return; }
     if (k === 'cancel') { PK.form = null; PK.err = ''; return render(); }
     if (k === 'save') return pkSave();
   }
