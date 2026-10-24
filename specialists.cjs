@@ -1816,7 +1816,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       h += '<form data-shopform="save" style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(ui('Новый товар', 'Моли нав', 'Yangi tovar')) + '</b>' +
         shIn('sh-f-kod', ui('Код товара (буквы и цифры)', 'Рамзи мол (ҳарф ва рақам)', 'Tovar kodi (harf va raqam)'), f.kod, 'maxlength="20"') +
         shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60"') +
-        shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') +
+        shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') + shIn('sh-f-sell', ui('Цена продажи', 'Нархи фурӯш', 'Sotuv narxi'), f.sell, 'inputmode="decimal"') +
         shIn('sh-f-marzha', ui('Маржа, %', 'Маржа, %', 'Marja, %'), f.marzha, 'inputmode="decimal"') +
         shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + (SH.fotoNew ? '<img alt="" src="' + SH.fotoNew + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px">' : '') + shBtn('foto', '📷 ' + (SH.fotoNew ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'new') + '</div>') +
         '<div id="sh-f-price" style="font-size:18px"></div><div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('save', ui('Сохранить', 'Захира', 'Saqlash')) + shBtn('fcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></form>';
@@ -1843,7 +1843,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       h += '<form data-shopform="save" style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(f.edit ? ui('Изменить товар', 'Тағйири мол', 'Tovarni oʻzgartirish') : ui('Новый товар', 'Моли нав', 'Yangi tovar')) + '</b>' +
         shIn('sh-f-kod', ui('Код товара (буквы и цифры)', 'Рамзи мол (ҳарф ва рақам)', 'Tovar kodi (harf va raqam)'), f.kod, (f.edit ? 'readonly ' : '') + 'maxlength="20"') +
         shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60"') +
-        shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') +
+        shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') + shIn('sh-f-sell', ui('Цена продажи', 'Нархи фурӯш', 'Sotuv narxi'), f.sell, 'inputmode="decimal"') +
         shIn('sh-f-marzha', ui('Маржа, %', 'Маржа, %', 'Marja, %'), f.marzha, 'inputmode="decimal"') +
         shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + (SH.fotoNew ? '<img alt="" src="' + SH.fotoNew + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px">' : '') + shBtn('foto', '📷 ' + (SH.fotoNew ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'new') + '</div>') +
         '<div id="sh-f-price" style="font-size:18px"></div><div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('save', ui('Сохранить', 'Захира', 'Saqlash')) + shBtn('fcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></form>';
@@ -2058,14 +2058,14 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'void') { if (SH.voidAsk !== k) { SH.voidAsk = k; return render(); } SH.voidAsk = ''; return shAct({ action: 'void', id: k }, ui('Продажа отменена, товар вернулся на склад', 'Фурӯш бекор шуд, мол ба анбор баргашт', 'Sotuv bekor qilindi, tovar omborga qaytdi'), function () { /* убираем чек из списка сразу, без перезагрузки */ var RR = SH.d && SH.d.report; if (RR && RR.checks) RR.checks = RR.checks.filter(function (c) { return c.id !== k; }); }); }
   }
   function shSave() {
-    var f = { kod: ($s('sh-f-kod').value || '').trim(), name: ($s('sh-f-name').value || '').trim(), zakup: shNum('sh-f-zakup'), marzha: shNum('sh-f-marzha') };
+    var f = { kod: ($s('sh-f-kod').value || '').trim(), name: ($s('sh-f-name').value || '').trim(), zakup: shNum('sh-f-zakup'), marzha: shNum('sh-f-marzha'), sell: shNum('sh-f-sell') };
     SH.form = Object.assign({ edit: SH.form && SH.form.edit }, f);
     if (!f.kod || !/^[A-Za-z0-9_-]+$/.test(f.kod)) { SH.err = ui('Код: только латинские буквы и цифры', 'Рамз: танҳо ҳарфҳои лотинӣ ва рақамҳо', 'Kod: faqat lotin harflari va raqamlar'); return render(); }
     if (!f.name) { SH.err = ui('Введите название', 'Номро нависед', 'Nomini yozing'); return render(); }
     if (!(Number(f.zakup) > 0)) { SH.err = ui('Закупочная цена должна быть больше нуля', 'Нархи харид аз сифр зиёд бошад', 'Xarid narxi noldan katta boʻlsin'); return render(); }
     if (f.marzha === '' || !(Number(f.marzha) >= 0 && Number(f.marzha) <= 1000)) { SH.err = ui('Маржа: число от 0 до 1000', 'Маржа: адад аз 0 то 1000', 'Marja: 0 dan 1000 gacha son'); return render(); }
     if (!SH.form.edit && shProd(f.kod)) { SH.err = ui('Товар с таким кодом уже есть', 'Чунин рамзи мол аллакай ҳаст', 'Bunday kodli tovar bor'); return render(); }
-    return shAct({ action: 'product', p: { kod: f.kod, name: f.name, zakup: Number(f.zakup), marzha: Number(f.marzha), foto: SH.fotoNew || undefined } }, ui('Товар сохранён', 'Мол захира шуд', 'Tovar saqlandi'), function () { SH.form = null; if (SH.fotoNew) SH_F[f.kod] = SH.fotoNew; SH.fotoNew = ''; });
+    return shAct({ action: 'product', p: { kod: f.kod, name: f.name, zakup: Number(f.zakup), marzha: Number(f.marzha), sell: f.sell === '' ? undefined : Number(f.sell), foto: SH.fotoNew || undefined } }, ui('Товар сохранён', 'Мол захира шуд', 'Tovar saqlandi'), function () { SH.form = null; if (SH.fotoNew) SH_F[f.kod] = SH.fotoNew; SH.fotoNew = ''; });
   }
   function shLive(e) {
     var t = e.target; if (!t) return;
@@ -2081,7 +2081,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     shFotoMake(file, function (img) {
       if (!img) { SH.err = ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'); return render(); }
       if (mode === 'new') {
-        var g = function (id) { var x = $s(id); return x ? x.value : ''; }, ff = SH.form || {}; SH.form = Object.assign(ff, { kod: g('sh-f-kod'), name: g('sh-f-name'), zakup: g('sh-f-zakup'), marzha: g('sh-f-marzha') });
+        var g = function (id) { var x = $s(id); return x ? x.value : ''; }, ff = SH.form || {}; SH.form = Object.assign(ff, { kod: g('sh-f-kod'), name: g('sh-f-name'), zakup: g('sh-f-zakup'), marzha: g('sh-f-marzha'), sell: g('sh-f-sell') });
         SH.fotoNew = img; SH.err = ''; return render();
       }
       if (mode === 'rcv' && SH.rcv) { var kd = SH.rcv.kod; return shAct({ action: 'foto', kod: kd, foto: img }, ui('Фото сохранено', 'Акс захира шуд', 'Rasm saqlandi'), function () { SH_F[kd] = img; }); }
