@@ -723,7 +723,11 @@ var $ = function(id){ return document.getElementById(id); };
 function lstore(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){} return null; }
 /* Режим админа «как клиент»: #as=<код кабинета>, только при открытой админ-сессии. Ничего не пишет в хранилище браузера. */
 var AS_KOD = '', AS_TMP = {};
-try { var AS_M = /^#as=([A-Za-z0-9_-]{20,80})$/.exec(location.hash || ''); if (AS_M && sessionStorage.getItem('adm_t')) AS_KOD = AS_M[1]; } catch (e) {}
+/* Вход в админку: до закрытия вкладки (sessionStorage) или, если отмечено «Запомнить это устройство», на 30 дней (localStorage). */
+var ADM_DAYS = 30;
+function admTok(){ try { var t = sessionStorage.getItem('adm_t'); if (t) return t; var r = JSON.parse(localStorage.getItem('adm_rem') || 'null'); if (r && r.t && Number(r.exp) > Date.now()) return String(r.t); localStorage.removeItem('adm_rem'); } catch (e) {} return ''; }
+function admSave(t, rem){ try { sessionStorage.removeItem('adm_t'); localStorage.removeItem('adm_rem'); if (!t) return; if (rem) localStorage.setItem('adm_rem', JSON.stringify({ t: t, exp: Date.now() + ADM_DAYS * 86400000 })); else sessionStorage.setItem('adm_t', t); } catch (e) {} }
+try { var AS_M = /^#as=([A-Za-z0-9_-]{20,80})$/.exec(location.hash || ''); if (AS_M && admTok()) AS_KOD = AS_M[1]; } catch (e) {}
 /* Сессия: если человек согласился «запомнить», хранится на устройстве, иначе только до закрытия вкладки. Сам код не хранится нигде. */
 function store(k,v){
   if (AS_KOD) { if (v===undefined) return k==='ew_cab' ? AS_KOD : (k==='ew_sid' ? null : (AS_TMP[k]||null)); AS_TMP[k]=v; return null; }
@@ -1836,9 +1840,9 @@ $('ar-list').addEventListener('click', function(e){
   document.body.appendChild(b);
   document.body.style.paddingBottom = '48px';
   document.getElementById('as-back').onclick = function () { location.hash = '#admin'; location.reload(); };
-  var t = ''; try { t = sessionStorage.getItem('adm_t') || ''; } catch (e) {}
+  var t = admTok();
   fetch('https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'view', token: t, kod: AS_KOD }) })
-    .then(function (r) { if (r.status === 401) { try { sessionStorage.removeItem('adm_t'); } catch (e) {} location.hash = '#admin'; location.reload(); } })
+    .then(function (r) { if (r.status === 401) { admSave(''); location.hash = '#admin'; location.reload(); } })
     .catch(function () {});
 })();
 /*as-client:end*/
@@ -2285,7 +2289,7 @@ $('ar-list').addEventListener('click', function(e){
   var API = 'https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api';
   var API_RENAME = API.replace(/admin-api$/, 'admin-rename');
   var TOKEN = '', STEP = 'login', STATE = { q: '', filter: 'all', page: 1 }, CUR = null, TIMER = null;
-  try { TOKEN = root.sessionStorage.getItem('adm_t') || ''; } catch (e) {}
+  TOKEN = admTok();
   var d = root.document;
   var css = '#adm{position:fixed;inset:0;z-index:99999;background:#f4f6fb;color:#1b2540;font:15px/1.4 system-ui,sans-serif;overflow:auto}' +
     '#adm *{box-sizing:border-box}#adm .bar{display:flex;gap:10px;align-items:center;padding:12px 16px;background:#14234d;color:#fff;position:sticky;top:0;z-index:2}' +
@@ -2315,7 +2319,7 @@ $('ar-list').addEventListener('click', function(e){
     return root.fetch(url || API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.text().then(function (t) { var j = {}; try { j = JSON.parse(t); } catch (e) {} return { s: r.status, j: j }; }); });
   }
-  function save(t) { TOKEN = t || ''; try { if (t) root.sessionStorage.setItem('adm_t', t); else root.sessionStorage.removeItem('adm_t'); } catch (e) {} }
+  function save(t, rem) { TOKEN = t || ''; admSave(TOKEN, rem); }
   var ERR = { bad: 'Пароль или код неверные.', limit: 'Слишком много попыток. Подождите 15 минут.', short: 'Пароль слишком короткий: нужно минимум 10 символов.', empty: 'Введите пароль.', expired: 'Код устарел. Войдите заново.', auth: 'Сессия закончилась. Войдите заново.' };
   function errText(x) { return ERR[x.j && x.j.error] || (x.s === 0 ? 'Нет связи с сервером.' : 'Ошибка ' + x.s + '. Попробуйте ещё раз.'); }
 
@@ -2334,12 +2338,12 @@ $('ar-list').addEventListener('click', function(e){
   }
   function showCode(tok, setup) {
     STEP = 'code';
-    box.innerHTML = '<div class="box"><b style="font-size:19px">Код из WhatsApp</b>' + (setup ? '<div class="note">Первый вход: введённый пароль станет вашим админ-паролем.</div>' : '') + '<input id="a-code" inputmode="numeric" maxlength="6" placeholder="6 цифр" autocomplete="one-time-code"><button class="pri" id="a-ok">Войти</button><button id="a-back">Назад</button><div class="err" id="a-err"></div></div>';
+    box.innerHTML = '<div class="box"><b style="font-size:19px">Код из WhatsApp</b>' + (setup ? '<div class="note">Первый вход: введённый пароль станет вашим админ-паролем.</div>' : '') + '<input id="a-code" inputmode="numeric" maxlength="6" placeholder="6 цифр" autocomplete="one-time-code"><label style="display:flex;gap:8px;align-items:center"><input id="a-rem" type="checkbox" checked style="min-width:auto"> Запомнить это устройство на 30 дней</label><small style="color:#5c6785;margin-top:-6px">Не отмечайте на чужом телефоне или компьютере.</small><button class="pri" id="a-ok">Войти</button><button id="a-back">Назад</button><div class="err" id="a-err"></div></div>';
     $('a-ok').onclick = function () {
       $('a-err').textContent = ''; $('a-ok').disabled = true;
       call({ action: 'verify', token: tok, code: $('a-code').value }).then(function (x) {
         $('a-ok').disabled = false;
-        if (x.j && x.j.ok && x.j.token) { save(x.j.token); showList(); } else $('a-err').textContent = errText(x);
+        if (x.j && x.j.ok && x.j.token) { save(x.j.token, !!($('a-rem') && $('a-rem').checked)); showList(); } else $('a-err').textContent = errText(x);
       }).catch(function () { $('a-ok').disabled = false; $('a-err').textContent = 'Нет связи с сервером.'; });
     };
     $('a-code').onkeydown = function (e) { if (e.key === 'Enter') $('a-ok').click(); };
