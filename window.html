@@ -2830,18 +2830,18 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Финансист проката строительных инструментов ---------- */
   // Данные хранит n8n по адресу /prokat. Кому показывать прокат, решает сервер: чужому кабинету он отвечает «нет доступа», и тогда открывается обычная бухгалтерия.
-  var PK = { points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, big: null };
+  var PK = { points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, big: null, cmp: null, tour: null, rem: null };
   var PK_ST = { minus: 'В минусе', plus: 'В плюсе', idle: 'Нет движения' };
   var PK_PAY = { cash: 'Наличные', ds: 'Душанбе Сити', alif: 'Алиф' };
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
   function pkMoney(x) { return money(cents(pkNum(x))); }
   function openFinOrProkat() {
-    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.ph = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
       if (S.view !== 'prokat') return;
       if (!r || !r.ok) return openBuh();
-      PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; render();
+      PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; render(); pkRemLoad();
     });
   }
   function pkReload() {
@@ -2864,9 +2864,11 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkBtn(k, text, sec, style) { return '<button type="button" class="btn' + (sec ? ' sec' : '') + '" data-pk="' + esc(k) + '"' + (style ? ' style="' + style + '"' : '') + '>' + text + '</button>'; }
   function renderProkat(el) {
     if (PK.busy) { el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+    if (PK.tour) return renderPkTour(el);
     if (PK.cur) return renderPkPoint(el);
     if (PK.sk) return renderPkSklad(el);
     if (PK.all) return renderPkAll(el);
+    if (PK.cmp) return renderPkCmp(el);
     if (!PK.folder) return renderPkHome(el);
     var pts = PK.points.slice().sort(function (a, b) { return pkNum(a.profit) - pkNum(b.profit); });
     var plus = 0, minus = 0, idle = 0, sum = 0;
@@ -2885,18 +2887,19 @@ if (S.view === 'mkt') return renderMkt(el);
       '<div style="display:grid;gap:8px">' + (shown.length ? shown.map(function (p) {
         var i = PK.points.indexOf(p), pr = pkNum(p.profit);
         return '<button type="button" class="btn sec" data-pk="p:' + i + '" style="display:flex;align-items:center;gap:10px;text-align:left;height:auto;padding:12px;width:100%">' +
-          '<span style="flex:1;min-width:0"><b style="display:block">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.city || '') + (p.months ? ' · ' + esc(TX('месяцев')) + ': ' + esc(p.months) : '') + '</small></span>' +
+          '<span style="flex:1;min-width:0"><b style="display:block">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.city || '') + (p.months ? ' · ' + esc(TX('месяцев')) + ': ' + esc(p.months) : '') + '<br>' + esc(pkVisit(p)) + '</small></span>' +
           '<span style="flex:none;text-align:right"><b style="display:block;color:' + (pr < 0 ? '#c0392b' : pr > 0 ? '#1f8a4c' : 'inherit') + '">' + pkMoney(pr) + '</b>' + pkBadge(p.status) +
             (pkNum(p.rent_owed) > 0 ? '<small style="display:block;margin-top:4px;color:#b26a00;font-weight:600;white-space:nowrap">' + esc(TX('к передаче')) + ': ' + pkMoney(p.rent_owed) + '</small>' : '') + '</span></button>';
       }).join('') : '<p style="opacity:.75">' + esc(TX('Нет пунктов')) + '</p>') + '</div>';
   }
-  // Экран «Финансист» проката: папка «Пункты» (внутри список пунктов со сводкой и фильтрами), «Склад» и «Все инструменты».
+  // Экран «Финансист» проката: напоминания, папка «Пункты» (внутри список пунктов со сводкой и фильтрами), «Склад», «Все инструменты» и «Сравнение пунктов».
   function renderPkHome(el) {
     var n = PK.total == null ? PK.points.length : PK.total;
-    el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><div style="display:grid;gap:10px">' +
+    el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2>' + pkRemBlock() + '<div style="display:grid;gap:10px">' +
       '<button type="button" class="btn sec" data-pk="folder" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📍</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Пункты')) + '</b><small style="opacity:.75">' + esc(TX('Пункты проката строительных инструментов')) + '</small></span><span style="flex:none;font-size:15px;font-weight:700;padding:3px 10px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(n) + '</span></button>' +
       '<button type="button" class="btn sec" data-pk="sklad" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🏠</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Склад')) + '</b><small style="opacity:.75">' + esc(TX('Что лежит у меня дома, не на пунктах')) + '</small></span></button>' +
-      '<button type="button" class="btn sec" data-pk="all" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🧰</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Все инструменты')) + '</b><small style="opacity:.75">' + esc(TX('Перфораторы, болгарки, дрели и другие: где какой стоит')) + '</small></span></button></div>';
+      '<button type="button" class="btn sec" data-pk="all" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🧰</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Все инструменты')) + '</b><small style="opacity:.75">' + esc(TX('Перфораторы, болгарки, дрели и другие: где какой стоит')) + '</small></span></button>' +
+      '<button type="button" class="btn sec" data-pk="cmp" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📊</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Сравнение пунктов')) + '</b><small style="opacity:.75">' + esc(TX('Какой пункт лучше и что где простаивает')) + '</small></span></button></div>';
   }
   // «Склад»: инструменты дома, не на пунктах. Плюс — привезли домой, минус — забрали.
   function pkSkOpen() {
@@ -2962,7 +2965,7 @@ if (S.view === 'mkt') return renderMkt(el);
       render(); pkSkLoad();
     });
   }
-  function pkRideNote() { return '<p style="padding:10px;border-radius:10px;background:rgba(127,127,127,.12);margin:0 0 10px">' + esc(TX('Объезд скоро: здесь будет маршрут по пунктам, где пора забрать деньги или проверить инструмент. Пока забранные деньги записывайте кнопкой «Забрал деньги» в карточке пункта.')) + '</p>'; }
+  function pkRideNote() { return '<p style="padding:10px;border-radius:10px;background:rgba(127,127,127,.12);margin:0 0 10px">' + esc(TX('Объезд делается по пунктам: откройте пункт и нажмите «Начать объезд». Пункты, где давно не было объезда, — в «Напоминаниях» на экране Финансиста.')) + '</p>'; }
   function renderPkPoint(el) {
     var p = PK.cur, back = pkBtn('back', '← ' + esc(TX('К списку пунктов')), true, 'margin-bottom:8px');
     if (p.loading) { el.innerHTML = back + '<h2 style="padding-right:36px">' + esc(p.name) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
@@ -2971,7 +2974,7 @@ if (S.view === 'mkt') return renderMkt(el);
     var months = Array.isArray(p.months) ? p.months : [], journal = Array.isArray(p.journal) ? p.journal : [], fills = Array.isArray(p.fills) ? p.fills : [];
     var phones = Array.isArray(p.phones) ? p.phones.join(', ') : (p.phones || '');
     var h = back + '<h2 style="padding-right:36px;margin-bottom:4px">' + esc(p.name) + '</h2>' +
-      '<p style="margin:0 0 8px;opacity:.8">' + esc(p.city || '') + (p.owner ? ' · ' + esc(TX('Владелец')) + ': ' + esc(p.owner) : '') + (phones ? ' · ' + esc(phones) : '') + '</p>' +
+      '<p style="margin:0 0 8px;opacity:.8">' + esc(p.city || '') + (p.owner ? ' · ' + esc(TX('Владелец')) + ': ' + esc(p.owner) : '') + (phones ? ' · ' + esc(phones) : '') + '<br>🚗 ' + esc(pkVisit(p)) + '</p>' +
       (p.note ? '<p style="margin:0 0 8px">' + esc(p.note) + '</p>' : '') +
       '<div style="margin-bottom:8px">' + pkBadge(p.status) + '</div>' +
       pkRow(TX('Доход (наша доля 80%)'), pkMoney(inc)) +
@@ -2986,7 +2989,7 @@ if (S.view === 'mkt') return renderMkt(el);
       pkRentBlock(p.rent);
     if (PK.msg) h += '<p style="color:#1f8a4c;margin:10px 0 0">' + esc(PK.msg) + '</p>';
     if (PK.form) h += pkForm();
-    else h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' + pkBtn('take', '💵 ' + esc(TX('Забрал деньги'))) + pkBtn('ride', '🚗 ' + esc(TX('Объезд')), true) + '</div>' + (PK.ride ? '<div style="margin-top:8px">' + pkRideNote() + '</div>' : '');
+    else h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' + pkBtn('take', '💵 ' + esc(TX('Забрал деньги'))) + pkBtn('tour', '🚗 ' + esc(TX('Начать объезд')), true) + '</div>';
     h += pkPhBlock();
     h += '<h3 style="margin:16px 0 6px">' + esc(TX('По месяцам')) + '</h3>';
     h += months.length ? '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr>' +
@@ -3103,12 +3106,206 @@ if (S.view === 'mkt') return renderMkt(el);
     }).join('') + '</div>' : '<p style="opacity:.75">' + esc(TX('Пока пусто')) + '</p>';
     el.innerHTML = h;
   }
+  /* ---------- Напоминания, сравнение пунктов, объезд ---------- */
+  function pkDay(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(s || ''); }
+  function pkVisit(p) {
+    if (!p || !p.last_visit) return TX('объезда не было');
+    var d = pkNum(p.visit_days);
+    return d <= 0 ? TX('объезд сегодня') : TX('объезд') + ' ' + d + ' ' + TX('дн. назад');
+  }
+  // Напоминания: давно не было объезда, владелец должен передать деньги, инструмент долго сломан.
+  function pkRemLoad() {
+    var rem = PK.rem = { loading: true, data: null, open: PK.rem ? PK.rem.open : false };
+    callTo('/prokat', { action: 'reminders' }).then(function (r) {
+      if (PK.rem !== rem) return;
+      rem.loading = false; rem.data = r && r.ok ? r : null;
+      if (S.view === 'prokat') render();
+    });
+  }
+  function pkRemLists() {
+    var d = PK.rem && PK.rem.data; if (!d) return null;
+    return { visit: Array.isArray(d.visit) ? d.visit : [], owed: Array.isArray(d.owed) ? d.owed : [], broken: Array.isArray(d.broken) ? d.broken : [] };
+  }
+  function pkRemBlock() {
+    var L = pkRemLists(); if (!L) return '';
+    var n = L.visit.length + L.owed.length + L.broken.length; if (!n) return '';
+    var open = PK.rem.open, row = function (k, i, text) { return '<button type="button" data-pk="rp:' + k + ':' + i + '" style="display:block;width:100%;text-align:left;padding:8px 0;border:0;border-top:1px solid rgba(192,57,43,.25);background:none;color:inherit;font:inherit;cursor:pointer">' + text + '</button>'; };
+    var h = '<div style="border:2px solid #c0392b;border-radius:12px;background:rgba(192,57,43,.08);margin-bottom:10px">' +
+      '<button type="button" data-pk="rem" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:0;background:none;color:#c0392b;font:inherit;font-weight:700;text-align:left;cursor:pointer"><span style="flex:1">🔔 ' + esc(TX('Напоминания')) + '</span><span style="flex:none;min-width:28px;text-align:center;padding:2px 8px;border-radius:12px;background:#c0392b;color:#fff">' + n + '</span><span style="flex:none">' + (open ? '▾' : '▸') + '</span></button>';
+    if (open) {
+      h += '<div style="padding:0 12px 10px">';
+      if (L.visit.length) h += '<p style="margin:6px 0 2px;font-weight:700">' + esc(TX('Давно не было объезда')) + '</p>' + L.visit.map(function (x, i) { return row('v', i, '🚗 ' + esc(x.name) + ' — ' + (x.last ? esc(pkNum(x.days)) + ' ' + esc(TX('дн.')) + ' (' + esc(TX('последний')) + ' ' + esc(pkDay(x.last)) + ')' : esc(TX('объезда не было')))); }).join('');
+      if (L.owed.length) h += '<p style="margin:10px 0 2px;font-weight:700">' + esc(TX('Владелец должен передать')) + '</p>' + L.owed.map(function (x, i) { return row('o', i, '💵 ' + esc(x.name) + ' — <b>' + pkMoney(x.amount) + '</b>'); }).join('');
+      if (L.broken.length) h += '<p style="margin:10px 0 2px;font-weight:700">' + esc(TX('Долго сломан')) + '</p>' + L.broken.map(function (x, i) { return row('b', i, '🔧 ' + esc(x.name) + ': ' + esc(x.tool) + ' — ' + esc(pkNum(x.days)) + ' ' + esc(TX('дн.'))); }).join('');
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+  // Сравнение пунктов: сервер уже отсортировал от лучшего к худшему.
+  function pkCmpOpen() {
+    var c = PK.cmp = { loading: true, points: [], error: '', open: {} }; render();
+    callTo('/prokat', { action: 'compare' }).then(function (r) {
+      if (PK.cmp !== c) return;
+      c.loading = false;
+      if (!r || !r.ok) c.error = (r && r.error) || TX('не удалось загрузить'); else c.points = Array.isArray(r.points) ? r.points : [];
+      if (S.view === 'prokat') render();
+    });
+  }
+  function renderPkCmp(el) {
+    var c = PK.cmp, h = pkBtn('home', '← ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">📊 ' + esc(TX('Сравнение пунктов')) + '</h2>';
+    if (c.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
+    if (c.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(c.error) + '</p>' + pkBtn('cmp', esc(TX('Ещё раз')), true));
+    h += '<p style="margin-top:0;opacity:.8">' + esc(TX('От лучшего к худшему. Нажмите на пункт, чтобы увидеть, что там простаивает.')) + '</p>';
+    h += c.points.length ? '<div style="display:grid;gap:8px">' + c.points.map(function (p, i) {
+      var idle = Array.isArray(p.idle) ? p.idle : [], n = p.idle_count == null ? idle.length : pkNum(p.idle_count), on = !!c.open[i];
+      return '<div style="border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden">' +
+        '<button type="button" data-pk="ci:' + i + '" aria-expanded="' + on + '" style="display:flex;gap:10px;width:100%;padding:12px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' +
+          '<span style="flex:none;width:30px;height:30px;border-radius:15px;background:rgba(127,127,127,.15);display:flex;align-items:center;justify-content:center;font-weight:700">' + (i + 1) + '</span>' +
+          '<span style="flex:1;min-width:0"><b style="display:block">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.city || '') + '</small>' +
+            '<span style="display:block;font-size:14px;margin-top:4px">' + esc(TX('аренд')) + ': <b>' + esc(pkNum(p.rentals)) + '</b> · ' + esc(TX('собрано')) + ': <b>' + pkMoney(p.collected) + '</b> · ' + esc(TX('доход из таблиц')) + ': <b>' + pkMoney(p.income_all) + '</b></span>' +
+            '<span style="display:block;font-size:14px;margin-top:2px;font-weight:600;color:' + (n > 0 ? '#b26a00' : '#1f8a4c') + '">' + esc(TX('простаивает')) + ': ' + esc(n) + '</span></span>' +
+          '<span style="flex:none">' + (on ? '▾' : '▸') + '</span></button>' +
+        (on ? '<div style="padding:0 12px 10px 52px"><p style="margin:0 0 4px;font-weight:700">' + esc(TX('Что стоит перевезти')) + '</p>' + (idle.length ? idle.map(function (x) {
+          var t = typeof x === 'object' && x ? (x.name || '') + (x.days != null ? ' — ' + pkNum(x.days) + ' ' + TX('дн. без аренды') : '') : String(x);
+          return '<div style="padding:4px 0;border-top:1px solid rgba(127,127,127,.2)">' + esc(t) + '</div>';
+        }).join('') : '<p style="opacity:.75;margin:0">' + esc(TX('Всё работает, перевозить нечего')) + '</p>') + '</div>' : '') + '</div>';
+    }).join('') + '</div>' : '<p style="opacity:.75">' + esc(TX('Нет пунктов')) + '</p>';
+    el.innerHTML = h;
+  }
+  // Объезд пункта: отметка по каждому инструменту (на месте / сломан / нет), заметка и фото. Сохраняем пачками по 5.
+  var PK_STATES = ['на месте', 'сломан', 'нет'], PK_TOUR_BATCH = 5;
+  function pkTourOpen(name) {
+    var T = PK.tour = { name: name, loading: true, error: '', point: null, items: [], marks: [], sent: {}, plan: null, dirty: false, saving: false, prog: null, err: '' }; render();
+    callTo('/prokat', { action: 'tour_point', name: name }).then(function (r) {
+      if (PK.tour !== T) return;
+      T.loading = false;
+      if (!r || !r.ok) T.error = (r && r.error) || TX('не удалось загрузить');
+      else { T.point = r.point || null; T.last_visit = r.last_visit || ''; T.items = Array.isArray(r.items) ? r.items : []; T.marks = T.items.map(function () { return { state: '', note: '', photo: '', wait: false }; }); }
+      if (S.view === 'prokat') render();
+    });
+  }
+  function pkShrink(file) {
+    return new Promise(function (ok, fail) {
+      if (!file || !/^image\//.test(file.type || 'image/')) return fail(new Error(TX('Это не фото')));
+      var fr = new FileReader();
+      fr.onerror = function () { fail(new Error(TX('Не получилось открыть фото'))); };
+      fr.onload = function () {
+        var img = new Image();
+        img.onerror = function () { fail(new Error(TX('Не получилось открыть фото. Сделайте снимок ещё раз.'))); };
+        img.onload = function () {
+          var tries = [[900, 0.6], [800, 0.5], [700, 0.45], [600, 0.4]], W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+          for (var i = 0; i < tries.length; i++) {
+            var w = Math.min(tries[i][0], W), h = Math.round(H * w / W), c = document.createElement('canvas'); c.width = w; c.height = h;
+            var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
+            var url = c.toDataURL('image/jpeg', tries[i][1]);
+            if (/^data:image\/jpeg;base64,/.test(url) && url.length * 3 / 4 < 1.5 * 1024 * 1024) return ok(url);
+          }
+          fail(new Error(TX('Фото слишком большое. Сделайте снимок ещё раз.')));
+        };
+        img.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function renderPkTour(el) {
+    var T = PK.tour, h = pkBtn('tour-back', '← ' + esc(TX('К пункту')), true, 'margin-bottom:8px' + (T.saving ? ';opacity:.5' : '')) + '<h2 style="padding-right:36px;margin-bottom:4px">🚗 ' + esc(TX('Объезд')) + ': ' + esc(T.name) + '</h2>';
+    if (T.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
+    if (T.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(T.error) + '</p>' + pkBtn('tour-retry', esc(TX('Ещё раз')), true));
+    var marked = T.marks.filter(function (m) { return m.state; }).length;
+    h += '<p style="margin:0 0 10px;opacity:.8">' + esc(T.last_visit ? TX('Прошлый объезд') + ': ' + pkDay(T.last_visit) : TX('объезда не было')) + '</p>';
+    h += T.items.length ? '<div style="display:grid;gap:10px">' + T.items.map(function (it, i) {
+      var m = T.marks[i], sent = !!T.sent[i];
+      return '<div style="border:1px solid rgba(127,127,127,.35);border-radius:12px;padding:10px' + (sent ? ';opacity:.6' : '') + '">' +
+        '<b style="display:block;font-size:17px">' + esc(it.name) + (it.qty != null ? ' <small style="font-weight:400;opacity:.75">· ' + esc(TX('шт.')) + ' ' + esc(it.qty) + '</small>' : '') + (sent ? ' ✅' : '') + '</b>' +
+        '<small style="display:block;opacity:.75;margin-bottom:6px">' + (it.last_state ? esc(TX('было')) + ': ' + esc(it.last_state) + (it.last_date ? ', ' + esc(pkDay(it.last_date)) : '') + (it.last_note ? ' · ' + esc(it.last_note) : '') : esc(TX('раньше не отмечали'))) + '</small>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">' + PK_STATES.map(function (st, k) {
+          var on = m.state === st, col = k === 0 ? '#1f8a4c' : k === 1 ? '#c0392b' : '#b26a00';
+          return '<button type="button" data-pk="ts:' + i + ':' + k + '" style="min-height:48px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;border:2px solid ' + col + ';background:' + (on ? col : 'transparent') + ';color:' + (on ? '#fff' : col) + '">' + esc(TX(st)) + '</button>';
+        }).join('') + '</div>' +
+        '<input type="text" data-tnote="' + i + '" maxlength="200" autocomplete="off" placeholder="' + esc(TX('Заметка')) + '" value="' + esc(m.note) + '" style="display:block;width:100%;margin-top:6px">' +
+        '<label style="display:flex;align-items:center;gap:10px;margin-top:6px;min-height:48px;padding:6px 10px;border:2px ' + (m.photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;cursor:pointer;font-weight:600">' +
+          (m.photo ? '<img src="' + esc(m.photo) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">' : '📷') +
+          '<span>' + esc(m.wait ? TX('Обрабатываю фото…') : m.photo ? TX('Фото готово, нажмите, чтобы переснять') : TX('Фото')) + '</span>' +
+          '<input type="file" accept="image/*" capture="environment" data-tphoto="' + i + '" style="position:absolute;width:1px;height:1px;opacity:0"></label></div>';
+    }).join('') + '</div>' : '<p style="opacity:.75">' + esc(TX('На пункте нет инструментов')) + '</p>';
+    if (T.prog) h += '<div style="margin-top:12px"><div style="height:10px;border-radius:5px;background:rgba(127,127,127,.2);overflow:hidden"><div style="height:100%;width:' + Math.round(100 * T.prog.done / Math.max(1, T.prog.total)) + '%;background:#1f8a4c"></div></div><p style="margin:4px 0 0">' + esc(TX('Сохранено')) + ': ' + T.prog.done + ' ' + esc(TX('из')) + ' ' + T.prog.total + '</p></div>';
+    if (T.err) h += '<p style="color:#c0392b;margin:10px 0 0">' + esc(T.err) + '</p>';
+    h += '<p style="margin:12px 0 6px">' + esc(TX('Отмечено')) + ': ' + marked + ' ' + esc(TX('из')) + ' ' + T.items.length + '</p>' +
+      pkBtn('tour-save', esc(T.saving ? TX('Сохраняю…') : TX('Сохранить объезд')), false, 'width:100%' + (T.saving ? ';opacity:.6' : ''));
+    el.innerHTML = h;
+  }
+  function pkTourSave() {
+    var T = PK.tour; if (!T || T.saving || T.loading || T.error) return;
+    if (T.marks.some(function (m) { return m.wait; })) { T.err = TX('Подождите, фото ещё обрабатывается'); return render(); }
+    var todo = []; T.marks.forEach(function (m, i) { if (m.state && !T.sent[i]) todo.push(i); });
+    if (!todo.length && !(T.plan && !T.dirty && T.plan.next < T.plan.batches.length)) { T.err = TX(T.marks.some(function (m) { return m.state; }) ? 'Всё отмеченное уже сохранено' : 'Отметьте хотя бы один инструмент'); return render(); }
+    // Пачки по 5 инструментов, у каждой свой id. После обрыва связи повтор идёт с теми же id, если отметки не меняли.
+    if (!T.plan || T.dirty || T.plan.next >= T.plan.batches.length) {
+      var b = []; for (var k = 0; k < todo.length; k += PK_TOUR_BATCH) b.push({ id: oid(), idx: todo.slice(k, k + PK_TOUR_BATCH) });
+      T.plan = { batches: b, next: 0 }; T.dirty = false;
+    }
+    var total = T.plan.batches.reduce(function (s, x) { return s + x.idx.length; }, 0), done = T.plan.batches.slice(0, T.plan.next).reduce(function (s, x) { return s + x.idx.length; }, 0);
+    T.saving = true; T.err = ''; T.prog = { done: done, total: total }; render();
+    (function next() {
+      if (PK.tour !== T) return;
+      var B = T.plan.batches[T.plan.next];
+      if (!B) {
+        T.saving = false;
+        var cnt = Object.keys(T.sent).length;
+        PK.tour = null; PK.msg = TX('Объезд сохранён') + ': ' + cnt + ' ' + TX('инстр.');
+        render(); pkOpenPointQuiet(T.name); pkReload(); pkRemLoad();
+        return;
+      }
+      var items = B.idx.map(function (i) { var m = T.marks[i], o = { name: T.items[i].name, state: m.state, note: String(m.note || '').trim().slice(0, 200) }; if (m.photo) o.photo = m.photo; return o; });
+      callTo('/prokat', { action: 'tour_save', name: T.name, id: B.id, items: items }).then(function (r) {
+        if (PK.tour !== T) return;
+        if (!r || !r.ok) {
+          T.saving = false; T.err = (r && r.error) || TX('Не получилось сохранить');
+          if (r && r.error && r.error !== TX('нет связи')) B.id = oid(); // сервер отказал — следующая попытка этой пачки будет новой записью
+          return render();
+        }
+        B.idx.forEach(function (i) { T.sent[i] = true; });
+        T.plan.next++; T.prog.done += B.idx.length; render(); next();
+      });
+    })();
+  }
+  function pkTourClick(k) {
+    var T = PK.tour;
+    if (k === 'tour') { if (PK.cur && PK.cur.name) pkTourOpen(PK.cur.name); return true; }
+    if (!T) return false;
+    if (k === 'tour-back') { if (!T.saving) { PK.tour = null; render(); } return true; }
+    if (k === 'tour-retry') { pkTourOpen(T.name); return true; }
+    if (k === 'tour-save') { pkTourSave(); return true; }
+    if (k.indexOf('ts:') === 0) {
+      var a = k.split(':'), i = +a[1], st = PK_STATES[+a[2]], m = T.marks[i];
+      if (m && st && !T.saving && !T.sent[i]) { m.state = m.state === st ? '' : st; T.dirty = true; T.err = ''; render(); }
+      return true;
+    }
+    return false;
+  }
+  document.addEventListener('input', function (e) {
+    var t = e.target, T = PK.tour; if (!T || !t || !t.getAttribute) return;
+    var i = t.getAttribute('data-tnote'); if (i == null || !T.marks[+i] || T.sent[+i]) return;
+    T.marks[+i].note = t.value; T.dirty = true;
+  });
+  document.addEventListener('change', function (e) {
+    var t = e.target, T = PK.tour; if (!T || !t || !t.getAttribute) return;
+    var i = t.getAttribute('data-tphoto'); if (i == null) return;
+    var m = T.marks[+i], file = t.files && t.files[0]; if (!m || !file || T.saving || T.sent[+i]) return;
+    m.wait = true; T.err = ''; render();
+    pkShrink(file).then(function (url) { m.photo = url; T.dirty = true; }, function (er) { T.err = er.message; }).then(function () { m.wait = false; if (PK.tour === T) render(); });
+  });
   function pkClick(k) {
+    if (pkTourClick(k)) return;
+    if (k === 'cmp') return pkCmpOpen();
+    if (k.indexOf('ci:') === 0) { if (PK.cmp) { var ci = +k.slice(3); PK.cmp.open[ci] = !PK.cmp.open[ci]; render(); } return; }
+    if (k === 'rem') { if (PK.rem) { PK.rem.open = !PK.rem.open; render(); } return; }
+    if (k.indexOf('rp:') === 0) { var L = pkRemLists(), ra = k.split(':'), rx = L && L[{ v: 'visit', o: 'owed', b: 'broken' }[ra[1]]]; var it = rx && rx[+ra[2]]; if (it && it.name) { PK.folder = true; pkOpenPoint(it.name); } return; }
     if (k.indexOf('f:') === 0) { if (['all', 'minus', 'plus', 'idle'].indexOf(k.slice(2)) >= 0) PK.filter = k.slice(2); return render(); }
     if (k.indexOf('p:') === 0) { var p = PK.points[+k.slice(2)]; if (p) pkOpenPoint(p.name); return; }
     if (k.indexOf('m:') === 0) { if (PK.form && PK_PAY[k.slice(2)]) { pkKeep(); PK.form.method = k.slice(2); render(); } return; }
     if (k === 'folder') { PK.folder = true; PK.ride = false; return render(); }
-    if (k === 'home') { PK.folder = false; PK.sk = null; PK.all = null; PK.ride = false; return render(); }
+    if (k === 'home') { PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.ride = false; return render(); }
     if (k === 'sklad') return pkSkOpen();
     if (k === 'all') return pkAllOpen();
     if (k === 'all-retry') return pkAllOpen();
