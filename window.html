@@ -3239,22 +3239,29 @@ if (S.view === 'mkt') return renderMkt(el);
       return '<button type="button" data-pk="pt:' + i + '" style="display:block;padding:0;border:1px solid rgba(127,127,127,.3);border-radius:10px;overflow:hidden;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' +
         (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(t.name || '') + '" style="display:block;width:100%;aspect-ratio:1;object-fit:cover">' : '<span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:rgba(127,127,127,.15);font-size:30px">🧰</span>') +
         '<span style="display:block;padding:4px 6px;font-size:12px;line-height:1.3"><b style="display:block;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + esc(t.name || '') + (pkNum(t.qty) > 1 ? ' × ' + esc(t.qty) : '') + '</b>' +
-        '<span style="opacity:.75">' + (n ? '📷 ' + n + (t.last ? ' · ' + esc(pkDay(t.last)) : '') : esc(TX('фото нет'))) + '</span></span></button>';
+        '<span style="opacity:.75">' + (n ? '📷 ' + n + (t.last ? ' · ' + esc(pkDay(t.last)) : '') : esc(TX('фото нет'))) + '</span>' + (pkPriceMin(t.prices) ? '<span style="display:block;font-weight:600">💰 ' + esc(TX('от')) + ' ' + pkPriceMin(t.prices) + ' ' + esc(TX('смн')) + '</span>' : '') + '</span></button>';
     }).join('') + '</div>';
   }
+  // Цена аренды из прайса: «до 3 ч — 30 смн · сутки — 40 смн».
+  function pkPrices(list) {
+    var sr = { 'коротко': TX('до 3 ч'), 'сутки': TX('сутки'), 'день': TX('день') };
+    return (Array.isArray(list) ? list : []).map(function (p) { return (sr[p.srok] || TX(p.srok || '')) + ' — ' + pkNum(p.cena) + ' ' + TX('смн'); }).join(' · ');
+  }
+  function pkPriceMin(list) { var c = (Array.isArray(list) ? list : []).map(function (p) { return pkNum(p.cena); }).filter(function (x) { return x > 0; }); return c.length ? Math.min.apply(null, c) : 0; }
   function pkToolOpen(i) {
     var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
-    var pt = PK.pt = { point: PK.cur.name, tool: t.name, loading: true, photos: [], total: 0, error: '' }; PK.big = null; render();
+    var pt = PK.pt = { point: PK.cur.name, tool: t.name, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '' }; PK.big = null; render();
     callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
       if (PK.pt !== pt) return;
       pt.loading = false;
       if (!r || !r.ok) pt.error = (r && r.error) || TX('не удалось загрузить');
-      else { pt.photos = Array.isArray(r.photos) ? r.photos : []; pt.total = pkNum(r.total) || pt.photos.length; }
+      else { pt.photos = Array.isArray(r.photos) ? r.photos : []; pt.total = pkNum(r.total) || pt.photos.length; if (Array.isArray(r.prices)) { pt.prices = r.prices; pt.kind = r.kind || ''; } }
       if (S.view === 'prokat') render();
     });
   }
   function renderPkToolHist(el) {
-    var pt = PK.pt, h = pkBtn('pt-back', '← ' + esc(pt.point), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px;margin-bottom:2px">🧰 ' + esc(pt.tool) + '</h2><p style="margin:0 0 10px;opacity:.8">' + esc(pt.point) + '</p>';
+    var pt = PK.pt, h = pkBtn('pt-back', '← ' + esc(pt.point), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px;margin-bottom:2px">🧰 ' + esc(pt.tool) + '</h2><p style="margin:0 0 10px;opacity:.8">' + esc(pt.point) + '</p>' +
+      '<div style="margin:0 0 12px;padding:10px;border-radius:10px;background:rgba(31,138,76,.1)"><b>💰 ' + esc(TX('Цена аренды')) + (pt.kind ? ' (' + esc(TX(pt.kind)) + ')' : '') + '</b><br>' + esc(pkPrices(pt.prices) || TX('В прайсе цены для этого инструмента нет')) + '</div>';
     if (pt.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
     if (pt.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(pt.error) + '</p>' + pkBtn('pt-retry', esc(TX('Ещё раз')), true));
     if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>');
@@ -3368,6 +3375,7 @@ if (S.view === 'mkt') return renderMkt(el);
   var PK_STATES = ['на месте', 'сломан', 'нет'], PK_TOUR_BATCH = 5;
   function pkTourOpen(name) {
     var T = PK.tour = { name: name, loading: true, error: '', point: null, items: [], marks: [], sent: {}, plan: null, dirty: false, saving: false, prog: null, err: '' }; render();
+    if (!PK.ph || PK.ph.name !== name || PK.ph.error) pkPhLoad(name);
     callTo('/prokat', { action: 'tour_point', name: name }).then(function (r) {
       if (PK.tour !== T) return;
       T.loading = false;
@@ -3399,6 +3407,16 @@ if (S.view === 'mkt') return renderMkt(el);
       fr.readAsDataURL(file);
     });
   }
+  // Прошлое фото инструмента для сравнения «было → стало»: берём из фото-истории пункта.
+  function pkTourPrevOf(name) {
+    var ph = PK.ph, k = String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!ph || !PK.tour || ph.name !== PK.tour.name || !Array.isArray(ph.tools)) return null;
+    return ph.tools.filter(function (t) { return String(t.name || '').toLowerCase().replace(/\s+/g, ' ').trim() === k && pkSafeUrl(t.url); })[0] || null;
+  }
+  function pkTourPrev(name, i) {
+    var t = pkTourPrevOf(name); if (!t) return '';
+    return '<button type="button" data-pk="tprev:' + i + '" style="display:flex;align-items:center;gap:10px;width:100%;margin:0 0 6px;padding:4px;border:1px solid rgba(127,127,127,.3);border-radius:10px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer"><img src="' + esc(t.url) + '" alt="" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:8px"><span><b>' + esc(TX('Прошлое фото')) + '</b><br><small>' + esc(t.last ? pkDay(t.last) : '') + ' · ' + esc(TX('сравните с новым')) + '</small></span></button>';
+  }
   function renderPkTour(el) {
     var T = PK.tour, h = pkBtn('tour-back', '← ' + esc(TX('К пункту')), true, 'margin-bottom:8px' + (T.saving ? ';opacity:.5' : '')) + '<h2 style="padding-right:36px;margin-bottom:4px">🚗 ' + esc(TX('Объезд')) + ': ' + esc(T.name) + '</h2>';
     if (T.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
@@ -3410,6 +3428,7 @@ if (S.view === 'mkt') return renderMkt(el);
       return '<div style="border:1px solid rgba(127,127,127,.35);border-radius:12px;padding:10px' + (sent ? ';opacity:.6' : '') + '">' +
         '<b style="display:block;font-size:17px">' + esc(it.name) + (it.qty != null ? ' <small style="font-weight:400;opacity:.75">· ' + esc(TX('шт.')) + ' ' + esc(it.qty) + '</small>' : '') + (sent ? ' ✅' : '') + '</b>' +
         '<small style="display:block;opacity:.75;margin-bottom:6px">' + (it.last_state ? esc(TX('было')) + ': ' + esc(it.last_state) + (it.last_date ? ', ' + esc(pkDay(it.last_date)) : '') + (it.last_note ? ' · ' + esc(it.last_note) : '') : esc(TX('раньше не отмечали'))) + '</small>' +
+        pkTourPrev(it.name, i) +
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">' + PK_STATES.map(function (st, k) {
           var on = m.state === st, col = k === 0 ? '#1f8a4c' : k === 1 ? '#c0392b' : '#b26a00';
           return '<button type="button" data-pk="ts:' + i + ':' + k + '" style="min-height:48px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;border:2px solid ' + col + ';background:' + (on ? col : 'transparent') + ';color:' + (on ? '#fff' : col) + '">' + esc(TX(st)) + '</button>';
@@ -3424,7 +3443,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (T.err) h += '<p style="color:#c0392b;margin:10px 0 0">' + esc(T.err) + '</p>';
     h += '<p style="margin:12px 0 6px">' + esc(TX('Отмечено')) + ': ' + marked + ' ' + esc(TX('из')) + ' ' + T.items.length + '</p>' +
       pkBtn('tour-save', esc(T.saving ? TX('Сохраняю…') : TX('Сохранить объезд')), false, 'width:100%' + (T.saving ? ';opacity:.6' : ''));
-    el.innerHTML = h;
+    el.innerHTML = h + pkBigPhoto();
   }
   function pkTourSave() {
     var T = PK.tour; if (!T || T.saving || T.loading || T.error) return;
@@ -3468,6 +3487,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'tour-back') { if (!T.saving) { PK.tour = null; render(); } return true; }
     if (k === 'tour-retry') { pkTourOpen(T.name); return true; }
     if (k === 'tour-save') { pkTourSave(); return true; }
+    if (k.indexOf('tprev:') === 0) { var it = T.items[+k.slice(6)], pv = it && pkTourPrevOf(it.name); if (pv) { PK.big = { url: pv.url, name: it.name, date: pkDay(pv.last) }; render(); } return true; }
     if (k.indexOf('ts:') === 0) {
       var a = k.split(':'), i = +a[1], st = PK_STATES[+a[2]], m = T.marks[i];
       if (m && st && !T.saving && !T.sent[i]) { m.state = m.state === st ? '' : st; T.dirty = true; T.err = ''; render(); }
