@@ -2834,13 +2834,13 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Финансист проката строительных инструментов ---------- */
   // Данные хранит n8n по адресу /prokat. Кому показывать прокат, решает сервер: чужому кабинету он отвечает «нет доступа», и тогда открывается обычная бухгалтерия.
-  var PK = { points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, big: null, cmp: null, tour: null, rem: null };
+  var PK = { pt: null, points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, big: null, cmp: null, tour: null, rem: null };
   var PK_ST = { minus: 'В минусе', plus: 'В плюсе', idle: 'Нет движения' };
   var PK_PAY = { cash: 'Наличные', ds: 'Душанбе Сити', alif: 'Алиф' };
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
   function pkMoney(x) { return money(cents(pkNum(x))); }
   function openFinOrProkat() {
-    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
       if (S.view !== 'prokat') return;
@@ -2855,7 +2855,7 @@ if (S.view === 'mkt') return renderMkt(el);
     });
   }
   function pkOpenPoint(name) {
-    PK.cur = { name: name, loading: true }; PK.big = null; pkPhLoad(name); PK.err = ''; PK.msg = ''; PK.form = null; PK.ride = false; render();
+    PK.cur = { name: name, loading: true }; PK.pt = null; PK.big = null; pkPhLoad(name); PK.err = ''; PK.msg = ''; PK.form = null; PK.ride = false; render();
     callTo('/prokat', { action: 'point', name: name }).then(function (r) {
       if (S.view !== 'prokat' || !PK.cur || PK.cur.name !== name) return;
       if (!r || !r.ok || !r.point) { PK.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render(); }
@@ -2869,6 +2869,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function renderProkat(el) {
     if (PK.busy) { el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (PK.tour) return renderPkTour(el);
+    if (PK.pt) return renderPkToolHist(el);
     if (PK.cur) return renderPkPoint(el);
     if (PK.sk) return renderPkSklad(el);
     if (PK.all) return renderPkAll(el);
@@ -3217,27 +3218,54 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   // Фото инструментов на пункте и «Все инструменты»: данные отдаёт n8n по адресу /prokat-foto.
   function pkSafeUrl(u) { u = String(u || ''); return /^https?:\/\//i.test(u) ? u : ''; }
+  // Фото-история: в окне пункта иконки инструментов, внутри — все фото инструмента по датам, от первого до последнего объезда.
   function pkPhLoad(name) {
-    var ph = PK.ph = { name: name, loading: true, count: 0, photos: [], error: '' };
-    callTo('/prokat-foto', { name: name }).then(function (r) {
+    var ph = PK.ph = { name: name, loading: true, tools: [], error: '' };
+    callTo('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
       if (PK.ph !== ph) return;
       ph.loading = false;
       if (!r || !r.ok) ph.error = (r && r.error) || TX('не удалось загрузить');
-      else { ph.photos = Array.isArray(r.photos) ? r.photos : []; ph.count = r.count == null ? ph.photos.length : r.count; }
+      else ph.tools = Array.isArray(r.tools) ? r.tools : [];
       if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render();
     });
   }
   function pkPhBlock() {
-    var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.count) + '</span>' : '') + '</h3>';
+    var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.tools.length) + '</span>' : '') + '</h3>';
     if (!ph || ph.loading) return h + '<p style="opacity:.75">' + esc(TX('Загрузка…')) + '</p>';
     if (ph.error) return h + '<p style="color:#c0392b">' + esc(ph.error) + '</p>' + pkBtn('ph-retry', esc(TX('Ещё раз')), true);
-    if (!ph.photos.length) return h + '<p style="opacity:.75">' + esc(TX('фото пока нет')) + '</p>';
-    return h + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">' + ph.photos.map(function (p, i) {
-      var u = pkSafeUrl(p.url);
-      return '<button type="button" data-pk="ph:' + i + '" style="display:block;padding:0;border:1px solid rgba(127,127,127,.3);border-radius:10px;overflow:hidden;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' +
-        (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(p.name || '') + '" style="display:block;width:100%;aspect-ratio:1;object-fit:cover">' : '<span style="display:block;aspect-ratio:1;background:rgba(127,127,127,.15)"></span>') +
-        '<span style="display:block;padding:4px 6px;font-size:12px;line-height:1.3"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name || '') + '</b><span style="opacity:.7">' + esc(p.date || '') + '</span></span></button>';
+    if (!ph.tools.length) return h + '<p style="opacity:.75">' + esc(TX('Инструментов пока нет')) + '</p>';
+    return h + '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на инструмент, чтобы увидеть все его фото по датам')) + '</p><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px">' + ph.tools.map(function (t, i) {
+      var u = pkSafeUrl(t.url), n = pkNum(t.count);
+      return '<button type="button" data-pk="pt:' + i + '" style="display:block;padding:0;border:1px solid rgba(127,127,127,.3);border-radius:10px;overflow:hidden;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' +
+        (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(t.name || '') + '" style="display:block;width:100%;aspect-ratio:1;object-fit:cover">' : '<span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:rgba(127,127,127,.15);font-size:30px">🧰</span>') +
+        '<span style="display:block;padding:4px 6px;font-size:12px;line-height:1.3"><b style="display:block;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + esc(t.name || '') + (pkNum(t.qty) > 1 ? ' × ' + esc(t.qty) : '') + '</b>' +
+        '<span style="opacity:.75">' + (n ? '📷 ' + n + (t.last ? ' · ' + esc(pkDay(t.last)) : '') : esc(TX('фото нет'))) + '</span></span></button>';
     }).join('') + '</div>';
+  }
+  function pkToolOpen(i) {
+    var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
+    var pt = PK.pt = { point: PK.cur.name, tool: t.name, loading: true, photos: [], total: 0, error: '' }; PK.big = null; render();
+    callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
+      if (PK.pt !== pt) return;
+      pt.loading = false;
+      if (!r || !r.ok) pt.error = (r && r.error) || TX('не удалось загрузить');
+      else { pt.photos = Array.isArray(r.photos) ? r.photos : []; pt.total = pkNum(r.total) || pt.photos.length; }
+      if (S.view === 'prokat') render();
+    });
+  }
+  function renderPkToolHist(el) {
+    var pt = PK.pt, h = pkBtn('pt-back', '← ' + esc(pt.point), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px;margin-bottom:2px">🧰 ' + esc(pt.tool) + '</h2><p style="margin:0 0 10px;opacity:.8">' + esc(pt.point) + '</p>';
+    if (pt.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
+    if (pt.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(pt.error) + '</p>' + pkBtn('pt-retry', esc(TX('Ещё раз')), true));
+    if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>');
+    h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, от первого к последнему')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
+    h += '<div style="display:grid;gap:12px">' + pt.photos.map(function (p, i) {
+      var u = pkSafeUrl(p.url), sub = [p.src === 'объезд' ? TX('объезд') : '', p.state ? TX(p.state) : '', p.note || ''].filter(Boolean).join(' · ');
+      return '<figure style="margin:0;border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden">' +
+        (u ? '<button type="button" data-pk="pth:' + i + '" style="display:block;width:100%;padding:0;border:0;background:none;cursor:pointer"><img src="' + esc(u) + '" loading="lazy" alt="' + esc(pt.tool + ', ' + pkDay(p.date)) + '" style="display:block;width:100%;max-height:420px;object-fit:contain;background:rgba(127,127,127,.12)"></button>' : '<span style="display:block;padding:24px;text-align:center;opacity:.7">' + esc(TX('фото не загрузилось')) + '</span>') +
+        '<figcaption style="padding:8px 10px"><b style="font-size:17px">📅 ' + esc(p.date ? pkDay(p.date) : TX('дата неизвестна')) + '</b>' + (sub ? '<small style="display:block;opacity:.8">' + esc(sub) + '</small>' : '') + '</figcaption></figure>';
+    }).join('') + '</div>';
+    el.innerHTML = h + pkBigPhoto();
   }
   function pkBigPhoto() {
     var p = PK.big, u = p && pkSafeUrl(p.url); if (!u) return '';
@@ -3475,10 +3503,13 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'all') return pkAllOpen();
     if (k === 'all-retry') return pkAllOpen();
     if (k.indexOf('grp:') === 0) { if (PK.all) { var gi = +k.slice(4); PK.all.open[gi] = !PK.all.open[gi]; render(); } return; }
-    if (k.indexOf('ph:') === 0) { var pp = PK.ph && PK.ph.photos[+k.slice(3)]; if (pp && pkSafeUrl(pp.url)) { PK.big = pp; render(); } return; }
+    if (k.indexOf('pt:') === 0) return pkToolOpen(+k.slice(3));
+    if (k === 'pt-back') { PK.pt = null; PK.big = null; return render(); }
+    if (k === 'pt-retry') { if (PK.pt) { var ti = PK.ph ? PK.ph.tools.map(function (t) { return t.name; }).indexOf(PK.pt.tool) : -1; PK.pt = null; if (ti >= 0) pkToolOpen(ti); else render(); } return; }
+    if (k.indexOf('pth:') === 0) { var tp = PK.pt && PK.pt.photos[+k.slice(4)]; if (tp && pkSafeUrl(tp.url)) { PK.big = { url: tp.url, name: PK.pt.tool, date: pkDay(tp.date) }; render(); } return; }
     if (k === 'big-close') { PK.big = null; return render(); }
     if (k === 'ph-retry') { if (PK.cur) { pkPhLoad(PK.cur.name); render(); } return; }
-    if (k === 'back') { PK.cur = null; PK.ph = null; PK.big = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; return render(); }
+    if (k === 'back') { PK.cur = null; PK.ph = null; PK.pt = null; PK.big = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; return render(); }
     if (k === 'p-retry') { if (PK.cur) pkOpenPoint(PK.cur.name); return; }
     if (k === 'ride') { PK.ride = !PK.ride; return render(); }
     if (k === 'take') { var ro = PK.cur && PK.cur.rent ? pkNum(PK.cur.rent.owed) : 0; PK.form = { sum: ro > 0 ? String(Math.round(ro * 100) / 100) : '', method: 'cash', note: '', id: oid(), busy: false }; PK.err = ''; PK.msg = ''; PK.ride = false; render(); var s = $s('pk-sum'); if (s) s.focus(); return; }

@@ -48,4 +48,36 @@ assert.ok(sk({ action: 'stock_photo_get', name: 'перфоратор больш
 ok('сервер склада: состояния, смена состояния, запчасти, фото, защита от повтора и минуса');
 for (const need of ["action: 'stock_state'", "action: 'stock_photo'", "action: 'stock_photo_get'", "['сломан', 'в ремонте', 'починен', 'на запчасти']", "TX('Запчасти')", "TX('Новый инструмент')", "TX('Сменить состояние')", 'u.length <= 58000']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран склада: иконки видов с фото, состояния, запчасти');
+// Фото-история инструментов пункта: узлы n8n «История фото» и «Собрать ответ» (вебхук /prokat-foto).
+const HIST = fs.readFileSync(new URL('../n8n/prokat/istoriya-foto.js', import.meta.url), 'utf8'), SOBR = fs.readFileSync(new URL('../n8n/prokat/sobrat-otvet.js', import.meta.url), 'utf8');
+const PT = 'Зарафшон сити';
+const HD = {
+  'Фото по точкам': [
+    { id: 1, tochka: PT, instrument: 'Перфаратори майда 1 Тотал 950 вата', data_foto: '24.04.2026', mesyac: '2026-04', drive_file_id: 'f2', stroka_lista: 4 },
+    { id: 2, tochka: PT, instrument: 'Перфаратори майда 1 Тотал 950 вата', data_foto: '22.02.2026', mesyac: '2026-02', drive_file_id: 'f1', stroka_lista: 4 },
+    { id: 3, tochka: PT, instrument: '', data_foto: '22.02.2026', mesyac: '2026-02', drive_file_id: 'f3', stroka_lista: 4 },
+    { id: 4, tochka: PT, instrument: '', data_foto: '', mesyac: '2026-03', drive_file_id: 'f4', stroka_lista: 11 },
+    { id: 5, tochka: 'Другой', instrument: 'Лобзик', data_foto: '01.01.2026', drive_file_id: 'x' }],
+  'Записи инструментов': [{ id: 1, tip: 'Инструмент', tochka: PT, instrument: 'Перфаратори майда 1 Тотал 950 вата', kolvo: 1 }, { id: 2, tip: 'Инструмент', tochka: PT, instrument: 'Лобзик', kolvo: 2 }],
+  'Визиты': [{ id: 1, tochka: PT, instrument: 'Перфаратори майда 1  Тотал 950 вата', data_vizita: '2026-10-20', foto_ssylka: 'v1', sostoyanie: 'на месте', zametka: '' }]
+};
+function hist(body, access = true) {
+  const nodes = Object.assign({ 'Фото: запрос': [{ json: { body } }], 'Кабинет': [{ json: { ok: access } }] }, Object.fromEntries(Object.entries(HD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+  const $ = n => ({ first: () => nodes[n][0], all: () => nodes[n] });
+  const items = new Function('$', '$input', HIST)($, { all: () => [{ json: { fid: 'old', instrument: 'старое', date: '01.01.2026', total: 1 } }] });
+  nodes['История фото'] = items;
+  nodes['Миниатюра Drive'] = items.map(i => ({ json: { thumbnailLink: i.json.fid ? 'https://lh3.googleusercontent.com/' + i.json.fid + '=s220' : undefined } }));
+  return new Function('$', SOBR)($)[0].json.resp;
+}
+assert.equal(hist({ action: 'tools', name: PT }, false).error, 'нет доступа');
+assert.deepEqual(hist({ name: PT }).photos.map(p => p.id), ['old'], 'старый запрос фото пункта работает как раньше');
+let hr = hist({ action: 'tools', name: PT });
+assert.deepEqual(hr.tools.map(t => [t.name, t.count, t.qty]), [['Лобзик', 0, 2], ['Перфаратори майда 1 Тотал 950 вата', 4, 1], ['Без названия', 1, 0]], 'инструменты пункта; фото без названия берёт имя из своей строки таблицы');
+assert.equal(hr.tools[1].url, 'https://lh3.googleusercontent.com/v1=s900', 'на иконке последнее фото'); assert.equal(hr.tools[0].url, '');
+hr = hist({ action: 'tool', name: PT, tool: 'перфаратори майда 1 тотал 950 вата' });
+assert.deepEqual(hr.photos.map(p => [p.date, p.src]), [['2026-02-22', 'таблица'], ['2026-02-22', 'таблица'], ['2026-04-24', 'таблица'], ['2026-10-20', 'объезд']], 'все фото инструмента по датам, со старых до объезда');
+assert.equal(hist({ action: 'tool', name: PT, tool: 'нет такого' }).error, 'инструмент не найден');
+ok('фото-история: инструменты пункта, фото по датам, фото объездов');
+for (const need of ["action: 'tools'", "action: 'tool'", 'function renderPkToolHist(', "TX('Фото по датам, от первого к последнему')", '📅 ']) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран фото-истории: иконки инструментов в пункте, фото с датой');
 console.log('PROKAT PASSED');
