@@ -30,6 +30,7 @@ def h(route):
     if u.endswith('/prokat-foto'):
         b = json.loads(route.request.post_data); calls.append(b); img = 'http://localhost:8127/public/icon-192.png'
         if b.get('action') == 'tools': return route.fulfill(json={"ok": True, "point": b['name'], "tools": [{"name": "Перфаратори майда 1", "kind": "Маленький перфоратор", "prices": [{"srok": "коротко", "cena": 30, "note": ""}, {"srok": "сутки", "cena": 40, "note": ""}], "qty": 1, "count": 2, "first": "2026-02-22", "last": "2026-10-20", "url": img}, {"name": "Лобзик", "qty": 2, "count": 0, "first": "", "last": "", "url": ""}]})
+        if b.get('action') == 'relabel': return route.fulfill(json={"ok": True, "tool": b['tool']})
         if b.get('action') == 'tool': return route.fulfill(json={"ok": True, "point": b['name'], "tool": b['tool'], "kind": "Маленький перфоратор", "prices": [{"srok": "коротко", "cena": 30, "note": ""}, {"srok": "сутки", "cena": 40, "note": ""}], "total": 2, "photos": [{"date": "2026-02-22", "src": "таблица", "state": "", "note": "", "url": img}, {"date": "2026-10-20", "src": "объезд", "state": "на месте", "note": "", "url": img}]})
     route.fulfill(json={"ok": True, "staff": [], "sessions": [], "chats": []})
 def check(c, m):
@@ -72,7 +73,12 @@ try:
         t = body(pg); check('22.02.2026' in t and '20.10.2026' in t and t.index('22.02.2026') < t.index('20.10.2026') and 'объезд' in t, 'фото инструмента по датам с подписью даты, от старого к новому')
         check('Цена аренды (Маленький перфоратор)' in t and 'до 3 ч — 30 смн · сутки — 40 смн' in t, 'в карточке инструмента цены аренды')
         pg.click('[data-pk="pth:1"]'); pg.wait_for_timeout(300); check(pg.is_visible('[data-pk="big-close"]'), 'фото открывается крупно')
-        pg.click('[data-pk="big-close"]'); pg.click('[data-pk="pt-back"]'); pg.wait_for_timeout(300); check('Инструменты на пункте' in body(pg), 'назад — снова окно пункта')
+        pg.click('[data-pk="big-close"]')
+        pg.click('[data-pk="rl:0"]'); pg.wait_for_timeout(200); pg.click('[data-pk="rlp:0"]'); pg.click('[data-pk="rl-save"]'); pg.wait_for_timeout(800)
+        rq = [c for c in calls if c.get('action') == 'relabel']
+        check(len(rq) == 1 and rq[0]['tool'] == 'Лобзик' and rq[0]['name'] == 'Зарафшон сити', 'кнопка «Это другой инструмент» переносит фото в выбранный инструмент')
+        t = body(pg); check('Фото перенесено в «Лобзик»' in t and '22.02.2026' not in t, 'перенесённое фото убрано из этой истории')
+        pg.click('[data-pk="pt-back"]'); pg.wait_for_timeout(300); check('Инструменты на пункте' in body(pg), 'назад — снова окно пункта')
         pg.click('[data-pk="tour"]'); pg.wait_for_timeout(800)
         t = body(pg); check(t.count('Прошлое фото') == 1 and '20.10.2026' in t, 'в объезде прошлое фото инструмента для сравнения')
         pg.click('[data-pk="tprev:0"]'); pg.wait_for_timeout(300); check(pg.is_visible('[data-pk="big-close"]'), 'прошлое фото открывается крупно'); pg.click('[data-pk="big-close"]')
