@@ -59,6 +59,7 @@ const HD = {
     { id: 4, tochka: PT, instrument: '', data_foto: '', mesyac: '2026-03', drive_file_id: 'f4', stroka_lista: 11 },
     { id: 5, tochka: 'Другой', instrument: 'Лобзик', data_foto: '01.01.2026', drive_file_id: 'x' }],
   'Записи инструментов': [{ id: 1, tip: 'Инструмент', tochka: PT, instrument: 'Перфаратори майда 1 Тотал 950 вата', kolvo: 1 }, { id: 2, tip: 'Инструмент', tochka: PT, instrument: 'Лобзик', kolvo: 2 }],
+  'Цены': [{ id: 1, instrument: 'Маленький перфоратор', srok: 'сутки', cena: 40, primechanie: 'ровно 24 часа' }, { id: 2, instrument: 'Маленький перфоратор', srok: 'коротко', cena: 30, primechanie: 'до 3 часов' }, { id: 3, instrument: 'Лобзик', srok: 'сутки', cena: 40, primechanie: '' }],
   'Визиты': [{ id: 1, tochka: PT, instrument: 'Перфаратори майда 1  Тотал 950 вата', data_vizita: '2026-10-20', foto_ssylka: 'v1', sostoyanie: 'на месте', zametka: '' }]
 };
 function hist(body, access = true) {
@@ -77,7 +78,10 @@ assert.equal(hr.tools[1].url, 'https://lh3.googleusercontent.com/v1=s900', 'на
 hr = hist({ action: 'tool', name: PT, tool: 'перфаратори майда 1 тотал 950 вата' });
 assert.deepEqual(hr.photos.map(p => [p.date, p.src]), [['2026-02-22', 'таблица'], ['2026-02-22', 'таблица'], ['2026-04-24', 'таблица'], ['2026-10-20', 'объезд']], 'все фото инструмента по датам, со старых до объезда');
 assert.equal(hist({ action: 'tool', name: PT, tool: 'нет такого' }).error, 'инструмент не найден');
-ok('фото-история: инструменты пункта, фото по датам, фото объездов');
+assert.deepEqual([hr.kind, hr.prices.map(p => [p.srok, p.cena])], ['Маленький перфоратор', [['коротко', 30], ['сутки', 40]]], 'цена из прайса: «Перфаратори майда» = маленький перфоратор');
+assert.equal(hist({ action: 'tools', name: PT }).tools[0].prices[0].cena, 40, 'цена на иконке лобзика');
+assert.equal(hist({ action: 'tools', name: PT }).tools[2].kind, '', 'без названия — без цены');
+ok('фото-история: инструменты пункта, фото по датам, фото объездов, цены из прайса');
 for (const need of ["action: 'tools'", "action: 'tool'", 'function renderPkToolHist(', "TX('Фото по датам, от первого к последнему')", '📅 ']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран фото-истории: иконки инструментов в пункте, фото с датой');
 console.log('PROKAT PASSED');
