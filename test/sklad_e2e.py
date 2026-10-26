@@ -1,4 +1,4 @@
-# Проверка экрана «Склад» проката в браузере. Сервер n8n подменён: запросы /prokat со складскими действиями
+# Проверка экранов «Склад» и фото-истории инструментов проката в браузере. Сервер n8n подменён: запросы /prokat со складскими действиями
 # выполняет тот же код узла «Склад: решить» (n8n/prokat/sklad.js) через node.
 import subprocess, time, json, os
 from playwright.sync_api import sync_playwright
@@ -22,9 +22,14 @@ def h(route):
     u = route.request.url
     if u.endswith('/prokat'):
         b = json.loads(route.request.post_data); calls.append(b); a = b.get('action')
-        if a == 'points': return route.fulfill(json={"ok": True, "points": [], "total": 0})
+        if a == 'points': return route.fulfill(json={"ok": True, "points": [{"name": "Зарафшон сити", "city": "Душанбе", "profit": 100, "status": "В плюсе"}], "total": 1})
+        if a == 'point': return route.fulfill(json={"ok": True, "point": {"name": b['name'], "city": "Душанбе", "months": [], "fills": [], "journal": [], "rent": {"count": 0, "collected": 0, "owner_share": 0, "owed": 0, "handed": 0, "handovers": []}, "last_visit": ""}})
         if a == 'reminders': return route.fulfill(json={"ok": True, "visit": [], "owed": [], "broken": []})
         if str(a).startswith('stock'): return route.fulfill(json=solve(b))
+    if u.endswith('/prokat-foto'):
+        b = json.loads(route.request.post_data); calls.append(b); img = 'http://localhost:8127/public/icon-192.png'
+        if b.get('action') == 'tools': return route.fulfill(json={"ok": True, "point": b['name'], "tools": [{"name": "Перфаратори майда 1", "qty": 1, "count": 2, "first": "2026-02-22", "last": "2026-10-20", "url": img}, {"name": "Лобзик", "qty": 2, "count": 0, "first": "", "last": "", "url": ""}]})
+        if b.get('action') == 'tool': return route.fulfill(json={"ok": True, "point": b['name'], "tool": b['tool'], "total": 2, "photos": [{"date": "2026-02-22", "src": "таблица", "state": "", "note": "", "url": img}, {"date": "2026-10-20", "src": "объезд", "state": "на месте", "note": "", "url": img}]})
     route.fulfill(json={"ok": True, "staff": [], "sessions": [], "chats": []})
 def check(c, m):
     print(('ok - ' if c else 'FAIL - ') + m)
@@ -58,7 +63,15 @@ try:
         t = body(pg); check('Болгарка большая' in t and 'Запчастей всего' in t and 'сломан 2' in t and 'в ремонте 1' in t, 'список: плитка вида с количеством по состояниям')
         check(pg.evaluate("document.documentElement.scrollWidth <= 390"), 'нет горизонтальной прокрутки на телефоне')
         pg.screenshot(path=os.environ.get('SHOT', '/tmp/sklad.png'), full_page=True)
+        pg.click('[data-pk="home"]'); pg.wait_for_timeout(300); pg.click('[data-pk="folder"]'); pg.wait_for_timeout(300); pg.click('[data-pk="p:0"]'); pg.wait_for_timeout(800)
+        t = body(pg); check('Инструменты на пункте' in t and 'Перфаратори майда 1' in t and 'Лобзик' in t and 'фото нет' in t, 'в окне пункта иконки инструментов')
+        check(any(c.get('action') == 'tools' and c.get('name') == 'Зарафшон сити' for c in calls), 'запрос инструментов пункта ушёл с action tools')
+        pg.click('[data-pk="pt:0"]'); pg.wait_for_timeout(800)
+        t = body(pg); check('22.02.2026' in t and '20.10.2026' in t and t.index('22.02.2026') < t.index('20.10.2026') and 'объезд' in t, 'фото инструмента по датам с подписью даты, от старого к новому')
+        pg.click('[data-pk="pth:1"]'); pg.wait_for_timeout(300); check(pg.is_visible('[data-pk="big-close"]'), 'фото открывается крупно')
+        pg.click('[data-pk="big-close"]'); pg.click('[data-pk="pt-back"]'); pg.wait_for_timeout(300); check('Инструменты на пункте' in body(pg), 'назад — снова окно пункта')
+        pg.click('[data-pk="pt:0"]'); pg.wait_for_timeout(600); pg.screenshot(path=os.environ.get('SHOT2', '/tmp/istoriya.png'), full_page=True)
         check(not errs, 'нет ошибок на странице: %s' % errs)
-        print('SKLAD E2E PASSED')
+        print('SKLAD + FOTO E2E PASSED')
 finally:
     srv.terminate()
