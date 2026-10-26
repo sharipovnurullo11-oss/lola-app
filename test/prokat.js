@@ -103,4 +103,62 @@ ok('подписи фото: ИИ-подписи и «Это другой инс
 
 for (const need of ["action: 'tools'", "action: 'tool'", 'function renderPkToolHist(', "TX('Фото по датам, от первого к последнему')", '📅 ']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран фото-истории: иконки инструментов в пункте, фото с датой');
+// Перевозки (узел «Перевозки: решить») и окно владельца (узлы «Решить», «Свежее фото»).
+const MV = fs.readFileSync(new URL('../n8n/prokat/perevozki.js', import.meta.url), 'utf8');
+const MD = { 'Итоги по точкам': [{ id: 1, tochka: 'Зарафшон сити', gorod: 'Душанбе' }, { id: 2, tochka: 'Ховарон', gorod: 'Душанбе' }],
+  'Инструменты пунктов': [{ id: 10, tip: 'Инструмент', tochka: 'Зарафшон сити', instrument: 'Фен', kolvo: 1 }, { id: 11, tip: 'Инструмент', tochka: 'Зарафшон сити', instrument: 'Шрупаверт', kolvo: 2 }],
+  'Склад': [{ id: 1, instrument: 'Болгарка большая', izmenenie: 2, sostoyanie: 'починен', zapchast: '' }], 'Перевозки': [] };
+function mv(body, access = true) {
+  const nodes = Object.assign({ 'Прокат: запрос': [{ json: { body } }], 'Кабинет': [{ json: { ok: access } }] }, Object.fromEntries(Object.entries(MD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+  return new Function('$', '$input', MV)(n => ({ first: () => nodes[n][0], all: () => nodes[n] }), { first: () => ({ json: { op: 'none', resp: { pass: 1 } } }) })[0].json;
+}
+assert.equal(mv({ action: 'move' }, false).resp.pass, 1, 'чужой кабинет — дальше без изменений');
+let m = mv({ action: 'move', from: 'Зарафшон сити', to: 'Ховарон', tool: 'фен', qty: 1, id: 'mmmmmm1' });
+assert.deepEqual([m.op, m.upd, m.ins.tochka, m.stock], ['move', { id: 10, kolvo: 0, tip: 'Перевезён' }, 'Ховарон', null], 'пункт → пункт: убавить там, добавить здесь');
+m = mv({ action: 'move', from: 'Зарафшон сити', to: 'Склад', tool: 'Шрупаверт', qty: 1, state: 'в ремонте', id: 'mmmmmm2' });
+assert.deepEqual([m.upd.kolvo, m.ins, m.stock.izmenenie, m.stock.sostoyanie], [1, null, 1, 'в ремонте'], 'пункт → склад: со состоянием');
+m = mv({ action: 'move', from: 'Склад', to: 'Ховарон', tool: 'болгарка большая', qty: 2, id: 'mmmmmm3' });
+assert.deepEqual([m.stock.izmenenie, m.ins.kolvo], [-2, 2], 'склад → пункт');
+assert.equal(mv({ action: 'move', from: 'Склад', to: 'Ховарон', tool: 'Болгарка большая', qty: 3, id: 'mmmmmm4' }).resp.ok, false, 'со склада не больше, чем есть');
+assert.equal(mv({ action: 'move', from: 'Зарафшон сити', to: 'Ховарон', tool: 'Фен', qty: 2, id: 'mmmmmm6' }).resp.ok, false, 'с пункта не больше, чем есть');
+MD['Перевозки'].push({ id: 1, oid: 'mmmmmm1', data: '2026-10-26', instrument: 'Фен', iz: 'Зарафшон сити', v: 'Ховарон', kolvo: 1 });
+assert.equal(mv({ action: 'move', from: 'Зарафшон сити', to: 'Ховарон', tool: 'фен', qty: 1, id: 'mmmmmm1' }).resp.dup, true, 'повтор не задваивает');
+assert.equal(mv({ action: 'moves', name: 'Ховарон', tool: 'Фен' }).resp.moves[0].from, 'Зарафшон сити');
+ok('перевозки: пункт ↔ пункт, пункт ↔ склад, журнал, защита от повтора и минуса');
+const OW = fs.readFileSync(new URL('../n8n/prokat/vladelets-reshit.js', import.meta.url), 'utf8'), SV = fs.readFileSync(new URL('../n8n/prokat/svezhee-foto.js', import.meta.url), 'utf8');
+const TK = 'tttttttttttttttttttttttttttttttt';
+const OD = { 'Владелец по ссылке': [{ id: 1, token: TK, tochka: 'Зарафшон сити', aktivno: true }],
+  'Записи инструментов': [{ id: 1, tip: 'Инструмент', tochka: 'Зарафшон сити', instrument: 'Фен', kolvo: 1 }, { id: 2, tip: 'Перевезён', tochka: 'Зарафшон сити', instrument: 'Лобзик', kolvo: 0 }],
+  'Фото по точкам': [{ id: 1, tochka: 'Зарафшон сити', instrument: 'Лобзик', drive_file_id: 'L' }, { id: 3, tochka: 'Зарафшон сити', instrument: 'Фен', drive_file_id: 'F1', data_foto: '22.02.2026' }, { id: 4, tochka: 'Зарафшон сити', instrument: 'Фен', drive_file_id: 'F2', data_foto: '19.05.2026' }],
+  'Визиты': [], 'Аренды': [], 'Цены': [] };
+const onodes = body => Object.assign({ 'Владелец: запрос': [{ json: { body } }] }, Object.fromEntries(Object.entries(OD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+let on = onodes({ token: TK });
+let ow = new Function('$', OW)(n => ({ first: () => on[n][0], all: () => on[n] }))[0].json;
+assert.deepEqual(ow.resp.tools.map(t => t.name), ['Фен'], 'окно владельца: перевезённый лобзик не возвращается по старому фото');
+ow = new Function('$', '$input', SV)(n => ({ all: () => on[n] }), { first: () => ({ json: ow }) })[0].json;
+assert.equal(ow.resp.tools[0].photo_id, 'F2', 'окно владельца: на карточке самое свежее фото');
+ok('окно владельца: перевезённый инструмент не показывается, свежее фото для «было → стало»');
+for (const need of ["action: 'move'", "action: 'moves'", 'function pkMoveForm(', "TX('Перевезти на другой пункт или склад')", "TX('Отвезти на пункт')"]) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран перевозок: из истории инструмента и со склада');
+// Ссылка владельца (узел «Ссылки: решить»).
+const SL = fs.readFileSync(new URL('../n8n/prokat/ssylki.js', import.meta.url), 'utf8');
+const SD = { 'Итоги по точкам': [{ id: 1, tochka: 'Зарафшон сити' }], 'Владельцы пунктов': [{ id: 1, token: 'a'.repeat(32), tochka: 'Зарафшон сити', vladelets: 'Суҳроб', aktivno: false }, { id: 2, token: 'b'.repeat(32), tochka: 'Зарафшон сити', vladelets: 'Суҳроб', aktivno: true, createdAt: '2026-10-23T10:00:00Z' }], 'Случайный ключ': [{ id: 0, rand: 'c'.repeat(64) }] };
+function sl(body, access = true) {
+  const nodes = Object.assign({ 'Прокат: запрос': [{ json: { body } }], 'Кабинет': [{ json: { ok: access } }] }, Object.fromEntries(Object.entries(SD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+  return new Function('$', '$input', SL)(n => ({ first: () => nodes[n][0], all: () => nodes[n] }), { first: () => ({ json: { op: 'none', resp: { pass: 1 } } }) })[0].json;
+}
+assert.equal(sl({ action: 'owner_link', name: 'Зарафшон сити' }, false).resp.pass, 1, 'чужой кабинет — дальше без изменений');
+assert.equal(sl({ action: 'points' }).resp.pass, 1, 'другие действия — дальше без изменений');
+let s1 = sl({ action: 'owner_link', name: 'Зарафшон сити' });
+assert.deepEqual([s1.op, s1.resp.link, s1.resp.owner, s1.resp.since], ['none', 'https://app.nurullo-sharipov.tech/punkt#t=' + 'b'.repeat(32), 'Суҳроб', '2026-10-23'], 'показ: действующая ссылка, отключённая не берётся');
+assert.equal(sl({ action: 'owner_link', name: 'Нет такого' }).resp.ok, false);
+assert.equal(sl({ action: 'owner_link_new', name: 'Зарафшон сити', id: 'x' }).resp.ok, false, 'без номера записи не выдаём');
+s1 = sl({ action: 'owner_link_new', name: 'Зарафшон сити', id: 'olnew01' });
+assert.deepEqual([s1.op, s1.row.token, s1.row.tochka, s1.row.vladelets, s1.row.aktivno, s1.row.oid], ['owner_link', 'c'.repeat(32), 'Зарафшон сити', 'Суҳроб', true, 'olnew01'], 'новая ссылка: запись строки, владелец тот же');
+SD['Владельцы пунктов'].push({ id: 3, token: 'c'.repeat(32), tochka: 'Зарафшон сити', vladelets: 'Суҳроб', aktivno: true, oid: 'olnew01' });
+s1 = sl({ action: 'owner_link_new', name: 'Зарафшон сити', id: 'olnew01' });
+assert.deepEqual([s1.op, s1.resp.dup, s1.resp.link.slice(-32)], ['none', true, 'c'.repeat(32)], 'повтор не выдаёт вторую ссылку');
+ok('ссылка владельца: показ, новая вместо старой, защита от повтора');
+for (const need of ["action: 'owner_link'", "action: 'owner_link_new'", 'function pkOlBlock(', "TX('Ссылка владельца')", "TX('Старая ссылка сразу перестанет работать. Владелец войдёт только по новой. Выдать новую ссылку?')", 'https://wa.me/?text=']) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран ссылки владельца: копировать, WhatsApp, новая ссылка с подтверждением');
 console.log('PROKAT PASSED');

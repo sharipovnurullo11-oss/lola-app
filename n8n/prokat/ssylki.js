@@ -1,0 +1,21 @@
+// Ссылка владельца пункта: показать (owner_link) и выдать новую вместо старой (owner_link_new) — старая сразу перестаёт работать.
+const prev = $input.first().json;
+const B = $('Прокат: запрос').first().json.body || {};
+const act = String(B.action || '');
+if ((act !== 'owner_link' && act !== 'owner_link_new') || !$('Кабинет').first().json.ok) return [{ json: prev }];
+const R = n => $(n).all().map(i => i.json).filter(r => r && r.id !== undefined);
+const out = (resp, extra) => [{ json: Object.assign({ op: 'none', resp: resp }, extra || {}) }];
+const URL0 = 'https://app.nurullo-sharipov.tech/punkt#t=';
+const point = String(B.name || '');
+if (!R('Итоги по точкам').some(r => String(r.tochka) === point)) return out({ ok: false, error: 'пункт не найден' });
+const rows = R('Владельцы пунктов').filter(r => String(r.tochka) === point).sort((a, b) => Number(b.id) - Number(a.id));
+const cur = rows.find(r => r.aktivno !== false && String(r.token || '').length >= 20);
+if (act === 'owner_link') return out({ ok: true, point: point, link: cur ? URL0 + cur.token : '', owner: cur ? String(cur.vladelets || '') : '', since: cur ? String(cur.createdAt || '').slice(0, 10) : '' });
+const id = String(B.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
+if (id.length < 6) return out({ ok: false, error: 'нет номера записи' });
+const done = rows.find(r => String(r.oid || '') === id);
+if (done) return out({ ok: true, point: point, link: URL0 + done.token, owner: String(done.vladelets || ''), since: String(done.createdAt || '').slice(0, 10), dup: true });
+const token = String($('Случайный ключ').first().json.rand || '').slice(0, 32);
+if (!/^[0-9a-f]{32}$/.test(token)) return out({ ok: false, error: 'не получилось создать ссылку, попробуйте ещё раз' });
+const owner = String((cur || rows[0] || {}).vladelets || '');
+return out({ ok: true, point: point, link: URL0 + token, owner: owner, since: new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10) }, { op: 'owner_link', row: { token: token, tochka: point, vladelets: owner, aktivno: true, oid: id } });
