@@ -3244,7 +3244,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   // Цена аренды из прайса: «до 3 ч — 30 смн · сутки — 40 смн».
   function pkPrices(list) {
-    var sr = { 'коротко': TX('до 3 ч'), 'сутки': TX('сутки'), 'день': TX('день') };
+    var sr = { 'час': TX('час'), 'коротко': TX('до 3 ч'), 'сутки': TX('сутки'), 'день': TX('день') };
     return (Array.isArray(list) ? list : []).map(function (p) { return (sr[p.srok] || TX(p.srok || '')) + ' — ' + pkNum(p.cena) + ' ' + TX('смн'); }).join(' · ');
   }
   function pkPriceMin(list) { var c = (Array.isArray(list) ? list : []).map(function (p) { return pkNum(p.cena); }).filter(function (x) { return x > 0; }); return c.length ? Math.min.apply(null, c) : 0; }

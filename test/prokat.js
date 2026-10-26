@@ -81,6 +81,8 @@ assert.equal(hist({ action: 'tool', name: PT, tool: 'нет такого' }).err
 assert.deepEqual([hr.kind, hr.prices.map(p => [p.srok, p.cena])], ['Маленький перфоратор', [['коротко', 30], ['сутки', 40]]], 'цена из прайса: «Перфаратори майда» = маленький перфоратор');
 assert.equal(hist({ action: 'tools', name: PT }).tools[0].prices[0].cena, 40, 'цена на иконке лобзика');
 assert.equal(hist({ action: 'tools', name: PT }).tools[2].kind, '', 'без названия — без цены');
+HD['Записи инструментов'].push({ id: 3, tip: 'Инструмент', tochka: PT, instrument: 'Кафедорез', kolvo: 1 }); HD['Цены'].push({ id: 4, instrument: 'Кафелерез', srok: 'час', cena: 30, primechanie: 'за час' });
+assert.deepEqual(hist({ action: 'tools', name: PT }).tools.find(t => t.name === 'Кафедорез').prices.map(p => [p.srok, p.cena]), [['час', 30]], 'кафедорез = кафелерез, цена за час');
 ok('фото-история: инструменты пункта, фото по датам, фото объездов, цены из прайса');
 for (const need of ["action: 'tools'", "action: 'tool'", 'function renderPkToolHist(', "TX('Фото по датам, от первого к последнему')", '📅 ']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран фото-истории: иконки инструментов в пункте, фото с датой');
