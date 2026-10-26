@@ -30,6 +30,7 @@ const kindOf = nm => { const s = norm(nm);
   if (/миксер/.test(s)) return 'Строительный миксер';
   if (/rodex|родекс|резьб|резба/.test(s)) return 'Резьбонарезной инструмент Rodex';
   if (/дрел/.test(s)) return 'Дрель';
+  if (/кафел|кафед|плитк/.test(s)) return 'Кафелерез';
   return ''; };
 const PR = R('Цены');
 const priceOf = nm => { const k = kindOf(nm); return { kind: k, prices: k ? PR.filter(r => norm(r.instrument) === norm(k)).sort((a, b) => Number(a.cena) - Number(b.cena)).map(r => ({ srok: String(r.srok || ''), cena: Number(r.cena) || 0, note: String(r.primechanie || '') })) : [] }; };
