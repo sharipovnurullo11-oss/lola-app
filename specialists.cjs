@@ -465,13 +465,17 @@ if (S.view === 'mkt') return renderMkt(el);
     var n = PK.total == null ? PK.points.length : PK.total;
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2>' + pkRemBlock() + '<div style="display:grid;gap:10px">' +
       '<button type="button" class="btn sec" data-pk="folder" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📍</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Пункты')) + '</b><small style="opacity:.75">' + esc(TX('Пункты проката строительных инструментов')) + '</small></span><span style="flex:none;font-size:15px;font-weight:700;padding:3px 10px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(n) + '</span></button>' +
-      '<button type="button" class="btn sec" data-pk="sklad" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🏠</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Склад')) + '</b><small style="opacity:.75">' + esc(TX('Что лежит у меня дома, не на пунктах')) + '</small></span></button>' +
+      '<button type="button" class="btn sec" data-pk="sklad" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🏠</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Склад')) + '</b><small style="opacity:.75">' + esc(TX('Сломанные, в ремонте, на запчасти: фото и количество')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="all" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🧰</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Все инструменты')) + '</b><small style="opacity:.75">' + esc(TX('Перфораторы, болгарки, дрели и другие: где какой стоит')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="cmp" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📊</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Сравнение пунктов')) + '</b><small style="opacity:.75">' + esc(TX('Какой пункт лучше и что где простаивает')) + '</small></span></button></div>';
   }
-  // «Склад»: инструменты дома, не на пунктах. Плюс — привезли домой, минус — забрали.
+  // «Склад»: инструменты не на пунктах, в основном сломанные. У каждого вида своё фото, количество по состояниям и запчасти.
+  var PK_SK_ST = ['сломан', 'в ремонте', 'починен', 'на запчасти'];
+  var PK_SK_COL = { 'сломан': '#c0392b', 'в ремонте': '#b26a00', 'починен': '#1f8a4c', 'на запчасти': '#6b6b6b' };
+  var PK_SK_KINDS = ['Болгарка большая', 'Болгарка малая', 'Отбойный молоток', 'Перфоратор большой', 'Перфоратор малый', 'Шуруповёрт', 'Дрель', 'Лобзик', 'Циркулярка', 'Бензопила', 'Компрессор', 'Сварочный аппарат', 'Вибратор', 'Краскопульт', 'Утюг для пластиковых труб', 'Строительный миксер'];
+  var PK_SK_PH = {}; // фото видов: имя -> { date, url, busy }
   function pkSkOpen() {
-    PK.sk = { loading: true, stock: [], history: [], error: '', msg: '', form: { name: '', qty: '', dir: 1, note: '', id: oid(), busy: false, err: '' } }; PK.ride = false; render();
+    PK.sk = { loading: true, error: '', kinds: [], history: [], totals: {}, parts_total: 0, msg: '', cur: '', form: null }; PK.ride = false; render();
     pkSkLoad();
   }
   function pkSkLoad() {
@@ -480,59 +484,215 @@ if (S.view === 'mkt') return renderMkt(el);
       if (S.view !== 'prokat' || PK.sk !== sk) return;
       sk.loading = false;
       if (!r || !r.ok) sk.error = (r && r.error) || TX('не удалось загрузить');
-      else { sk.error = ''; sk.stock = Array.isArray(r.stock) ? r.stock : []; sk.history = Array.isArray(r.history) ? r.history : []; }
+      else { sk.error = ''; sk.kinds = Array.isArray(r.stock) ? r.stock : []; sk.history = Array.isArray(r.history) ? r.history : []; sk.totals = r.totals || {}; sk.parts_total = pkNum(r.parts_total); }
       render();
     });
   }
+  function pkSkKind(name) { var k = String(name || '').toLowerCase(); return PK.sk.kinds.filter(function (g) { return String(g.name).toLowerCase() === k; })[0] || null; }
+  function pkSkSt(g, s) { return g && g.states ? pkNum(g.states[s]) : 0; }
+  // Фото вида грузится отдельно и только когда оно изменилось.
+  function pkSkPhoto(g) {
+    if (!g || !g.photo_date) return '';
+    var c = PK_SK_PH[g.name];
+    if (c && c.date === g.photo_date) return c.url || '';
+    if (c && c.busy) return '';
+    PK_SK_PH[g.name] = { date: g.photo_date, url: c ? c.url : '', busy: true };
+    callTo('/prokat', { action: 'stock_photo_get', name: g.name }).then(function (r) {
+      var e = PK_SK_PH[g.name]; e.busy = false;
+      if (r && r.ok && /^data:image\/jpeg;base64,/.test(r.photo || '')) e.url = r.photo; // при ошибке не повторяем до следующего нового фото
+      if (S.view === 'prokat' && PK.sk) render();
+    });
+    return c ? c.url || '' : '';
+  }
+  function pkSkImg(g, size) {
+    var u = pkSkPhoto(g);
+    return u ? '<img src="' + esc(u) + '" alt="" style="display:block;width:' + size + ';aspect-ratio:1;object-fit:cover;border-radius:10px">' : '<span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:' + size + ';aspect-ratio:1;border-radius:10px;background:rgba(127,127,127,.15);font-size:34px">🧰</span>';
+  }
+  function pkSkChip(k, text, on, col) { return '<button type="button" data-pk="' + esc(k) + '" style="min-height:44px;padding:6px 10px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;border:2px solid ' + col + ';background:' + (on ? col : 'transparent') + ';color:' + (on ? '#fff' : col) + '">' + esc(text) + '</button>'; }
+  function pkSkHist(list) {
+    return list.length ? list.slice(0, 30).map(function (x) {
+      var d = pkNum(x.delta), what = x.state === 'фото' ? '📷 ' + TX('фото') : x.part ? '🔩 ' + x.part : TX(x.state || '');
+      return pkRow(pkDay(x.date) + ' · ' + (x.name || '') + ' · ' + what + (x.note && x.note !== 'фото' ? ' · ' + x.note : ''), x.state === 'фото' ? '' : '<b style="color:' + (d < 0 ? '#c0392b' : '#1f8a4c') + '">' + (d > 0 ? '+' : d < 0 ? '−' : '') + esc(Math.abs(d)) + '</b>');
+    }).join('') : '<p style="opacity:.75">' + esc(TX('Пока пусто')) + '</p>';
+  }
   function renderPkSklad(el) {
-    var sk = PK.sk, F = sk.form;
-    var h = pkBtn('home', '← ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">🏠 ' + esc(TX('Склад')) + '</h2><p style="margin-top:0;opacity:.8">' + esc(TX('Что лежит у меня дома, не на пунктах')) + '</p>';
-    if (sk.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
-    if (sk.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(sk.error) + '</p>' + pkBtn('sk-retry', esc(TX('Ещё раз')), true));
-    var stock = sk.stock.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ru'); });
-    h += stock.length ? stock.map(function (s) { return pkRow(s.name, '<b>' + esc(s.qty) + '</b> ' + esc(TX('шт.'))); }).join('') : '<p style="opacity:.75">' + esc(TX('На складе пока пусто')) + '</p>';
-    h += '<div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid rgba(127,127,127,.35)"><b style="display:block;margin-bottom:8px">' + esc(TX('Добавить или убрать')) + '</b>' +
-      '<label style="display:block;margin-bottom:8px">' + esc(TX('Название')) + '<input id="pk-sk-name" type="text" list="pk-sk-names" maxlength="120" autocomplete="off" value="' + esc(F.name) + '" style="display:block;width:100%"></label>' +
-      '<datalist id="pk-sk-names">' + stock.map(function (s) { return '<option value="' + esc(s.name) + '">'; }).join('') + '</datalist>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">' + pkBtn('sk-dir:1', '➕ ' + esc(TX('Привёз домой')), F.dir !== 1, 'height:auto;padding:8px') + pkBtn('sk-dir:-1', '➖ ' + esc(TX('Забрал')), F.dir !== -1, 'height:auto;padding:8px') + '</div>' +
-      '<label style="display:block;margin-bottom:8px">' + esc(TX('Количество')) + '<input id="pk-sk-qty" type="text" inputmode="numeric" autocomplete="off" value="' + esc(F.qty) + '" style="display:block;width:100%;font-size:20px"></label>' +
-      '<label style="display:block;margin-bottom:8px">' + esc(TX('Заметка')) + '<input id="pk-sk-note" type="text" maxlength="200" autocomplete="off" value="' + esc(F.note) + '" style="display:block;width:100%"></label>' +
-      (F.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(F.err) + '</p>' : '') +
-      (sk.msg ? '<p style="color:#1f8a4c;margin:0 0 8px">' + esc(sk.msg) + '</p>' : '') +
-      pkBtn('sk-save', esc(TX(F.busy ? 'Сохраняю…' : 'Сохранить')), false, 'width:100%' + (F.busy ? ';opacity:.6' : '')) + '</div>';
-    var hist = sk.history.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
-    h += '<h3 style="margin:16px 0 6px">' + esc(TX('История')) + '</h3>' + (hist.length ? hist.map(function (x) {
-      var d = pkNum(x.delta);
-      return pkRow((x.date || '') + ' · ' + (x.name || '') + (x.note ? ' · ' + x.note : ''), '<b style="color:' + (d < 0 ? '#c0392b' : '#1f8a4c') + '">' + (d > 0 ? '+' : d < 0 ? '−' : '') + esc(Math.abs(d)) + '</b>');
-    }).join('') : '<p style="opacity:.75">' + esc(TX('Пока пусто')) + '</p>');
+    var sk = PK.sk;
+    var h = pkBtn(sk.cur ? 'sk-list' : 'home', '← ' + esc(sk.cur ? TX('Склад') : ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px');
+    if (sk.loading) return void (el.innerHTML = h + '<h2>🏠 ' + esc(TX('Склад')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>');
+    if (sk.error) return void (el.innerHTML = h + '<h2>🏠 ' + esc(TX('Склад')) + '</h2><p style="color:#c0392b">' + esc(sk.error) + '</p>' + pkBtn('sk-retry', esc(TX('Ещё раз')), true));
+    if (sk.cur) return void (el.innerHTML = h + renderPkSkKind(sk, pkSkKind(sk.cur) || { name: sk.cur, qty: 0, states: {}, parts: [], parts_qty: 0, photo_date: '' }));
+    h += '<h2 style="padding-right:36px;margin-bottom:4px">🏠 ' + esc(TX('Склад')) + '</h2><p style="margin-top:0;opacity:.8">' + esc(TX('Инструменты не на пунктах: сломанные, в ремонте, на запчасти')) + '</p>';
+    h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0">' + PK_SK_ST.map(function (s) {
+      return '<div style="padding:10px;border-radius:10px;border:1px solid ' + PK_SK_COL[s] + '"><small>' + esc(TX(s)) + '</small><b style="display:block;font-size:22px;color:' + PK_SK_COL[s] + '">' + esc(pkNum(sk.totals[s])) + '</b></div>';
+    }).join('') + '</div><p style="margin:0 0 10px">🔩 ' + esc(TX('Запчастей всего')) + ': <b>' + esc(sk.parts_total) + '</b></p>';
+    if (sk.msg) h += '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(sk.msg) + '</p>';
+    h += sk.form && sk.form.mode === 'new' ? pkSkNewForm(sk.form) : pkBtn('sk-new', '➕ ' + esc(TX('Новый инструмент')), false, 'width:100%;margin-bottom:10px');
+    h += sk.kinds.length ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">' + sk.kinds.map(function (g, i) {
+      var line = PK_SK_ST.filter(function (s) { return pkSkSt(g, s); }).map(function (s) { return '<span style="color:' + PK_SK_COL[s] + '">' + esc(TX(s)) + ' ' + pkSkSt(g, s) + '</span>'; }).join(' · ');
+      return '<button type="button" data-pk="sk-k:' + i + '" style="display:block;padding:8px;border:1px solid rgba(127,127,127,.35);border-radius:12px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' + pkSkImg(g, '100%') +
+        '<b style="display:block;margin-top:6px">' + esc(g.name) + '</b><span style="display:block;font-size:20px;font-weight:700">' + esc(pkNum(g.qty)) + ' <small style="font-size:13px;font-weight:400">' + esc(TX('шт.')) + '</small></span>' +
+        (line ? '<small style="display:block;line-height:1.35">' + line + '</small>' : '') + (pkNum(g.parts_qty) ? '<small style="display:block;opacity:.8">🔩 ' + esc(TX('запчастей')) + ': ' + esc(g.parts_qty) + '</small>' : '') + '</button>';
+    }).join('') + '</div>' : '<p style="opacity:.75">' + esc(TX('На складе пока пусто. Нажмите «Новый инструмент»: сфотографируйте его и укажите количество.')) + '</p>';
+    h += '<h3 style="margin:16px 0 6px">' + esc(TX('История')) + '</h3>' + pkSkHist(sk.history);
     el.innerHTML = h;
   }
-  function pkSkKeep() { var F = PK.sk && PK.sk.form; if (!F) return; var a = $s('pk-sk-name'), q = $s('pk-sk-qty'), n = $s('pk-sk-note'); if (a) F.name = a.value; if (q) F.qty = q.value; if (n) F.note = n.value; }
-  function pkSkSave() {
-    var sk = PK.sk, F = sk && sk.form; if (!F || F.busy) return;
-    pkSkKeep(); sk.msg = '';
-    var name = String(F.name).trim().slice(0, 120), raw = String(F.qty).replace(/\s/g, '').replace('−', '-');
-    if (!name) { F.err = TX('Введите название'); return render(); }
-    if (!/^-?\d{1,6}$/.test(raw) || +raw === 0) { F.err = TX('Количество — целое число больше нуля'); return render(); }
-    // Минус, набранный в поле, тоже значит «забрал».
-    var delta = raw.charAt(0) === '-' ? +raw : F.dir * +raw;
-    F.busy = true; F.err = ''; render();
-    // id создан при открытии формы: повтор после обрыва связи не задвоит движение.
-    callTo('/prokat', { action: 'stock_move', name: name, delta: delta, note: String(F.note || '').trim().slice(0, 200), id: F.id }).then(function (r) {
-      if (PK.sk !== sk || sk.form !== F) return;
-      F.busy = false;
-      if (!r || !r.ok) {
-        F.err = (r && r.error) || TX('Не получилось сохранить');
-        // Сервер отказал (например, «на складе столько нет») — следующая попытка будет новым движением. При обрыве связи id сохраняем.
-        if (r && r.error && r.error !== TX('нет связи')) F.id = oid();
-        return render();
-      }
-      if (Array.isArray(r.stock)) sk.stock = r.stock;
-      sk.msg = TX('Записано') + ': ' + name + ' ' + (delta > 0 ? '+' : '−') + Math.abs(delta);
-      sk.form = { name: '', qty: '', dir: F.dir, note: '', id: oid(), busy: false, err: '' };
-      render(); pkSkLoad();
+  function pkSkPhotoBtn(F, label) {
+    return '<label style="display:flex;align-items:center;gap:10px;margin:0 0 8px;min-height:48px;padding:6px 10px;border:2px ' + (F.photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;cursor:pointer;font-weight:600">' +
+      (F.photo ? '<img src="' + esc(F.photo) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">' : '📷') +
+      '<span>' + esc(F.wait ? TX('Обрабатываю фото…') : F.photo ? TX('Фото готово, нажмите, чтобы переснять') : label) + '</span>' +
+      '<input type="file" accept="image/*" capture="environment" data-skphoto="1" style="position:absolute;width:1px;height:1px;opacity:0"></label>';
+  }
+  function pkSkFormEnd(F) {
+    return (F.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(F.err) + '</p>' : '') +
+      '<div style="display:grid;grid-template-columns:2fr 1fr;gap:6px">' + pkBtn('sk-save', esc(TX(F.busy ? 'Сохраняю…' : 'Сохранить')), false, F.busy ? 'opacity:.6' : '') + pkBtn('sk-cancel', esc(TX('Отмена')), true) + '</div></div>';
+  }
+  function pkSkQty(F) { return '<label style="display:block;margin-bottom:8px">' + esc(TX('Количество')) + '<input id="pk-sk-qty" type="text" inputmode="numeric" autocomplete="off" value="' + esc(F.qty) + '" style="display:block;width:100%;font-size:20px"></label>'; }
+  function pkSkNote(F) { return '<label style="display:block;margin-bottom:8px">' + esc(TX('Заметка')) + '<input id="pk-sk-note" type="text" maxlength="80" autocomplete="off" value="' + esc(F.note) + '" style="display:block;width:100%"></label>'; }
+  function pkSkStates(F, key, cur, skip) {
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">' + PK_SK_ST.map(function (s, i) { return s === skip ? '' : pkSkChip('sk-' + key + ':' + i, TX(s), cur === s, PK_SK_COL[s]); }).join('') + '</div>';
+  }
+  function pkSkNewForm(F) {
+    var names = PK_SK_KINDS.concat(PK.sk.kinds.map(function (g) { return g.name; })).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    return '<div style="margin:0 0 12px;padding:12px;border-radius:12px;border:1px solid rgba(127,127,127,.35)"><b style="display:block;margin-bottom:8px">' + esc(TX('Новый инструмент')) + '</b>' +
+      '<label style="display:block;margin-bottom:8px">' + esc(TX('Название')) + '<input id="pk-sk-name" type="text" list="pk-sk-names" maxlength="60" autocomplete="off" placeholder="' + esc(TX('Например: Болгарка большая')) + '" value="' + esc(F.name) + '" style="display:block;width:100%"></label>' +
+      '<datalist id="pk-sk-names">' + names.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+      pkSkPhotoBtn(F, TX('Сфотографировать инструмент')) + '<b style="display:block;margin-bottom:4px">' + esc(TX('Состояние')) + '</b>' + pkSkStates(F, 'st', F.state) + pkSkQty(F) + pkSkFormEnd(F);
+  }
+  function renderPkSkKind(sk, g) {
+    var F = sk.form, ph = pkSkPhoto(g);
+    var h = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px"><div style="flex:none;width:96px">' + pkSkImg(g, '96px') + '</div><div style="min-width:0"><h2 style="margin:0">' + esc(g.name) + '</h2><b style="font-size:20px">' + esc(pkNum(g.qty)) + '</b> ' + esc(TX('шт.')) +
+      (g.photo_date ? '<small style="display:block;opacity:.7">' + esc(TX('фото от')) + ' ' + esc(pkDay(g.photo_date)) + '</small>' : '') + '</div></div>';
+    if (ph) h += '<img src="' + esc(ph) + '" alt="' + esc(g.name) + '" style="display:block;width:100%;max-height:320px;object-fit:contain;border-radius:12px;margin-bottom:8px">';
+    if (sk.msg) h += '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(sk.msg) + '</p>';
+    h += PK_SK_ST.map(function (s) { return pkRow(TX(s), '<b style="color:' + PK_SK_COL[s] + '">' + pkSkSt(g, s) + '</b> ' + esc(TX('шт.'))); }).join('');
+    if (F && F.mode !== 'new' && F.mode !== 'p+' && F.mode !== 'p-') {
+      var title = { add: TX('Добавить на склад'), del: TX('Убрать со склада'), move: TX('Сменить состояние'), photo: TX('Фото инструмента') }[F.mode];
+      h += '<div style="margin:12px 0;padding:12px;border-radius:12px;border:1px solid rgba(127,127,127,.35)"><b style="display:block;margin-bottom:8px">' + esc(title) + '</b>';
+      if (F.mode === 'photo') h += pkSkPhotoBtn(F, TX('Сфотографировать инструмент'));
+      else if (F.mode === 'move') h += '<b style="display:block;margin-bottom:4px">' + esc(TX('Было')) + '</b>' + pkSkStates(F, 'st', F.state) + '<b style="display:block;margin-bottom:4px">' + esc(TX('Стало')) + '</b>' + pkSkStates(F, 'to', F.to, F.state) + pkSkQty(F) + pkSkNote(F);
+      else h += '<b style="display:block;margin-bottom:4px">' + esc(TX('Состояние')) + '</b>' + pkSkStates(F, 'st', F.state) + pkSkQty(F) + pkSkNote(F);
+      h += pkSkFormEnd(F);
+    } else if (!F) {
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0">' + pkBtn('sk-f:add', '➕ ' + esc(TX('Добавить')), false, 'height:auto;padding:10px') + pkBtn('sk-f:del', '➖ ' + esc(TX('Убрать')), true, 'height:auto;padding:10px') +
+        pkBtn('sk-f:move', '🔁 ' + esc(TX('Сменить состояние')), true, 'height:auto;padding:10px') + pkBtn('sk-f:photo', '📷 ' + esc(TX(g.photo_date ? 'Сменить фото' : 'Добавить фото')), true, 'height:auto;padding:10px') + '</div>';
+    }
+    h += '<h3 style="margin:16px 0 6px">🔩 ' + esc(TX('Запчасти')) + ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(pkNum(g.parts_qty)) + '</span></h3>';
+    h += (g.parts && g.parts.length ? g.parts.map(function (p) { return pkRow(p.name, '<b>' + esc(p.qty) + '</b> ' + esc(TX('шт.'))); }).join('') : '<p style="opacity:.75;margin:0">' + esc(TX('Запчастей пока нет')) + '</p>');
+    if (F && (F.mode === 'p+' || F.mode === 'p-')) {
+      h += '<div style="margin:12px 0;padding:12px;border-radius:12px;border:1px solid rgba(127,127,127,.35)"><b style="display:block;margin-bottom:8px">' + esc(F.mode === 'p+' ? TX('Добавить запчасть') : TX('Списать запчасть')) + '</b>' +
+        '<label style="display:block;margin-bottom:8px">' + esc(TX('Запчасть')) + '<input id="pk-sk-part" type="text" list="pk-sk-parts" maxlength="60" autocomplete="off" placeholder="' + esc(TX('Например: щётки, якорь, поршень')) + '" value="' + esc(F.part) + '" style="display:block;width:100%"></label>' +
+        '<datalist id="pk-sk-parts">' + (g.parts || []).map(function (p) { return '<option value="' + esc(p.name) + '">'; }).join('') + '</datalist>' + pkSkQty(F) + pkSkNote(F) + pkSkFormEnd(F);
+    } else if (!F) {
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0">' + pkBtn('sk-f:p+', '➕ ' + esc(TX('Запчасть')), true, 'height:auto;padding:10px') + pkBtn('sk-f:p-', '➖ ' + esc(TX('Списать')), true, 'height:auto;padding:10px') + '</div>';
+    }
+    h += '<h3 style="margin:16px 0 6px">' + esc(TX('История')) + '</h3>' + pkSkHist(sk.history.filter(function (x) { return String(x.name).toLowerCase() === String(g.name).toLowerCase(); }));
+    return h;
+  }
+  function pkSkKeep() {
+    var F = PK.sk && PK.sk.form; if (!F) return;
+    var a = $s('pk-sk-name'), q = $s('pk-sk-qty'), n = $s('pk-sk-note'), p = $s('pk-sk-part');
+    if (a) F.name = a.value; if (q) F.qty = q.value; if (n) F.note = n.value; if (p) F.part = p.value;
+  }
+  // Маленькое фото для склада: до 60 000 знаков, чтобы хранилось прямо в таблице.
+  function pkSkThumb(file) {
+    return pkShrink(file).then(function (url) {
+      return new Promise(function (ok, fail) {
+        var img = new Image();
+        img.onerror = function () { fail(new Error(TX('Не получилось открыть фото'))); };
+        img.onload = function () {
+          var tries = [[480, 0.6], [400, 0.55], [340, 0.5], [280, 0.45], [220, 0.4]], W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+          for (var i = 0; i < tries.length; i++) {
+            var w = Math.min(tries[i][0], W), h = Math.round(H * w / W), c = document.createElement('canvas'); c.width = w; c.height = h;
+            var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
+            var u = c.toDataURL('image/jpeg', tries[i][1]);
+            if (/^data:image\/jpeg;base64,/.test(u) && u.length <= 58000) return ok(u);
+          }
+          fail(new Error(TX('Фото слишком большое. Сделайте снимок ещё раз.')));
+        };
+        img.src = url;
+      });
     });
   }
+  function pkSkForm(mode, extra) {
+    var F = { mode: mode, name: '', state: mode === 'move' ? '' : 'сломан', to: '', qty: '', note: '', part: '', photo: '', wait: false, busy: false, err: '', id: oid(), pid: oid() };
+    for (var k in extra || {}) F[k] = extra[k];
+    PK.sk.form = F; PK.sk.msg = ''; render();
+  }
+  function pkSkInt(raw) { raw = String(raw || '').replace(/\s/g, ''); return /^\d{1,6}$/.test(raw) && +raw > 0 ? +raw : 0; }
+  function pkSkSave() {
+    var sk = PK.sk, F = sk && sk.form; if (!F || F.busy) return;
+    pkSkKeep(); F.err = '';
+    if (F.wait) { F.err = TX('Подождите, фото ещё обрабатывается'); return render(); }
+    var name = F.mode === 'new' ? String(F.name).replace(/\s+/g, ' ').trim().slice(0, 60) : sk.cur, qty = pkSkInt(F.qty), calls = [];
+    if (!name) { F.err = TX('Введите название'); return render(); }
+    if (F.mode === 'photo' || (F.mode === 'new' && F.photo)) {
+      if (!F.photo) { F.err = TX('Сделайте фото'); return render(); }
+      calls.push({ action: 'stock_photo', name: name, photo: F.photo, id: F.pid });
+    }
+    if (F.mode !== 'photo') {
+      var raw = String(F.qty || '').trim();
+      if (!(F.mode === 'new' && !raw && F.photo)) {
+        if (!qty) { F.err = TX('Количество — целое число больше нуля'); return render(); }
+        var note = String(F.note || '').trim().slice(0, 80);
+        if (F.mode === 'move') {
+          if (!F.state || !F.to) { F.err = TX('Выберите, какое было состояние и какое стало'); return render(); }
+          calls.push({ action: 'stock_state', name: name, from: F.state, to: F.to, qty: qty, note: note, id: F.id });
+        } else if (F.mode === 'p+' || F.mode === 'p-') {
+          var part = String(F.part || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+          if (!part) { F.err = TX('Введите название запчасти'); return render(); }
+          calls.push({ action: 'stock_move', name: name, part: part, delta: F.mode === 'p-' ? -qty : qty, note: note, id: F.id });
+        } else {
+          if (PK_SK_ST.indexOf(F.state) < 0) { F.err = TX('Выберите состояние'); return render(); }
+          calls.push({ action: 'stock_move', name: name, state: F.state, delta: F.mode === 'del' ? -qty : qty, note: note, id: F.id });
+        }
+      }
+    }
+    F.busy = true; render();
+    // У каждой записи свой id: повтор после обрыва связи не задвоит её, а уже сохранённая часть пропускается.
+    (function next(i) {
+      if (PK.sk !== sk || sk.form !== F) return;
+      if (i >= calls.length) {
+        sk.form = null; sk.msg = TX('Записано') + ': ' + name;
+        if (F.mode === 'new') sk.cur = name;
+        if (F.photo) PK_SK_PH[name] = { date: '', url: F.photo, busy: false };
+        render(); return pkSkLoad();
+      }
+      callTo('/prokat', calls[i]).then(function (r) {
+        if (PK.sk !== sk || sk.form !== F) return;
+        if (!r || !r.ok) {
+          F.busy = false; F.err = (r && r.error) || TX('Не получилось сохранить');
+          if (r && r.error && r.error !== TX('нет связи')) { if (calls[i].action === 'stock_photo') F.pid = oid(); else F.id = oid(); }
+          return render();
+        }
+        if (r.name && F.mode === 'new') name = r.name;
+        next(i + 1);
+      });
+    })(0);
+  }
+  function pkSkClick(k) {
+    var sk = PK.sk; if (!sk || k.indexOf('sk-') !== 0) return false;
+    if (k === 'sk-retry') { sk.loading = true; sk.error = ''; render(); pkSkLoad(); return true; }
+    if (sk.form && sk.form.busy) return true;
+    if (k === 'sk-list') { sk.cur = ''; sk.form = null; sk.msg = ''; render(); return true; }
+    if (k.indexOf('sk-k:') === 0) { var g = sk.kinds[+k.slice(5)]; if (g) { sk.cur = g.name; sk.form = null; sk.msg = ''; render(); } return true; }
+    if (k === 'sk-new') { pkSkForm('new'); return true; }
+    if (k.indexOf('sk-f:') === 0) { var m = k.slice(5); if (['add', 'del', 'move', 'photo', 'p+', 'p-'].indexOf(m) >= 0) pkSkForm(m); return true; }
+    if (k === 'sk-cancel') { sk.form = null; render(); return true; }
+    if (k === 'sk-save') { pkSkSave(); return true; }
+    if (k.indexOf('sk-st:') === 0 || k.indexOf('sk-to:') === 0) {
+      var F = sk.form, s = PK_SK_ST[+k.slice(6)]; if (!F || !s) return true;
+      pkSkKeep();
+      if (k.indexOf('sk-st:') === 0) { F.state = s; if (F.to === s) F.to = ''; } else F.to = s;
+      F.err = ''; render(); return true;
+    }
+    return true;
+  }
+  document.addEventListener('change', function (e) {
+    var t = e.target, F = PK.sk && PK.sk.form; if (!F || !t || !t.getAttribute || t.getAttribute('data-skphoto') == null) return;
+    var file = t.files && t.files[0]; if (!file || F.busy) return;
+    pkSkKeep(); F.wait = true; F.err = ''; render();
+    pkSkThumb(file).then(function (url) { F.photo = url; F.pid = oid(); }, function (er) { F.err = er.message; }).then(function () { F.wait = false; if (PK.sk && PK.sk.form === F) render(); });
+  });
   function pkRideNote() { return '<p style="padding:10px;border-radius:10px;background:rgba(127,127,127,.12);margin:0 0 10px">' + esc(TX('Объезд делается по пунктам: откройте пункт и нажмите «Начать объезд». Пункты, где давно не было объезда, — в «Напоминаниях» на экране Финансиста.')) + '</p>'; }
   function renderPkPoint(el) {
     var p = PK.cur, back = pkBtn('back', '← ' + esc(TX('К списку пунктов')), true, 'margin-bottom:8px');
@@ -865,6 +1025,7 @@ if (S.view === 'mkt') return renderMkt(el);
   });
   function pkClick(k) {
     if (pkTourClick(k)) return;
+    if (pkSkClick(k)) return;
     if (k === 'cmp') return pkCmpOpen();
     if (k.indexOf('ci:') === 0) { if (PK.cmp) { var ci = +k.slice(3); PK.cmp.open[ci] = !PK.cmp.open[ci]; render(); } return; }
     if (k === 'rem') { if (PK.rem) { PK.rem.open = !PK.rem.open; render(); } return; }
@@ -881,9 +1042,6 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k.indexOf('ph:') === 0) { var pp = PK.ph && PK.ph.photos[+k.slice(3)]; if (pp && pkSafeUrl(pp.url)) { PK.big = pp; render(); } return; }
     if (k === 'big-close') { PK.big = null; return render(); }
     if (k === 'ph-retry') { if (PK.cur) { pkPhLoad(PK.cur.name); render(); } return; }
-    if (k === 'sk-retry') { if (PK.sk) { PK.sk.loading = true; PK.sk.error = ''; render(); pkSkLoad(); } return; }
-    if (k.indexOf('sk-dir:') === 0) { if (PK.sk) { pkSkKeep(); PK.sk.form.dir = k.slice(7) === '-1' ? -1 : 1; render(); } return; }
-    if (k === 'sk-save') return pkSkSave();
     if (k === 'back') { PK.cur = null; PK.ph = null; PK.big = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; return render(); }
     if (k === 'p-retry') { if (PK.cur) pkOpenPoint(PK.cur.name); return; }
     if (k === 'ride') { PK.ride = !PK.ride; return render(); }
