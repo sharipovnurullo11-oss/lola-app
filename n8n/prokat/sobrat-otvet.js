@@ -1,10 +1,11 @@
-const src = $('История фото').all().map(i => i.json);
+const src = $('Статус инструментов').all().map(i => i.json);
 if (src[0] && src[0].skip) return [{ json: { resp: src[0].resp } }];
 const got = $('Миниатюра Drive').all().map(i => i.json);
 const url = i => { const g = got[i] || {}; let u = src[i].fid ? String(g.thumbnailLink || '') : ''; if (u) u = u.replace(/=s\d+$/, '=s900'); return u; };
 const m = src[0] ? src[0].mode : '';
-if (m === 'tools') return [{ json: { resp: { ok: true, point: src[0].point, tools: src.map((s, i) => ({ name: s.name, kind: s.kind || '', prices: s.prices || [], qty: s.qty, count: s.count, first: s.first, last: s.last, url: url(i) })) } } }];
-if (m === 'tool') return [{ json: { resp: { ok: true, point: src[0].point, tool: src[0].name, kind: src[0].kind || '', prices: src[0].prices || [], total: src[0].total, photos: src.map((s, i) => ({ date: s.date, src: s.src, state: s.state, note: s.note, id: s.fid, url: url(i) })) } } }];
+const st = s => ({ status: s.status || '', status_text: s.status_text || '', out: s.out || 0, month_income: s.month_income || 0 });
+if (m === 'tools') return [{ json: { resp: { ok: true, point: src[0].point, tools: src.map((s, i) => Object.assign({ name: s.name, kind: s.kind || '', prices: s.prices || [], qty: s.qty, count: s.count, first: s.first, last: s.last, url: url(i) }, st(s))) } } }];
+if (m === 'tool') return [{ json: { resp: Object.assign({ ok: true, point: src[0].point, tool: src[0].name, kind: src[0].kind || '', prices: src[0].prices || [], total: src[0].total, photos: src.map((s, i) => ({ date: s.date, src: s.src, state: s.state, note: s.note, id: s.fid, url: url(i) })) }, st(src[0])) } }];
 if (m === 'guess') return [{ json: { guess: src.map((s, i) => ({ fid: s.fid, date: s.date, point: s.point, cand: s.cand, url: url(i).replace(/=s900$/, '=s640') })) } }];
 const photos = src.map((s, i) => ({ name: s.instrument, date: s.date, month: s.month, id: s.fid, url: url(i) }));
 return [{ json: { resp: { ok: true, count: src[0] ? src[0].total : photos.length, photos: photos } } }];

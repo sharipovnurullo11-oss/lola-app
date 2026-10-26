@@ -7,7 +7,7 @@ const html = fs.readFileSync(new URL('../window.html', import.meta.url), 'utf8')
 const A = '/*specialists:start*/', B = '/*specialists:end*/';
 assert.equal(html.slice(html.indexOf(A) + A.length, html.indexOf(B)), '\n' + src + '\n', 'window.html не пересобран: node build-specialists.js');
 ok('window.html собран из specialists.cjs');
-for (const need of ['p.rent_owed', "TX('к передаче')", 'function pkRentBlock(', "TX('Аренда через окно владельца')", 'r.owner_share', 'r.handovers', "TX('К передаче Нурулло 80%')", 'PK.cur.rent.owed']) assert.ok(src.includes(need), `нет: ${need}`);
+for (const need of ['p.rent_owed', "TX('к передаче')", 'function pkRentBlock(', "TX('Аренда через окно владельца')", 'r.owner_share', 'r.handovers', "TX('К передаче Нурулло')", 'PK.cur.rent.owed']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('пометка «к передаче», блок «Аренда через окно владельца», сумма rent.owed в «Забрал деньги»');
 for (const need of ["action: 'compare'", "TX('Сравнение пунктов')", "TX('Что стоит перевезти')", "TX('простаивает')", "action: 'reminders'", "TX('Напоминания')", "action: 'tour_point'", "action: 'tour_save'", "TX('Начать объезд')", 'PK_TOUR_BATCH = 5', 'accept="image/*" capture="environment" data-tphoto', "toDataURL('image/jpeg', ", '[900, 0.6]', "TX('объезда не было')", "TX('дн. назад')", "['на месте', 'сломан', 'нет']"]) assert.ok(src.includes(need), `нет: ${need}`);
 assert.ok(!/Объезд скоро/.test(src), 'заглушка «Объезд скоро» убрана');
@@ -68,6 +68,8 @@ function hist(body, access = true) {
   const $ = n => ({ first: () => nodes[n][0], all: () => nodes[n] });
   const items = new Function('$', '$input', HIST)($, { all: () => [{ json: { fid: 'old', instrument: 'старое', date: '01.01.2026', total: 1 } }] });
   nodes['История фото'] = items;
+  nodes['Аренды'] = []; nodes['Перевозки'] = [];
+  nodes['Статус инструментов'] = new Function('$', '$input', fs.readFileSync(new URL('../n8n/prokat/status.js', import.meta.url), 'utf8'))($, { all: () => items });
   nodes['Миниатюра Drive'] = items.map(i => ({ json: { thumbnailLink: i.json.fid ? 'https://lh3.googleusercontent.com/' + i.json.fid + '=s220' : undefined } }));
   return new Function('$', SOBR)($)[0].json.resp;
 }
@@ -130,7 +132,7 @@ const TK = 'tttttttttttttttttttttttttttttttt';
 const OD = { 'Владелец по ссылке': [{ id: 1, token: TK, tochka: 'Зарафшон сити', aktivno: true }],
   'Записи инструментов': [{ id: 1, tip: 'Инструмент', tochka: 'Зарафшон сити', instrument: 'Фен', kolvo: 1 }, { id: 2, tip: 'Перевезён', tochka: 'Зарафшон сити', instrument: 'Лобзик', kolvo: 0 }],
   'Фото по точкам': [{ id: 1, tochka: 'Зарафшон сити', instrument: 'Лобзик', drive_file_id: 'L' }, { id: 3, tochka: 'Зарафшон сити', instrument: 'Фен', drive_file_id: 'F1', data_foto: '22.02.2026' }, { id: 4, tochka: 'Зарафшон сити', instrument: 'Фен', drive_file_id: 'F2', data_foto: '19.05.2026' }],
-  'Визиты': [], 'Аренды': [], 'Цены': [] };
+  'Визиты': [], 'Аренды': [], 'Цены': [], 'Доли пунктов': [] };
 const onodes = body => Object.assign({ 'Владелец: запрос': [{ json: { body } }] }, Object.fromEntries(Object.entries(OD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
 let on = onodes({ token: TK });
 let ow = new Function('$', OW)(n => ({ first: () => on[n][0], all: () => on[n] }))[0].json;
@@ -161,4 +163,50 @@ assert.deepEqual([s1.op, s1.resp.dup, s1.resp.link.slice(-32)], ['none', true, '
 ok('ссылка владельца: показ, новая вместо старой, защита от повтора');
 for (const need of ["action: 'owner_link'", "action: 'owner_link_new'", 'function pkOlBlock(', "TX('Ссылка владельца')", "TX('Старая ссылка сразу перестанет работать. Владелец войдёт только по новой. Выдать новую ссылку?')", 'https://wa.me/?text=']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран ссылки владельца: копировать, WhatsApp, новая ссылка с подтверждением');
+// Цветной статус инструмента (узел «Статус инструментов» в /prokat-foto).
+const ST = fs.readFileSync(new URL('../n8n/prokat/status.js', import.meta.url), 'utf8');
+const day = n => new Date(Date.now() + 5 * 3600 * 1000 - n * 86400000).toISOString().slice(0, 10);
+const TD = { 'Аренды': [{ id: 1, tochka: 'Ховарон', instrument: 'Фен', status: 'в аренде', nachalo: day(0), summa: 80 }, { id: 2, tochka: 'Ховарон', instrument: 'Лобзик', status: 'сломан', nachalo: day(20), summa: 0 }],
+  'Визиты': [{ id: 1, tochka: 'Ховарон', instrument: 'Миксер', sostoyanie: 'сломан', data_vizita: day(3) }, { id: 2, tochka: 'Ховарон', instrument: 'Дрель', sostoyanie: 'нет', data_vizita: day(5) }],
+  'Перевозки': [{ id: 1, data: day(2), instrument: 'Болгарка', iz: 'Ховарон', v: 'Склад', kolvo: 1, sostoyanie: 'в ремонте' }, { id: 2, data: day(2), instrument: 'Пила', iz: 'Ховарон', v: 'Зарнисор', kolvo: 1 }],
+  'Записи инструментов': [{ id: 1, tip: 'Инструмент', tochka: 'Ховарон', instrument: 'Фен', kolvo: 1 }] };
+function stat(items) {
+  const nodes = Object.fromEntries(Object.entries(TD).map(([k, v]) => [k, v.map(j => ({ json: j }))]));
+  return new Function('$', '$input', ST)(n => ({ all: () => nodes[n] }), { all: () => items.map(j => ({ json: j })) }).map(i => i.json);
+}
+const tl = stat(['Фен', 'Лобзик', 'Миксер', 'Дрель', 'Болгарка', 'Пила', 'Старое'].map((n, i) => ({ mode: 'tools', point: 'Ховарон', name: n, qty: i < 4 ? 1 : 0 })));
+assert.deepEqual(tl.map(t => t.status), ['ok', 'pickup', 'broken', 'lost', 'repair', 'moved', ''], 'статусы: работает, забрать, сломан, потерян, в ремонте, перевезён, нет данных');
+assert.deepEqual([tl[0].out, tl[0].month_income], [1, 80], 'в аренде и доход за месяц');
+assert.ok(/^сломан 20 дн/.test(tl[1].status_text) && tl[5].status_text === 'перевезён: Зарнисор');
+assert.equal(stat([{ skip: true, resp: { ok: true, point: 'Ховарон', tool: 'Фен', photos: [] } }])[0].resp.status, 'ok', 'инструмент без фото тоже со статусом');
+assert.equal(stat([{ skip: true, resp: { ok: false, error: 'нет доступа' } }])[0].resp.status, undefined, 'ошибки проходят без изменений');
+ok('цветной статус инструмента и доход за месяц');
+for (const need of ['function pkTStatus(', "TX('нужно забрать')", "TX('Доход за этот месяц')", 'pkTStatus(pt.st, true)']) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран: статус на иконке и в карточке инструмента');
+// Доля пункта с аренды (узел «Доля: решить» в /prokat и «Решить» в окне владельца).
+const DL = fs.readFileSync(new URL('../n8n/prokat/dolya.js', import.meta.url), 'utf8');
+const DD = { 'Итоги по точкам': [{ id: 1, tochka: 'Ховарон' }, { id: 2, tochka: 'Зарнисор' }], 'Доли пунктов': [{ id: 1, tochka: '*', dolya: 20, oid: 'init' }] };
+function dl(body, access = true) {
+  const nodes = Object.assign({ 'Прокат: запрос': [{ json: { body } }], 'Кабинет': [{ json: { ok: access } }] }, Object.fromEntries(Object.entries(DD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+  return new Function('$', '$input', DL)(n => ({ first: () => nodes[n][0], all: () => nodes[n] }), { first: () => ({ json: { op: 'none', resp: { pass: 1 } } }) })[0].json;
+}
+assert.equal(dl({ action: 'share_get' }, false).resp.pass, 1, 'чужой кабинет — дальше без изменений');
+assert.deepEqual(dl({ action: 'share_get', name: 'Ховарон' }).resp.point, { name: 'Ховарон', pct: 20, own: false }, 'по умолчанию общая 20%');
+let d1 = dl({ action: 'share_set', name: 'Ховарон', pct: 25, id: 'shshsh1' });
+assert.deepEqual([d1.op, d1.row.tochka, d1.row.dolya, d1.resp.point.pct, d1.resp.point.own], ['share_set', 'Ховарон', 25, 25, true], 'своя доля пункта');
+assert.equal(dl({ action: 'share_set', pct: 60, id: 'shshsh2' }).resp.ok, false, 'больше 50% нельзя');
+assert.equal(dl({ action: 'share_set', name: 'Нет', pct: 10, id: 'shshsh3' }).resp.ok, false, 'чужой пункт');
+DD['Доли пунктов'].push({ id: 2, tochka: 'Ховарон', dolya: 25, oid: 'shshsh1' }, { id: 3, tochka: '*', dolya: 15, oid: 'shshsh4' });
+assert.deepEqual([dl({ action: 'share_get', name: 'Ховарон' }).resp.point.pct, dl({ action: 'share_get', name: 'Зарнисор' }).resp.point.pct], [25, 15], 'своя доля важнее общей');
+assert.equal(dl({ action: 'share_set', name: 'Ховарон', pct: 25, id: 'shshsh1' }).resp.dup, true, 'повтор не записывается');
+d1 = dl({ action: 'share_set', name: 'Ховарон', reset: true, id: 'shshsh5' });
+assert.deepEqual([d1.row.dolya, d1.resp.point.pct, d1.resp.point.own], [-1, 15, false], 'вернуть общую');
+DD['Доли пунктов'].push({ id: 4, tochka: 'Ховарон', dolya: -1, oid: 'shshsh5' });
+assert.equal(dl({ action: 'share_get', name: 'Ховарон' }).resp.point.pct, 15);
+ok('доля пункта: общая, своя, вернуть общую, защита от повтора');
+on = onodes({ token: TK }); on['Доли пунктов'] = [{ json: { id: 1, tochka: '*', dolya: 20 } }, { json: { id: 2, tochka: 'Зарафшон сити', dolya: 30 } }];
+ow = new Function('$', OW)(n => ({ first: () => on[n][0], all: () => on[n] }))[0].json;
+assert.equal(ow.resp.pct, 30, 'окно владельца получает свою долю пункта');
+for (const need of ["action: 'share_get'", "action: 'share_set'", 'function pkShBlock(', "TX('Доля пункта с аренды')", "TX('Вернуть общую')"]) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран доли пункта в карточке');
 console.log('PROKAT PASSED');
