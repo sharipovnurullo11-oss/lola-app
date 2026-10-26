@@ -59,6 +59,7 @@ const HD = {
     { id: 4, tochka: PT, instrument: '', data_foto: '', mesyac: '2026-03', drive_file_id: 'f4', stroka_lista: 11 },
     { id: 5, tochka: 'Другой', instrument: 'Лобзик', data_foto: '01.01.2026', drive_file_id: 'x' }],
   'Записи инструментов': [{ id: 1, tip: 'Инструмент', tochka: PT, instrument: 'Перфаратори майда 1 Тотал 950 вата', kolvo: 1 }, { id: 2, tip: 'Инструмент', tochka: PT, instrument: 'Лобзик', kolvo: 2 }],
+  'Подписи фото': [],
   'Цены': [{ id: 1, instrument: 'Маленький перфоратор', srok: 'сутки', cena: 40, primechanie: 'ровно 24 часа' }, { id: 2, instrument: 'Маленький перфоратор', srok: 'коротко', cena: 30, primechanie: 'до 3 часов' }, { id: 3, instrument: 'Лобзик', srok: 'сутки', cena: 40, primechanie: '' }],
   'Визиты': [{ id: 1, tochka: PT, instrument: 'Перфаратори майда 1  Тотал 950 вата', data_vizita: '2026-10-20', foto_ssylka: 'v1', sostoyanie: 'на месте', zametka: '' }]
 };
@@ -84,6 +85,22 @@ assert.equal(hist({ action: 'tools', name: PT }).tools[2].kind, '', 'без на
 HD['Записи инструментов'].push({ id: 3, tip: 'Инструмент', tochka: PT, instrument: 'Кафедорез', kolvo: 1 }); HD['Цены'].push({ id: 4, instrument: 'Кафелерез', srok: 'час', cena: 30, primechanie: 'за час' });
 assert.deepEqual(hist({ action: 'tools', name: PT }).tools.find(t => t.name === 'Кафедорез').prices.map(p => [p.srok, p.cena]), [['час', 30]], 'кафедорез = кафелерез, цена за час');
 ok('фото-история: инструменты пункта, фото по датам, фото объездов, цены из прайса');
+// Подписи фото: ИИ подписал фото без названия, владелец переносит фото кнопкой «Это другой инструмент».
+HD['Подписи фото'].push({ id: 1, drive_file_id: 'f4', tochka: PT, instrument: 'Болгарка №1' });
+hr = hist({ action: 'tools', name: PT });
+assert.ok(hr.tools.some(t => t.name === 'Болгарка №1' && t.count === 1) && !hr.tools.some(t => t.name === 'Без названия'), 'фото без названия ушло в «Болгарка №1» по подписи');
+function histRaw(body) {
+  const nodes = Object.assign({ 'Фото: запрос': [{ json: { body } }], 'Кабинет': [{ json: { ok: true } }] }, Object.fromEntries(Object.entries(HD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+  return new Function('$', '$input', HIST)(n => ({ first: () => nodes[n][0], all: () => nodes[n] }), { all: () => [] })[0].json;
+}
+let rl = histRaw({ action: 'relabel', name: PT, fid: 'f2', tool: 'Лобзик' });
+assert.deepEqual([rl.resp.ok, rl.label_row.drive_file_id, rl.label_row.instrument, rl.label_row.tochka], [true, 'f2', 'Лобзик', PT]);
+assert.equal(histRaw({ action: 'relabel', name: PT, fid: 'чужое', tool: 'Лобзик' }).resp.error, 'фото не найдено на этом пункте', 'чужое фото не переподписать');
+assert.equal(histRaw({ action: 'relabel', name: PT, fid: 'f2', tool: '  ' }).resp.error, 'выберите инструмент');
+HD['Подписи фото'].push(Object.assign({ id: 2 }, rl.label_row));
+assert.equal(hist({ action: 'tool', name: PT, tool: 'Лобзик' }).photos[0].id, 'f2', 'после переноса фото в истории лобзика');
+ok('подписи фото: ИИ-подписи и «Это другой инструмент»');
+
 for (const need of ["action: 'tools'", "action: 'tool'", 'function renderPkToolHist(', "TX('Фото по датам, от первого к последнему')", '📅 ']) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран фото-истории: иконки инструментов в пункте, фото с датой');
 console.log('PROKAT PASSED');

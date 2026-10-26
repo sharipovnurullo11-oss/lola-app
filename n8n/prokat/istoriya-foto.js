@@ -2,7 +2,7 @@
 // Старые фото — из таблицы «Фото по точкам», новые — из объездов («Визиты»). Остальные действия проходят дальше без изменений.
 const B = $('Фото: запрос').first().json.body || {};
 const act = String(B.action || '');
-if (act !== 'tools' && act !== 'tool') return $input.all();
+if (act !== 'tools' && act !== 'tool' && act !== 'guess' && act !== 'relabel') return $input.all();
 const out = resp => [{ json: { skip: true, resp: resp } }];
 if (!$('Кабинет').first().json.ok) return out({ ok: false, error: 'нет доступа' });
 const R = n => $(n).all().map(i => i.json).filter(r => r && r.id !== undefined);
@@ -41,23 +41,40 @@ const photos = R('Фото по точкам').filter(r => r.drive_file_id && pk
 // У старого фото без названия берём название из той же строки таблицы проката на этом пункте.
 const byRow = {};
 photos.forEach(r => { if (nice(r.instrument) && r.stroka_lista != null && r.stroka_lista !== '') byRow[String(r.stroka_lista)] = nice(r.instrument); });
+// Подписи фото («Прокат — подписи фото»): последняя подпись фото важнее названия из таблицы.
+const LB = {};
+R('Подписи фото').sort((a, b) => Number(a.id) - Number(b.id)).forEach(r => { if (r.drive_file_id && pk(r.tochka) === key && nice(r.instrument)) LB[String(r.drive_file_id)] = nice(r.instrument); });
 const tools = {};
 const tool = nm => { const k = norm(nm); return tools[k] || (tools[k] = { name: nice(nm), qty: 0, photos: [] }); };
 R('Записи инструментов').filter(r => String(r.tip) === 'Инструмент' && pk(r.tochka) === key && nice(r.instrument)).forEach(r => { tool(r.instrument).qty += Math.max(1, Number(r.kolvo) || 1); });
 photos.forEach(r => {
-  const nm = nice(r.instrument) || byRow[String(r.stroka_lista)] || NONAME;
+  const nm = LB[String(r.drive_file_id)] || nice(r.instrument) || byRow[String(r.stroka_lista)] || NONAME;
   tool(nm).photos.push({ fid: String(r.drive_file_id), date: iso(r.data_foto, r.mesyac), src: 'таблица', state: '', note: '' });
 });
 R('Визиты').filter(v => v.foto_ssylka && pk(v.tochka) === key && nice(v.instrument)).forEach(v => {
-  tool(v.instrument).photos.push({ fid: String(v.foto_ssylka), date: iso(v.data_vizita), src: 'объезд', state: String(v.sostoyanie || ''), note: String(v.zametka || '') });
+  tool(LB[String(v.foto_ssylka)] || v.instrument).photos.push({ fid: String(v.foto_ssylka), date: iso(v.data_vizita), src: 'объезд', state: String(v.sostoyanie || ''), note: String(v.zametka || '') });
 });
+// relabel: «Это другой инструмент» — новая подпись одного фото этого пункта.
+if (act === 'relabel') {
+  const fid = String(B.fid || ''), to = nice(String(B.tool || '').replace(/[^a-zA-Z0-9а-яА-ЯёЁӣӯқғҳҷъӢӮҚҒҲҶ .,:;_()+№-]/g, '')).slice(0, 60);
+  if (!to) return out({ ok: false, error: 'выберите инструмент' });
+  if (!Object.keys(tools).some(k => tools[k].photos.some(p => p.fid === fid))) return out({ ok: false, error: 'фото не найдено на этом пункте' });
+  return [{ json: { skip: true, resp: { ok: true, tool: to }, label_row: { drive_file_id: fid, tochka: point, instrument: to, avtor: 'приложение', data: new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10) } } }];
+}
 const seen = {};
 Object.keys(tools).forEach(k => { tools[k].photos = tools[k].photos.filter(p => !seen[p.fid] && (seen[p.fid] = 1)).sort((a, b) => a.date.localeCompare(b.date)); });
 
 if (act === 'tools') {
-  const list = Object.keys(tools).map(k => tools[k]).sort((a, b) => (a.name === NONAME) - (b.name === NONAME) || a.name.localeCompare(b.name, 'ru'));
+  const late = n => n === NONAME || /^Прочее/.test(n) ? 1 : 0;
+  const list = Object.keys(tools).map(k => tools[k]).sort((a, b) => late(a.name) - late(b.name) || a.name.localeCompare(b.name, 'ru'));
   if (!list.length) return out({ ok: true, point: point, tools: [] });
   return list.map(t => { const last = t.photos[t.photos.length - 1]; const pr = priceOf(t.name); return { json: { skip: false, mode: 'tools', fid: last ? last.fid : '', kind: pr.kind, prices: pr.prices, name: t.name, qty: t.qty, count: t.photos.length, first: t.photos.length ? t.photos[0].date : '', last: last ? last.date : '', point: point } }; });
+}
+// guess: фото «Без названия» и список инструментов пункта — для разбора через ИИ.
+if (act === 'guess') {
+  const nn = tools[norm(NONAME)], cand = Object.keys(tools).map(k => tools[k].name).filter(n => n !== NONAME);
+  if (!nn || !nn.photos.length) return out({ ok: true, point: point, guesses: [] });
+  return nn.photos.map(p => ({ json: { skip: false, mode: 'guess', fid: p.fid, date: p.date, point: point, cand: cand } }));
 }
 const t = tools[norm(B.tool)];
 if (!t) return out({ ok: false, error: 'инструмент не найден' });
