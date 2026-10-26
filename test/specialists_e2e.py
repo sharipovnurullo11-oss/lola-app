@@ -1,5 +1,5 @@
 # Проверка раздела «Специалисты» в браузере: список, бухгалтер, запись, удаление, остатки, сотрудник не видит.
-import subprocess, time, json
+import subprocess, time, json, os
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8126'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
 AN = {'st': 'none', 'left': 1, 'polls': 0}
@@ -24,6 +24,7 @@ def h(route):
             return route.fulfill(json={"ok": True, "stock": stock})
     if u.endswith('/magazin'):
         b = json.loads(route.request.post_data); calls.append(b); a = b['action']
+        if not b.get('sid') and b.get('code') != 'kshamsulotestkod0000000000000': return route.fulfill(json={"ok": False, "error": "нет доступа"})
         if a == 'foto_get': return route.fulfill(json={"ok": True, "kod": b['kod'], "foto": FOTOS.get(b['kod'], '')})
         if a == 'foto': FOTOS[b['kod']] = b['foto']
         if b.get('sid') == 'keepersid7777':
@@ -117,7 +118,7 @@ def go(pg, sid):
     pg.click('[data-home="fin"]'); pg.wait_for_timeout(150); pg.click('[data-fin="%s"]' % sid)
 try:
     with sync_playwright() as p:
-        b = p.chromium.launch(); pg = b.new_page(viewport={'width': 390, 'height': 800}); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
+        b = p.chromium.launch(executable_path=os.environ.get('CHROME') or None); pg = b.new_page(viewport={'width': 390, 'height': 800}); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.route('**/webhook/**', h)
         pg.add_init_script("""
 window.__scanNext = null;
@@ -125,7 +126,7 @@ window.BarcodeDetector = class { constructor(o){ this.o = o; } static async getS
 Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: function (c) { if (c && c.video && JSON.stringify(c.video.facingMode || '').indexOf('environment') >= 0) return Promise.resolve(new MediaStream()); return Promise.reject(new DOMException('нет камеры', 'NotAllowedError')); } } });
 """)
         pg.goto('http://localhost:8126/window.html'); pg.wait_for_timeout(500)
-        pg.evaluate("localStorage.setItem('ew_cab','k17jyvxja8gfe6lrye2izmvjjasx6')"); pg.reload(); pg.wait_for_timeout(1200)
+        pg.evaluate("localStorage.setItem('ew_cab','kshamsulotestkod0000000000000')"); pg.reload(); pg.wait_for_timeout(1200)
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(pg.is_visible('#sp-home'), 'первый экран владельца — ряд специалистов')
         t = pg.inner_text('#sp-home')
@@ -285,7 +286,7 @@ Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { 
         check('Не понял' in pg.inner_text('#as-msg') and pg.input_value('#as-in') == 'расскажи погоду', 'ассистент: непонятная задача — подсказка, текст не пропал')
         pg.fill('#as-in', 'составь договор аренды'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(400)
         check(pg.locator('#law-text').count() == 1 and pg.input_value('#law-text') == 'составь договор аренды', 'ассистент: ИИ не ответил — задача ушла юристу по ключевым словам, текст уже в поле вопроса')
-        check(any(c.get('action') == 'route' and c.get('text') == 'составь договор аренды' and c.get('code') == 'k17jyvxja8gfe6lrye2izmvjjasx6' for c in calls), 'ассистент: поручение отправлено ИИ с кодом кабинета')
+        check(any(c.get('action') == 'route' and c.get('text') == 'составь договор аренды' and c.get('code') == 'kshamsulotestkod0000000000000' for c in calls), 'ассистент: поручение отправлено ИИ с кодом кабинета')
         pg.click('[data-sp-back]'); pg.wait_for_timeout(200); pg.click('[data-home="assistant"]'); pg.wait_for_timeout(300)
         pg.fill('#as-in', 'клиентка обиделась, что делать?'); pg.click('[data-asst="send"]'); pg.wait_for_timeout(400)
         check('Менеджер по клиентам' in pg.inner_text('#sp-body'), 'ассистент: ИИ понял поручение без ключевых слов и передал менеджеру')
@@ -385,7 +386,7 @@ Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { 
         check(pg.locator('#sp-home [data-home="shop"]').count() == 0 and pg.locator('#sp-home [data-home="fin"]').count() == 1, 'другой клиент: отдельной плитки «Учёт магазина» нет, есть «Финансист»')
         pg.click('[data-home="fin"]'); pg.wait_for_timeout(500)
         check(pg.locator('#sp-body [data-fin]').count() == 0 and (pg.locator('#sp-body [data-buh]').count() + pg.locator('#sp-body [data-onb]').count()) > 0 and pg.locator('#sp-body [data-shop]').count() == 0, 'другой клиент: «Финансист» сразу открывает бухгалтерию, раздела магазина нет')
-        pg.evaluate("localStorage.setItem('ew_cab','k17jyvxja8gfe6lrye2izmvjjasx6');document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+        pg.evaluate("localStorage.setItem('ew_cab','kshamsulotestkod0000000000000');document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         # сотрудник не видит
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());localStorage.removeItem('ew_cab');localStorage.setItem('ew_sid','sidtest123456')"); pg.reload(); pg.wait_for_timeout(1200)
         pg.evaluate("localStorage.setItem('ew_cam_declined','1');document.querySelectorAll('dialog[open]').forEach(d=>d.close())")

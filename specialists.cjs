@@ -17,9 +17,20 @@
     { id: 'lawyer', name: 'Юрист', about: 'Составляет договоры на русском, таджикском и узбекском', ready: true, ico: '⚖️' }
   ];
   var S = { view: 'list', buh: null, month: '', busy: false };
-  // «Учёт магазина» включён только для кабинета Шамсуло (колхоз, Россия). Владелец приложения из списка убран по его решению 23.10; сервер тоже не пускает остальных.
-  var SHOP_ALLOW = ['k17jyvxja8gfe6lrye2izmvjjasx6'];
-  function shopOn() { try { return SHOP_ALLOW.indexOf(String(store('ew_cab') || '')) >= 0; } catch (e) { return false; } }
+  // «Учёт магазина» включён только для кабинета Шамсуло. Решает сервер /magazin: чужому кабинету он отвечает «нет доступа».
+  // Ответ запоминаем на устройстве для этого кода кабинета, чтобы плитка не мигала при каждом открытии.
+  var SHOP_ASK = '';
+  function shopOn() { try { var c = String(store('ew_cab') || ''); return !!c && lstore('ew_shop_for') === c; } catch (e) { return false; } }
+  function shopCheck() {
+    var c = ''; try { c = String(store('ew_cab') || ''); } catch (e) {}
+    if (!c || SHOP_ASK === c) return; SHOP_ASK = c;
+    callTo('/magazin', { action: 'ping' }).then(function (r) {
+      if (!r || r.error === TX('нет связи')) { SHOP_ASK = ''; return; }
+      var on = r.error !== 'нет доступа', was = shopOn();
+      try { lstore('ew_shop_for', on ? c : null); } catch (e) {}
+      if (on !== was) { applyHome(); render(); }
+    });
+  }
 
   function $s(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -340,6 +351,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var app = document.querySelector('.app'); if (app) app.classList.toggle('sp-on', show);
     $s('sp-home').hidden = !show;
     staffBtn();
+    if (user) shopCheck();
     var shopTile = document.querySelector('#sp-home [data-home="shop"]'); if (shopTile) shopTile.hidden = !shopOn();
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
