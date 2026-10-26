@@ -49,5 +49,7 @@ assert.ok(!/reduce\(function \(s, x\) \{ return s \+ Math\.round\(num\(x\.amount
 ok('«Мои деньги» из collected / earned / owed, кнопка «Передал Нурулло» и список передач');
 for (const need of ['loading="lazy" referrerpolicy="no-referrer"', 'function thumbs(', "hasOwnProperty.call(t, 'thumb')", 'th ph']) assert.ok(html.includes(need), `нет в странице: ${need}`);
 ok('миниатюры: lazy, no-referrer, запоминаются по названию, серый квадрат с буквой');
+for (const need of ['function cmpHtml(', 'cmpHtml(r.tool, S.photo)', 'Было → стало', 'THUMB[tool]']) assert.ok(html.includes(need), `нет в странице: ${need}`);
+ok('«Вернули»: прошлое фото инструмента рядом с новым («было → стало»)');
 console.log('PUNKT PASSED');
 server.close(); process.exit(0);

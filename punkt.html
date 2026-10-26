@@ -64,6 +64,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
 .photo input{position:absolute;width:1px;height:1px;opacity:0}
 .photo img{width:64px;height:64px;object-fit:cover;border-radius:8px}
 .photo.done{border-style:solid;border-color:var(--ok)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cmp figure{margin:0}.cmp img,.cmp .ph{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--line);font-size:28px}.cmp figcaption{text-align:center;font-weight:700;margin-top:4px}
 .chk{display:flex;align-items:center;gap:12px;margin-top:16px;font-weight:600}
 .chk input{width:28px;height:28px;flex:none}
 .two{display:grid;gap:10px;margin-top:16px}
@@ -269,6 +270,14 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
       '<div class="two"><button type="button" class="btn" data-a="send-rent"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Отправляю…' : 'Дать в аренду') + '</button>' +
       '<button type="button" class="btn sec" data-a="close"' + (S.busy ? ' disabled' : '') + '>Отмена</button></div></div></div>';
   }
+  // «Было → стало»: последнее фото инструмента на пункте рядом с фото при возврате.
+  function cmpHtml(tool, now) {
+    var was = thumbUrl(THUMB[tool]);
+    if (!was) return '<p class="note">Прошлого фото этого инструмента нет — сфотографируйте его сейчас, в следующий раз будет с чем сравнить.</p>';
+    return '<label>Было → стало</label><div class="cmp"><figure><img src="' + esc(was) + '" alt="Было" referrerpolicy="no-referrer"><figcaption>Было</figcaption></figure>' +
+      '<figure>' + (now ? '<img src="' + esc(now) + '" alt="Стало">' : '<span class="ph">📷</span>') + '<figcaption>Стало</figcaption></figure></div>' +
+      '<p class="note">Сравните: нет ли новых сколов, трещин, не хватает ли деталей.</p>';
+  }
   function retSheet() {
     var S = SHEET, r = S.rental;
     return '<div class="ov" data-a="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Вернули">' +
@@ -278,7 +287,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
         '<button type="button" class="btn sec' + (S.check === 'работает' ? ' on' : '') + '" data-a="check" data-v="работает">Включил, работает</button>' +
         '<button type="button" class="btn sec' + (S.check === 'поврежден' ? ' on' : '') + '" data-a="check" data-v="поврежден">Повреждён</button></div>' +
       (S.check === 'поврежден' ? '<label for="f-repair">Сколько заплатили за ремонт (сомони)</label><input id="f-repair" type="text" inputmode="decimal" autocomplete="off" value="' + esc(S.repair) + '">' : '') +
-      '<label>Фото инструмента</label>' + photoField('photo', 'Сфотографировать инструмент', S.photo, S.wait.photo) +
+      '<label>Фото инструмента</label>' + photoField('photo', 'Сфотографировать инструмент', S.photo, S.wait.photo) + cmpHtml(r.tool, S.photo) +
       (S.err ? '<p class="err">' + esc(S.err) + '</p>' : '') +
       '<div class="two"><button type="button" class="btn ok" data-a="send-ret"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Отправляю…' : 'Вернули') + '</button>' +
       '<button type="button" class="btn sec" data-a="close"' + (S.busy ? ' disabled' : '') + '>Отмена</button></div></div></div>';
