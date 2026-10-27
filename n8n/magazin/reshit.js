@@ -77,7 +77,9 @@ const view = month => {
   const sdOk = {}; all.filter(r => r.tip === 'sdacha_ok').forEach(r => { sdOk[String(r.ssylka)] = String(r.data); });
   const byOf = s => { try { const o = JSON.parse(String(s || '')); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } };
   const sdachi = all.filter(r => r.tip === 'sdacha' && inM(r)).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), fact: Number(r.summa), exp: Number(r.cena), diff: Number(r.kolvo), by: byOf(r.ssylka), ok: sdOk[String(r.oid)] || '' }));
-  return { month: ms, revenue: rev, profit, owner, debt: r2(debts().reduce((s, c) => s + c.sum, 0)), byDay, checks: list, low, expenses: r2(exps.reduce((s, r) => s + Number(r.summa), 0)), expBy, expList, payBy, payToday, sdachi };
+  // Внесение и изъятие наличных в смене (tip 'kassa', oplata 'in' / 'out'): в отчёте отдельно, чтобы изъятие не выглядело недостачей.
+  const kassa = all.filter(r => r.tip === 'kassa' && inM(r) && !voided.has(String(r.oid))).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), kind: String(r.oplata), sum: Number(r.summa), note: String(r.nazvanie) }));
+  return { month: ms, revenue: rev, profit, owner, debt: r2(debts().reduce((s, c) => s + c.sum, 0)), byDay, checks: list, low, expenses: r2(exps.reduce((s, r) => s + Number(r.summa), 0)), expBy, expList, payBy, payToday, sdachi, kassa };
 };
 const respond = (extra) => ({ ok: true, products: products(), debts: debts(), report: view(B.month) });
 const out = (resp, rowsArr) => rowsArr && rowsArr.length ? rowsArr.map(r => ({ json: { rows: 1, row: r, resp } })) : [{ json: { resp } }];
@@ -203,12 +205,15 @@ if (act === 'sdacha') {
   const mine = sales.filter(r => r.oplata !== 'vladelec' && String(r.ssylka || '') === mySeller && String(r.vremya) > since);
   const cash = payBreak(mine).nal || 0;
   const spent = r2(all.filter(r => r.tip === 'rashod' && !voided.has(String(r.oid)) && String(r.pokupatel) === who && String(r.vremya) > since).reduce((s, r) => s + Number(r.summa), 0));
-  const expected = r2(cash - spent), diff = r2(fact - expected);
+  // Внёс в кассу (размен) — наличных больше, взял из кассы (руководитель забрал) — меньше.
+  const ops = all.filter(r => r.tip === 'kassa' && !voided.has(String(r.oid)) && String(r.pokupatel) === who && String(r.vremya) > since);
+  const vnes = r2(ops.filter(r => r.oplata === 'in').reduce((s, r) => s + Number(r.summa), 0)), vzyal = r2(ops.filter(r => r.oplata === 'out').reduce((s, r) => s + Number(r.summa), 0));
+  const expected = r2(cash - spent + vnes - vzyal), diff = r2(fact - expected);
   // Итог смены по способам оплаты (наличные, Алиф, Душанбе Сити, перевод, в долг): сверяются только наличные, остальное — для отчёта хозяину.
   const by = payBreak(mine);
   const rw = [mk({ oid: id, tip: 'sdacha', pokupatel: who, summa: fact, cena: expected, kolvo: diff, data: date, ssylka: JSON.stringify(by) })];
   withRows(rw);
-  return out(Object.assign(respond(), { sdacha: { expected, fact, diff, cash: r2(cash), spent, by } }), rw);
+  return out(Object.assign(respond(), { sdacha: { expected, fact, diff, cash: r2(cash), spent, vnes, vzyal, by } }), rw);
 }
 
 if (act === 'sdacha_ok') {
@@ -219,6 +224,22 @@ if (act === 'sdacha_ok') {
   if (!all.some(r => r.tip === 'sdacha' && String(r.oid) === sid)) return fail('сдача кассы не найдена');
   if (all.some(r => r.tip === 'sdacha_ok' && String(r.ssylka) === sid)) return out(respond());
   const rw = [mk({ oid: id, tip: 'sdacha_ok', ssylka: sid, data: now.slice(0, 10) })];
+  withRows(rw);
+  return out(respond(), rw);
+}
+
+if (act === 'kassa') {
+  // Внесение (in) и изъятие (out) наличных в смене: размен в кассу или руководитель забрал деньги. Запись попадает в смену того, чья касса.
+  if (ID.role === 'staff' && ID.srole !== 'prodavec') return fail('нет доступа');
+  const kind = B.kind === 'in' || B.kind === 'out' ? B.kind : '';
+  const id = idc(B.id), s = r2(B.amount), date = String(B.date || ''), note = san(B.note, 60);
+  const who = ID.role === 'staff' ? san(ID.who, 40) : (san(B.who, 40) || 'Руководитель');
+  if (!kind) return fail('выберите: внесли или взяли');
+  if (id.length < 6) return fail('нет номера записи');
+  if (!(s > 0 && s <= 1000000000)) return fail('неверная сумма');
+  if (!okDate(date)) return fail('неверная дата');
+  if (all.some(r => String(r.oid) === id)) return out(respond());
+  const rw = [mk({ oid: id, tip: 'kassa', oplata: kind, summa: s, pokupatel: who, nazvanie: note, data: date })];
   withRows(rw);
   return out(respond(), rw);
 }
@@ -280,7 +301,7 @@ if (act === 'void') {
   const id = idc(B.id);
   const isCheck = sales.some(r => String(r.chek) === id);
   const isPay = pays.some(r => String(r.oid) === id);
-  const isExp = all.some(r => (r.tip === 'rashod' || r.tip === 'vyplata') && String(r.oid) === id) && !voided.has(id);
+  const isExp = all.some(r => (r.tip === 'rashod' || r.tip === 'vyplata' || r.tip === 'kassa') && String(r.oid) === id) && !voided.has(id);
   if (!isCheck && !isPay && !isExp) return fail('запись не найдена');
   const rw = [mk({ oid: ('v' + id).slice(0, 40), tip: 'void', ssylka: id })];
   withRows(rw);

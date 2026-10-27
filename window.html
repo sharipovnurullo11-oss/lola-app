@@ -5092,8 +5092,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (SH.payPick && SH.pay !== 'dolg') { h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">' + [['nal', 'Наличные', 'Нақд', 'Naqd'], ['alif', 'Алиф', 'Алиф', 'Alif'], ['dushanbe', 'Душанбе Сити', 'Душанбе Сити', 'Dushanbe City'], ['mix', 'Смешанная', 'Омехта', 'Aralash']].map(function (x) { return shBtn(x[0] === 'mix' ? 'pmix' : 'pm', ui(x[1], x[2], x[3]), { sec: SH.pay !== x[0], st: 'height:60px;font-size:18px' }, x[0]); }).join('') + '</div>'; if (SH.pay === 'mix') h += shMixBox() + shBtn('sell', SH.busy ? TX('Загрузка…') : ui('Продать', 'Фурӯхтан', 'Sotish'), { st: 'width:100%;height:56px;margin-top:8px' }); }
     if (SH.pay === 'dolg') h += '<div style="margin-top:12px">' + shIn('shx-who', ui('Кто покупатель (имя)', 'Харидор кист (ном)', 'Xaridor kim (ism)'), SH.who, 'maxlength="40"') + '<div id="sh-whohint">' + shWhoHtml() + '</div>' + shBtn('sell', ui('Записать в долг', 'Ба қарз сабт кардан', 'Qarzga yozish'), { st: 'width:100%;height:56px;margin-top:8px' }) + '</div>';
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:28px;padding-top:14px;border-top:2px dashed #cfcfcf">' + shBtn('shef', '👑 ' + ui('Шеф Шамсуло взял', 'Сардор Шамсуло гирифт', 'Boshliq Shamsulo oldi'), { sec: true, st: 'min-height:44px;font-size:13px;line-height:1.2;padding:4px 6px;border:2px dashed #b36b00' }) + shBtn('expopen', '💸 ' + ui('Личный расход Маруф и Абду Ташкили', 'Хароҷоти шахсӣ Маруф ва Абду Ташкили', 'Shaxsiy xarajat Maruf va Abdu Tashkili'), { sec: true, st: 'min-height:44px;font-size:13px;line-height:1.2;padding:4px 6px' }) + '</div>';
+    h += shBtn('kopen', '💵 ' + ui('Внёс / взял наличные из кассы', 'Ба касса гузошт / аз касса гирифт', 'Kassaga qoʻydi / kassadan oldi'), { sec: true, st: 'width:100%;min-height:44px;font-size:13px;margin-top:8px' });
     h += shRetBox();
     h += shExpBox(true);
+    h += shKopBox(true);
     h += shSdBox();
     return h;
   }
@@ -5120,6 +5122,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }
     h += shRetBox();
     h += shExpBox();
+    h += shKopBox();
     h += shSdBox();
     return h;
   }
@@ -5137,12 +5140,25 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function shSdBox() {
     var h = '<div style="margin-top:14px">';
-    if (SH.sdRes) { var r = SH.sdRes, ok = Math.abs(r.diff) < 0.005; h += '<div role="status" style="margin:0 0 10px;padding:10px 12px;border-radius:10px;background:' + (ok ? '#e6f6ec' : '#fff4d6') + '"><b>' + esc(ui('Касса сдана', 'Касса супорида шуд', 'Kassa topshirildi')) + '</b><br>' + esc(ui('Должно быть: ', 'Бояд бошад: ', 'Boʻlishi kerak: ')) + esc(money(cents(r.expected))) + '<br>' + esc(ui('Вы сдали: ', 'Шумо супоридед: ', 'Siz topshirdingiz: ')) + esc(money(cents(r.fact))) + '<br><b>' + (ok ? esc(ui('Всё сходится', 'Ҳама мувофиқ', 'Hammasi mos')) : (r.diff < 0 ? esc(ui('Недостача: ', 'Камомад: ', 'Kamomad: ')) : esc(ui('Излишек: ', 'Зиёдатӣ: ', 'Ortiqcha: '))) + esc(money(cents(Math.abs(r.diff)))) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy'))) + '</b>' + (shByLine(r.by) ? '<br><small>' + esc(ui('Смена: ', 'Смена: ', 'Smena: ')) + esc(shByLine(r.by)) + '</small>' : '') + '</div>'; }
+    if (SH.sdRes) { var r = SH.sdRes, ok = Math.abs(r.diff) < 0.005; h += '<div role="status" style="margin:0 0 10px;padding:10px 12px;border-radius:10px;background:' + (ok ? '#e6f6ec' : '#fff4d6') + '"><b>' + esc(ui('Касса сдана', 'Касса супорида шуд', 'Kassa topshirildi')) + '</b><br>' + esc(ui('Должно быть: ', 'Бояд бошад: ', 'Boʻlishi kerak: ')) + esc(money(cents(r.expected))) + '<br>' + esc(ui('Вы сдали: ', 'Шумо супоридед: ', 'Siz topshirdingiz: ')) + esc(money(cents(r.fact))) + '<br><b>' + (ok ? esc(ui('Всё сходится', 'Ҳама мувофиқ', 'Hammasi mos')) : (r.diff < 0 ? esc(ui('Недостача: ', 'Камомад: ', 'Kamomad: ')) : esc(ui('Излишек: ', 'Зиёдатӣ: ', 'Ortiqcha: '))) + esc(money(cents(Math.abs(r.diff)))) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy'))) + '</b>' + (r.vnes || r.vzyal ? '<br><small>' + (r.vnes ? esc(ui('Внесли: ', 'Гузоштанд: ', 'Qoʻyildi: ')) + esc(money(cents(r.vnes))) + ' ' : '') + (r.vzyal ? esc(ui('Взяли: ', 'Гирифтанд: ', 'Olindi: ')) + esc(money(cents(r.vzyal))) : '') + '</small>' : '') + (shByLine(r.by) ? '<br><small>' + esc(ui('Смена: ', 'Смена: ', 'Smena: ')) + esc(shByLine(r.by)) + '</small>' : '') + '</div>'; }
     if (!SH.sdOpen) return h + shBtn('sdopen', '🧾 ' + ui('Сдать кассу', 'Супоридани касса', 'Kassani topshirish'), { sec: true, st: 'width:100%' }) + '</div>';
     h += '<b>' + esc(ui('Сдать кассу', 'Супоридани касса', 'Kassani topshirish')) + '</b><p style="margin:4px 0 8px"><small>' + esc(ui('Пересчитайте наличные в кассе и впишите сумму. Программа сама сравнит с продажами.', 'Пули нақдро ҳисоб карда, маблағро нависед. Барнома худаш муқоиса мекунад.', 'Kassadagi naqd pulni sanab, summani yozing. Dastur oʻzi solishtiradi.')) + '</small></p><div style="display:grid;gap:8px">' + shIn('sh-sd-fact', ui('Наличных в кассе, сомони', 'Пули нақд дар касса, сомонӣ', 'Kassadagi naqd, somoniy'), '', 'inputmode="decimal"') + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('sdsave', SH.busy ? TX('Загрузка…') : ui('Сдать', 'Супоридан', 'Topshirish')) + shBtn('sdopen', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div></div>';
     return h;
   }
   // «Личный расход» продавца: взял из кассы на себя — простая запись, не долг; итоги по продавцам видит только руководитель.
+  // Внесение и изъятие наличных в смене: размен в кассу или руководитель забрал деньги — при сдаче кассы это не недостача и не излишек.
+  function shKopBox(nb) {
+    var h = '<div style="margin-top:18px;padding-top:12px;border-top:1px dashed #cfcfcf">';
+    if (!SH.kOpen && nb) return '';
+    var V = SH.kv || { amt: '', note: '', who: '' };
+    if (!SH.kOpen) return h + shBtn('kopen', '💵 ' + ui('Внёс / взял наличные из кассы', 'Ба касса гузошт / аз касса гирифт', 'Kassaga qoʻydi / kassadan oldi'), { sec: true, st: 'width:100%' }) + '</div>';
+    h += '<b>' + esc(ui('Наличные в кассе: внесли или взяли', 'Пули нақд дар касса: гузоштанд ё гирифтанд', 'Kassadagi naqd: qoʻyildi yoki olindi')) + '</b><p style="margin:4px 0 8px"><small>' + esc(ui('Например, положили размен или руководитель забрал деньги. При сдаче кассы это учтётся, недостачи не будет.', 'Масалан, майда гузоштанд ё роҳбар пул гирифт. Ҳангоми супоридани касса ба ҳисоб гирифта мешавад.', 'Masalan, mayda pul qoʻyildi yoki rahbar pul oldi. Kassani topshirishda hisobga olinadi.')) + '</small></p>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' + shBtn('kkind', '➕ ' + ui('Внёс в кассу', 'Ба касса гузошт', 'Kassaga qoʻydi'), { sec: SH.kKind !== 'in' }, 'in') + shBtn('kkind', '➖ ' + ui('Взял из кассы', 'Аз касса гирифт', 'Kassadan oldi'), { sec: SH.kKind !== 'out' }, 'out') + '</div><div style="display:grid;gap:8px">';
+    if (!sellerView()) { var nm = ['Маруф', 'Абду']; try { ((SH.d && SH.d.report && SH.d.report.salary) || []).forEach(function (z) { if (z.name && nm.indexOf(z.name) < 0) nm.push(z.name); }); } catch (e) {} h += '<div style="display:flex;gap:6px;flex-wrap:wrap">' + nm.map(function (n) { return shBtn('kchip', n, { sec: true, st: 'min-height:40px;padding:0 16px' }, n); }).join('') + '</div>' + shIn('sh-k-who', ui('Чья касса (имя продавца; пусто — ваша)', 'Кассаи кӣ (номи фурӯшанда; холӣ — аз шумо)', 'Kimning kassasi (boʻsh — sizniki)'), V.who, 'maxlength="40"'); }
+    h += shIn('sh-k-amt', ui('Сумма, сомони', 'Маблағ, сомонӣ', 'Summa, somoniy'), V.amt, 'inputmode="decimal"') + shIn('sh-k-note', ui('Пояснение (необязательно)', 'Шарҳ (ихтиёрӣ)', 'Izoh (ixtiyoriy)'), V.note, 'maxlength="60"') +
+      '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('ksave', SH.busy ? TX('Загрузка…') : ui('Записать', 'Сабт', 'Yozish')) + shBtn('kopen', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div></div>';
+    return h;
+  }
   function shExpBox(nb) {
     var h = '<div style="margin-top:18px;padding-top:12px;border-top:1px dashed #cfcfcf">';
     if (!SH.expOpen && nb) return '';
@@ -5356,6 +5372,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var pbRow = function (o) { return Object.keys(o || {}).filter(function (m) { return o[m] > 0; }).map(function (m) { return '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>' + esc(PL[m] || m) + '</span><b>' + esc(money(cents(o[m]))) + '</b></div>'; }).join(''); };
     if (R.month === monthOf(today()) && pbRow(R.payToday)) h += '<h3 style="margin-top:14px">' + esc(ui('Сегодня по способам оплаты', 'Имрӯз аз рӯи роҳи пардохт', 'Bugun toʻlov usullari boʻyicha')) + '</h3>' + pbRow(R.payToday);
     if (pbRow(R.payBy)) h += '<h3 style="margin-top:14px">' + esc(ui('За месяц по способам оплаты', 'Дар моҳ аз рӯи роҳи пардохт', 'Oy boʻyicha toʻlov usullari')) + '</h3>' + pbRow(R.payBy);
+    if ((R.kassa || []).length) h += '<h3 style="margin-top:14px">' + esc(ui('Внесли и взяли из кассы', 'Ба касса гузоштанд ва гирифтанд', 'Kassaga qoʻyildi va olindi')) + '</h3>' + R.kassa.map(function (x) { var ask = SH.voidAsk === x.id, inn = x.kind === 'in'; return '<div style="padding:6px 0;border-bottom:1px solid #eee;display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><small>' + esc(x.date) + ' · ' + esc(x.who) + (x.note ? ' · ' + esc(x.note) : '') + '</small><br>' + esc(inn ? ui('внесли', 'гузоштанд', 'qoʻyildi') : ui('взяли', 'гирифтанд', 'olindi')) + '</div><b style="color:' + (inn ? '#1f8a4c' : '#b36b00') + '">' + (inn ? '+' : '−') + esc(money(cents(x.sum))) + '</b>' + shBtn('void', ask ? ui('Точно?', 'Боварӣ?', 'Aniqmi?') : '×', { sec: true, st: 'width:56px;padding:0' }, x.id) + '</div>'; }).join('');
     if ((R.sdachi || []).length) h += '<h3 style="margin-top:14px">' + esc(ui('Сдача кассы', 'Супоридани касса', 'Kassa topshirish')) + '</h3>' + R.sdachi.map(function (x) { var okd = Math.abs(x.diff) < 0.005; return '<div style="padding:6px 0;border-bottom:1px solid #eee"><small>' + esc(x.date) + ' · ' + esc(x.who) + '</small><div style="display:flex;justify-content:space-between;gap:8px"><span>' + esc(ui('Должно ', 'Бояд ', 'Kerak ')) + esc(money(cents(x.exp))) + ' · ' + esc(ui('сдал ', 'супорид ', 'topshirdi ')) + esc(money(cents(x.fact))) + '</span><b style="color:' + (okd ? '#1f8a4c' : '#c0392b') + '">' + (okd ? '✓' : (x.diff < 0 ? esc(ui('недостача ', 'камомад ', 'kamomad ')) : esc(ui('излишек ', 'зиёдатӣ ', 'ortiqcha '))) + esc(money(cents(Math.abs(x.diff))))) + '</b></div>' + (shByLine(x.by) ? '<small>' + esc(shByLine(x.by)) + '</small>' : '') + '<div style="margin-top:4px">' + (x.ok ? '<small style="color:#1f8a4c">✓ ' + esc(ui('Смена подтверждена', 'Смена тасдиқ шуд', 'Smena tasdiqlandi')) + '</small>' : shBtn('sdok', ui('Подтвердить смену', 'Тасдиқи смена', 'Smenani tasdiqlash'), { sec: true, st: 'min-height:40px;font-size:14px;padding:4px 12px' }, x.id)) + '</div></div>'; }).join('');
     var dd = R.days && R.days[today()];
     if (dd && R.month === monthOf(today())) h += '<h3 style="margin-top:14px">' + esc(ui('Итоги дня', 'Натиҷаи рӯз', 'Kun yakuni')) + '</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + cell(ui('Продано на', 'Фурӯхта шуд', 'Sotildi'), dd.sold) + cell(ui('Пришло денег', 'Пул омад', 'Pul keldi'), dd.cashIn, '#1f8a4c') + cell(ui('Прибыль', 'Фоида', 'Foyda'), dd.profit, '#1f8a4c') + cell(ui('Закупка', 'Харид', 'Xarid'), dd.purchase, '#b36b00') + cell(ui('Новые долги', 'Қарзҳои нав', 'Yangi qarzlar'), dd.debtNew, '#c0392b') + '</div>';
@@ -5430,6 +5447,18 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'sdok') { if (SH.busy) return; return shAct({ action: 'sdacha_ok', sdacha: k, id: oid() }, ui('Смена подтверждена', 'Смена тасдиқ шуд', 'Smena tasdiqlandi')); }
     if (a === 'sdsave') { if (SH.busy) return; var sf = shNum('sh-sd-fact'); if (sf === '' || !(Number(sf) >= 0)) { SH.err = ui('Впишите, сколько наличных в кассе (можно 0)', 'Нависед, чанд нақд дар касса аст (0 ҳам мешавад)', 'Kassadagi naqd summani yozing (0 ham boʻladi)'); return render(); } return shAct({ action: 'sdacha', id: oid(), fact: Number(sf), date: today() }, '', function () { SH.sdOpen = false; SH.sdRes = SH.d && SH.d.sdacha || null; }); }
     if (a === 'echip') { var ew = $s('sh-e-who'); if (ew) { ew.value = k; ew.focus(); } return; }
+    // введённое в форме «внёс / взял» не теряется, когда экран перерисовывается
+    var kKeep = function () { var g = function (id) { var e = $s(id); return e ? e.value : ''; }; SH.kv = { amt: g('sh-k-amt'), note: g('sh-k-note'), who: g('sh-k-who') }; };
+    if (a === 'kopen') { SH.kOpen = !SH.kOpen; SH.kKind = ''; SH.kv = null; SH.err = ''; return render(); }
+    if (a === 'kkind') { kKeep(); SH.kKind = k; SH.err = ''; return render(); }
+    if (a === 'kchip') { var kw = $s('sh-k-who'); if (kw) { kw.value = k; kw.focus(); } return; }
+    if (a === 'ksave') {
+      if (SH.busy) return; kKeep(); var kam = Number(shNum('sh-k-amt')), kn = $s('sh-k-note'), kw2 = $s('sh-k-who');
+      if (SH.kKind !== 'in' && SH.kKind !== 'out') { SH.err = ui('Выберите: внесли или взяли', 'Интихоб кунед: гузоштанд ё гирифтанд', 'Tanlang: qoʻyildi yoki olindi'); return render(); }
+      if (!(kam > 0)) { SH.err = ui('Укажите сумму', 'Маблағро нависед', 'Summani yozing'); return render(); }
+      var kin = SH.kKind === 'in';
+      return shAct({ action: 'kassa', kind: SH.kKind, id: oid(), amount: kam, note: kn ? kn.value : '', who: kw2 ? kw2.value : '', date: today() }, kin ? ui('Записано: внесли в кассу', 'Сабт шуд: ба касса гузоштанд', 'Yozildi: kassaga qoʻyildi') : ui('Записано: взяли из кассы', 'Сабт шуд: аз касса гирифтанд', 'Yozildi: kassadan olindi'), function () { SH.kOpen = false; SH.kKind = ''; SH.kv = null; });
+    }
     if (a === 'expopen') { SH.expOpen = !SH.expOpen; SH.err = ''; return render(); }
     if (a === 'expsave') {
       if (SH.busy) return; var ea = Number(shNum('sh-e-amt')), en = $s('sh-e-note'), ew = $s('sh-e-who');
@@ -5468,7 +5497,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return shAct({ action: 'pay', who: SH.payf, amount: Number(am), id: oid(), date: today() }, ui('Оплата принята', 'Пардохт қабул шуд', 'Toʻlov qabul qilindi'), function () { SH.payf = null; });
     }
     if (a === 'mprev' || a === 'mnext') { SH.month = shiftMonth(SH.month, a === 'mprev' ? -1 : 1); SH.voidAsk = ''; render(); return shLoad(); }
-    if (a === 'void') { if (SH.voidAsk !== k) { SH.voidAsk = k; return render(); } SH.voidAsk = ''; return shAct({ action: 'void', id: k }, ui('Продажа отменена, товар вернулся на склад', 'Фурӯш бекор шуд, мол ба анбор баргашт', 'Sotuv bekor qilindi, tovar omborga qaytdi'), function () { /* убираем чек из списка сразу, без перезагрузки */ var RR = SH.d && SH.d.report; if (RR && RR.checks) RR.checks = RR.checks.filter(function (c) { return c.id !== k; }); }); }
+    if (a === 'void') { if (SH.voidAsk !== k) { SH.voidAsk = k; return render(); } SH.voidAsk = ''; var isChk = !!(SH.d && SH.d.report && (SH.d.report.checks || []).some(function (c) { return c.id === k; })); return shAct({ action: 'void', id: k }, isChk ? ui('Продажа отменена, товар вернулся на склад', 'Фурӯш бекор шуд, мол ба анбор баргашт', 'Sotuv bekor qilindi, tovar omborga qaytdi') : ui('Запись отменена', 'Сабт бекор шуд', 'Yozuv bekor qilindi'), function () { /* убираем чек из списка сразу, без перезагрузки */ var RR = SH.d && SH.d.report; if (RR && RR.checks) RR.checks = RR.checks.filter(function (c) { return c.id !== k; }); }); }
   }
   function shSave() {
     var fu = $s('sh-f-unit'), f = { kod: ($s('sh-f-kod').value || '').trim(), name: ($s('sh-f-name').value || '').trim(), zakup: shNum('sh-f-zakup'), marzha: shNum('sh-f-marzha'), sell: shNum('sh-f-sell'), fsm: !!(SH.form && SH.form.fsm), unit: fu && SH_U[fu.value] ? fu.value : 'sht', per: shNum('sh-f-per') };
