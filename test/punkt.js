@@ -44,7 +44,7 @@ ok('этап 2: формы аренды и возврата с фото, «Мо�
 for (const need of ['Сломался', 'Починили', "toolAct(tt, 'broken'", "toolAct(tt, 'fixed'", "status === 'сломан'", 'num(t.broken)', 'Цены для клиента', 'коротко (до 3 часов)', 'минимум за сутки']) assert.ok(html.includes(need), `нет в странице: ${need}`);
 assert.ok(!/earned|share|amount/.test(/function renderPrices[\s\S]*?\n  }\n/.exec(html)[0]), '«Цены для клиента» без долей и сумм');
 ok('«Сломался» / «Починили», красный по broken, «Цены для клиента» без долей');
-for (const need of ["api('handover'", 'D.owed', 'D.collected', 'D.handovers', 'Вы передали ', 'Передал Нурулло ', 'К передаче Нурулло 80%']) assert.ok(html.includes(need), `нет в странице: ${need}`);
+for (const need of ["api('handover'", 'D.owed', 'D.collected', 'D.handovers', 'Вы передали ', 'Передал Нурулло ', 'К передаче Нурулло ', 'pctTxt(100 - pct())', 'function pct()']) assert.ok(html.includes(need), `нет в странице: ${need}`);
 assert.ok(!/reduce\(function \(s, x\) \{ return s \+ Math\.round\(num\(x\.amount\)/.test(html), 'цифры денег — с сервера, а не пересчёт на телефоне');
 ok('«Мои деньги» из collected / earned / owed, кнопка «Передал Нурулло» и список передач');
 for (const need of ['loading="lazy" referrerpolicy="no-referrer"', 'function thumbs(', "hasOwnProperty.call(t, 'thumb')", 'th ph']) assert.ok(html.includes(need), `нет в странице: ${need}`);

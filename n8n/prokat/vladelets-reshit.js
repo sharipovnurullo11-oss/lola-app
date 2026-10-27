@@ -1,10 +1,13 @@
 const B = $('Владелец: запрос').first().json.body || {};
 const R = n => $(n).all().map(i => i.json).filter(r => r && r.id !== undefined);
-const out = (resp, extra) => [{ json: Object.assign({ op: 'none', photos: [], resp: resp }, extra || {}) }];
+// Доля пункта с аренды: своя у пункта или общая («*») из таблицы «Прокат — доля пунктов», иначе 20%.
+let PCT = 20;
+const out = (resp, extra) => [{ json: Object.assign({ op: 'none', photos: [], resp: resp && resp.ok ? Object.assign({ pct: PCT }, resp) : resp }, extra || {}) }];
 const token = String(B.token || '');
 const me = token.length >= 20 ? R('Владелец по ссылке').find(r => String(r.token) === token && r.aktivno !== false) : null;
 if (!me) return out({ ok: false, error: 'ссылка не подходит' });
 const point = String(me.tochka);
+{ const sh = {}; R('Доли пунктов').sort((a, b) => Number(a.id) - Number(b.id)).forEach(r => { const p = Number(r.dolya), k = String(r.tochka); if (p === -1 && k !== '*') delete sh[k]; else if (p >= 0 && p <= 100) sh[k] = p; }); PCT = sh[point] != null ? sh[point] : sh['*'] != null ? sh['*'] : 20; }
 const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const pk = s => norm(s).slice(0, 14);
 const mine = r => pk(r.tochka) === pk(point);
@@ -79,7 +82,7 @@ if (act === 'rent') {
   if (!okImg(B.photo_person)) return out({ ok: false, error: 'нужно фото арендатора' });
   if (zalog === 'паспорт' && !okImg(B.photo_passport)) return out({ ok: false, error: 'нужно фото паспорта' });
   const amount = num(price * days);
-  const share = Math.round(amount * 0.2 * 100) / 100;
+  const share = Math.round(amount * PCT) / 100;
   const row = { oid: id, tochka: point, instrument: t.name, nachalo: date, dni: days, summa: amount, dolya_vladeltsa: share, dolya_nurullo: num(amount - share), status: 'в аренде', vozvrat: '', avtor: 'владелец', tsena_den: price, zalog: zalog, zalog_summa: zalog === 'деньги' ? zsum : 0, telefon: phone, foto_cheloveka: '', foto_pasporta: '', proverka: '', foto_vozvrata: '', remont_oplata: 0 };
   const photos = [{ field: 'foto_cheloveka', name: 'chel_' + id + '.jpg', b64: b64(B.photo_person) }];
   if (zalog === 'паспорт') photos.push({ field: 'foto_pasporta', name: 'pasport_' + id + '.jpg', b64: b64(B.photo_passport) });
