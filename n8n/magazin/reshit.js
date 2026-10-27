@@ -311,6 +311,41 @@ if (act === 'export') {
   return out(Object.assign(respond(), { export: ex }));
 }
 
+// История движения товара (№226–227): приход (кто принял, по какой цене, поставщик), продажи и возвраты (кто продал, кому),
+// отменённые чеки, поправки остатка и пересчёты, смена цены. После каждого движения — остаток. Только руководитель, новые сверху.
+if (act === 'history') {
+  if (ID.role !== 'owner') return fail('нет доступа');
+  const k = cod(B.kod);
+  if (!prod[k]) return fail('товар не найден');
+  const voidedAll = new Set(all.filter(r => r.tip === 'void').map(r => String(r.ssylka)));
+  const rows = all.filter(r => String(r.kod) === k && ['prihod', 'korrekt', 'prodazha', 'pereschet', 'tovar'].indexOf(r.tip) >= 0)
+    .sort((a, b) => String(a.vremya).localeCompare(String(b.vremya)) || Number(a.id || 0) - Number(b.id || 0));
+  const newZ = {}; all.filter(r => r.tip === 'tovar').forEach(r => { newZ[String(r.oid)] = Number(r.zakup); });
+  let ost = 0, last = null;
+  const ev = [];
+  rows.forEach(r => {
+    const tl = Date.parse(r.vremya); // время по Душанбе (UTC+5)
+    const base = { date: String(r.data), time: isNaN(tl) ? '' : new Date(tl + 5 * 3600 * 1000).toISOString().slice(11, 16) };
+    if (r.tip === 'tovar') {
+      const cur = { zakup: Number(r.zakup), sell: Number(r.cena) > 0 ? r2(r.cena) : 0, marzha: Number(r.marzha) };
+      if (last && (cur.zakup !== last.zakup || cur.sell !== last.sell || (!cur.sell && cur.marzha !== last.marzha))) ev.push(Object.assign(base, { t: 'price', zakup: cur.zakup, sell: cur.sell, marzha: r2(cur.marzha), was: last.zakup, ost: r3(ost) }));
+      if (!last) ev.push(Object.assign(base, { t: 'new', zakup: cur.zakup, sell: cur.sell, marzha: r2(cur.marzha), ost: r3(ost) }));
+      last = cur; return;
+    }
+    if (r.tip === 'pereschet') { ev.push(Object.assign(base, { t: 'count', fact: Number(r.kolvo), was: Number(r.summa), who: String(r.pokupatel || ''), ost: r3(ost) })); return; }
+    if (r.tip === 'prodazha') {
+      if (voidedAll.has(String(r.chek))) { ev.push(Object.assign(base, { t: 'void', qty: Number(r.kolvo), chek: String(r.chek), who: String(r.ssylka || ''), ost: r3(ost) })); return; }
+      ost -= Number(r.kolvo);
+      ev.push(Object.assign(base, { t: Number(r.kolvo) < 0 ? 'return' : r.oplata === 'vladelec' ? 'owner' : 'sale', qty: Math.abs(Number(r.kolvo)), price: Number(r.cena), sum: Math.abs(Number(r.summa)), pay: String(r.oplata), buyer: String(r.pokupatel || ''), who: String(r.ssylka || ''), chek: String(r.chek), ost: r3(ost) }));
+      return;
+    }
+    ost += Number(r.kolvo);
+    if (r.tip === 'korrekt') ev.push(Object.assign(base, { t: 'fix', qty: Number(r.kolvo), who: String(r.ssylka || ''), ost: r3(ost) }));
+    else { const z = newZ[('t' + r.oid).slice(0, 40)]; ev.push(Object.assign(base, { t: 'in', qty: Number(r.kolvo), price: z > 0 ? z : Number(r.zakup), who: String(r.ssylka || ''), post: String(r.pokupatel || ''), pay: String(r.oplata || ''), ost: r3(ost) })); }
+  });
+  return out({ ok: true, history: { kod: k, name: prod[k].name, unit: prod[k].unit, qty: r3(stock[k] || 0), events: ev.reverse().slice(0, 300), total: ev.length } });
+}
+
 if (act === 'post_pay') {
   // Магазин платит поставщику долг (частями или целиком): наличными или переводом. Только руководитель.
   if (ID.role !== 'owner') return fail('нет доступа');

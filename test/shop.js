@@ -251,6 +251,25 @@ assert.ok(ex.report && ex.report.sdachi && ex.report.kassa, 'вместе с в�
 assert.equal(call({ action: 'export', month: '2026-09' }).export.sales.length, 0, 'другой месяц — пусто');
 ok('выгрузка отчёта за месяц');
 for (const need of ['function xlsxBlob(', 'function shExportXlsx(', "action: 'export', month: xm"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
+// История движения товара (№226–227): остаток после каждого движения сходится с текущим остатком.
+assert.equal(call({ action: 'history', kod: 'CEM' }, 'seller').ok, false, 'продавец историю не видит');
+assert.equal(call({ action: 'history', kod: 'NETTAKOGO' }).error, 'товар не найден');
+for (const k of ['CEM', 'OLD1', 'TRUBA20']) {
+  const hh = call({ action: 'history', kod: k }).history;
+  assert.equal(hh.events[0].ost, hh.qty, k + ': остаток после последнего движения = остаток товара');
+  assert.equal(hh.events[hh.events.length - 1].t, 'new', k + ': первое движение — товар заведён');
+}
+let hc = call({ action: 'history', kod: 'CEM' }).history, types = new Set(hc.events.map((e) => e.t));
+for (const t of ['in', 'sale', 'void', 'price']) assert.ok(types.has(t), 'в истории цемента есть ' + t + ': ' + [...types]);
+const inS = hc.events.find((e) => e.t === 'in' && e.post === 'Саид');
+assert.deepEqual([inS.qty, inS.price, inS.pay, inS.who], [10, 2.5, 'dolg', 'Али'], 'приход: цена приёма, поставщик, кто принял');
+const hv = call({ action: 'history', kod: 'TRUBA20' }).history;
+assert.ok(hv.events.some((e) => e.t === 'void'), 'отменённый чек виден, остаток он не меняет');
+const ho = call({ action: 'history', kod: 'OLD1' }).history;
+assert.ok(ho.events.some((e) => e.t === 'owner'), '«шеф взял» отдельно');
+assert.ok(ho.events.some((e) => e.t === 'return' && e.qty === 1), 'возврат по чеку');
+ok('история движения товара');
+for (const need of ['function shHist(', "action: 'history', kod: k"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
 const { textFor } = await import('../push.js');
 assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, alif: 12, dolg: 12, x: 5 } }), { title: 'Касса сдана: Зоир', body: 'Сдал 14, должно 16 — недостача 2 сомони. Смена: наличные 16, Алиф 12, в долг 12' });
 assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0, by: '<b>' }).body, 'Сдал 5, должно 5 — всё сходится');
