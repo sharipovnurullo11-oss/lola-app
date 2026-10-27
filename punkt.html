@@ -43,6 +43,7 @@ p{margin:8px 0}
 .note{background:var(--busybg);border:1px solid var(--busy);border-radius:12px;padding:10px 12px;font-weight:600}
 .empty{color:var(--muted)}
 .big{font-size:20px;text-align:center;margin-top:40px}
+.pin{display:grid;gap:10px;max-width:280px;margin:0 auto}.pin input{font-size:28px;text-align:center;letter-spacing:8px}
 .money{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 16px}
 .money div{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .money div:last-child{border-bottom:0}
@@ -85,6 +86,8 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   })();
 
+  // PIN пункта (если Нурулло его задал) тоже только в памяти страницы: при каждом открытии ссылки спрашиваем снова.
+  var PIN = '', NEED_PIN = false, PIN_ERR = '', PIN_BUSY = false;
   var D = null, BAD = '', LOAD_ERR = '', SHEET = null, VIEW = 'main', ACT = {}, ACT_ERR = {}, HO = { busy: false, err: '' }, THUMB = {}, BAD_TH = {}, ME_AT = 0;
   var app = document.getElementById('app');
   var MAX_PHOTO = 1.5 * 1024 * 1024;
@@ -99,6 +102,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
 
   function api(action, extra) {
     var body = { token: TOKEN, action: action };
+    if (PIN) body.pin = PIN;
     for (var k in extra) body[k] = extra[k];
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store', referrerPolicy: 'no-referrer' })
       .then(function (r) { return r.json(); })
@@ -107,7 +111,8 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
   }
   // Ответ сервера: при «ссылка не подходит» вся страница показывает одно сообщение.
   function take(r) {
-    if (r && r.ok) { D = r; LOAD_ERR = ''; thumbs(r); return true; }
+    if (r && r.ok) { D = r; LOAD_ERR = ''; NEED_PIN = false; thumbs(r); return true; }
+    if (r && r.need_pin) { NEED_PIN = true; PIN_ERR = PIN || r.locked ? (r.error || 'Неверный PIN') : ''; PIN = ''; SHEET = null; }
     if (r && r.error === 'ссылка не подходит') { BAD = 'Ссылка недействительна, позвоните Нурулло'; SHEET = null; }
     return false;
   }
@@ -126,7 +131,7 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
   }
   function load() {
     ME_AT = Date.now();
-    api('me', {}).then(function (r) { if (!take(r)) LOAD_ERR = r.error || 'Не получилось загрузить'; render(); });
+    api('me', {}).then(function (r) { PIN_BUSY = false; if (!take(r) && !NEED_PIN) LOAD_ERR = r.error || 'Не получилось загрузить'; render(); });
   }
 
   // Фото: сжимаем на телефоне через canvas до ширины ~900px и качества ~0.6, чтобы уложиться в 1,5 МБ.
@@ -164,6 +169,14 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
   }
   function render() {
     if (BAD) { app.innerHTML = '<p class="big err">' + esc(BAD) + '</p>'; return; }
+    if (NEED_PIN) {
+      app.innerHTML = '<form class="pin" data-pinform="1"><p class="big">🔒 Введите PIN пункта</p><p class="muted">PIN — 4 цифры, его даёт Нурулло.</p>' +
+        '<input id="f-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]*" aria-label="PIN">' +
+        (PIN_ERR ? '<p class="err">' + esc(PIN_ERR) + '</p>' : '') +
+        '<button type="submit" class="btn"' + (PIN_BUSY ? ' disabled' : '') + '>' + (PIN_BUSY ? 'Проверяю…' : 'Войти') + '</button></form>';
+      var fp = document.getElementById('f-pin'); if (fp) fp.focus();
+      return;
+    }
     if (!D) {
       app.innerHTML = LOAD_ERR ? '<p class="big err">' + esc(LOAD_ERR) + '</p><button type="button" class="btn sec" data-a="reload">Ещё раз</button>' : '<p class="big">Загрузка…</p>';
       return;
@@ -421,6 +434,14 @@ input[type=text],input[type=tel]{display:block;width:100%;min-height:56px;font:i
     im.replaceWith(ph);
     if (Date.now() - ME_AT > 30 * 60 * 1000 && !SHEET) load();
   }, true);
+  app.addEventListener('submit', function (e) {
+    if (!e.target.getAttribute || !e.target.getAttribute('data-pinform')) return;
+    e.preventDefault();
+    var v = String((document.getElementById('f-pin') || {}).value || '').replace(/\D/g, '');
+    if (PIN_BUSY) return;
+    if (v.length !== 4) { PIN_ERR = 'PIN — 4 цифры'; return render(); }
+    PIN = v; PIN_ERR = ''; PIN_BUSY = true; render(); load();
+  });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && SHEET && !SHEET.busy) { SHEET = null; render(); } });
 
   if (!TOKEN) { BAD = 'Ссылка недействительна, позвоните Нурулло'; render(); } else load();

@@ -48,5 +48,14 @@ export function textFor(ev) {
   const money = (x) => String(Math.round(Number(x) || 0)).replace(/\B(?=(\d{3})+$)/g, ' ');
   const who = String(ev.who || '').slice(0, 40), sum = money(ev.sum), note = String(ev.note || '').slice(0, 60);
   if (ev.kind === 'rashod') return { title: 'Личный расход продавца', body: who + ': ' + sum + ' сомони' + (note ? ' (' + note + ')' : '') };
+  // Утренние напоминания проката: только числа, текст собирает сервер.
+  if (ev.kind === 'prokat_remind') {
+    const n = (x) => Math.max(0, Math.min(999, Math.round(Number(x) || 0)));
+    const parts = [];
+    if (n(ev.visit)) parts.push('объезд: ' + n(ev.visit) + ' пункт. давно не было');
+    if (n(ev.owed)) parts.push('долг: ' + n(ev.owed) + ' пункт. на ' + money(ev.owed_sum) + ' сомони');
+    if (n(ev.broken)) parts.push('сломано больше 14 дн.: ' + n(ev.broken));
+    return parts.length ? { title: 'Прокат: напоминания', body: parts.join(' · ') } : null;
+  }
   return null;
 }

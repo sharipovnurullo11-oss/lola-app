@@ -51,5 +51,7 @@ for (const need of ['loading="lazy" referrerpolicy="no-referrer"', 'function thu
 ok('миниатюры: lazy, no-referrer, запоминаются по названию, серый квадрат с буквой');
 for (const need of ['function cmpHtml(', 'cmpHtml(r.tool, S.photo)', 'Было → стало', 'THUMB[tool]']) assert.ok(html.includes(need), `нет в странице: ${need}`);
 ok('«Вернули»: прошлое фото инструмента рядом с новым («было → стало»)');
+for (const need of ['NEED_PIN', 'body.pin = PIN', 'Введите PIN пункта', 'data-pinform', 'r.need_pin']) assert.ok(html.includes(need), `нет в странице: ${need}`);
+ok('окно владельца спрашивает PIN, держит его только в памяти страницы');
 console.log('PUNKT PASSED');
 server.close(); process.exit(0);

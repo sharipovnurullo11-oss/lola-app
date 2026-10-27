@@ -140,7 +140,7 @@ assert.deepEqual(ow.resp.tools.map(t => t.name), ['Фен'], 'окно влад�
 ow = new Function('$', '$input', SV)(n => ({ all: () => on[n] }), { first: () => ({ json: ow }) })[0].json;
 assert.equal(ow.resp.tools[0].photo_id, 'F2', 'окно владельца: на карточке самое свежее фото');
 ok('окно владельца: перевезённый инструмент не показывается, свежее фото для «было → стало»');
-for (const need of ["action: 'move'", "action: 'moves'", 'function pkMoveForm(', "TX('Перевезти на другой пункт или склад')", "TX('Отвезти на пункт')"]) assert.ok(src.includes(need), `нет: ${need}`);
+for (const need of ["action: 'move'", "action: 'moves'", 'function pkMoveForm(', "TX('Продать')", "TX('Отвезти на пункт')"]) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран перевозок: из истории инструмента и со склада');
 // Ссылка владельца (узел «Ссылки: решить»).
 const SL = fs.readFileSync(new URL('../n8n/prokat/ssylki.js', import.meta.url), 'utf8');
@@ -209,4 +209,69 @@ ow = new Function('$', OW)(n => ({ first: () => on[n][0], all: () => on[n] }))[0
 assert.equal(ow.resp.pct, 30, 'окно владельца получает свою долю пункта');
 for (const need of ["action: 'share_get'", "action: 'share_set'", 'function pkShBlock(', "TX('Доля пункта с аренды')", "TX('Вернуть общую')"]) assert.ok(src.includes(need), `нет: ${need}`);
 ok('экран доли пункта в карточке');
+// PIN к ссылке владельца: задать в Финансисте (owner_pin), проверка в окне владельца, блокировка после 10 ошибок.
+s1 = sl({ action: 'owner_pin', name: 'Зарафшон сити', pin: '12a4' });
+assert.equal(s1.resp.ok, false, 'PIN только 4 цифры');
+s1 = sl({ action: 'owner_pin', name: 'Зарафшон сити', pin: '4321' });
+assert.deepEqual([s1.op, s1.pin, s1.pin_row, s1.resp.pin], ['owner_pin', '4321', 3, '4321'], 'PIN пишется в действующую ссылку');
+assert.equal(sl({ action: 'owner_pin', name: 'Зарафшон сити', pin: '' }).pin, '', 'PIN можно убрать');
+SD['Владельцы пунктов'][2].pin = '4321';
+s1 = sl({ action: 'owner_link', name: 'Зарафшон сити' });
+assert.deepEqual([s1.resp.pin, s1.resp.locked], ['4321', false], 'Финансист видит PIN');
+s1 = sl({ action: 'owner_link_new', name: 'Зарафшон сити', id: 'olnew02' });
+assert.deepEqual([s1.row.pin, s1.row.pin_oshibki], ['4321', 0], 'новая ссылка сохраняет PIN');
+const pinRun = (pin, row) => { const n = onodes(Object.assign({ token: TK }, pin == null ? {} : { pin: pin })); n['Доли пунктов'] = []; n['Владелец по ссылке'] = [{ json: Object.assign({ id: 1, token: TK, tochka: 'Зарафшон сити', aktivno: true }, row) }]; return new Function('$', OW)(x => ({ first: () => n[x][0], all: () => n[x] }))[0].json; };
+assert.equal(pinRun(null, {}).resp.ok, true, 'без PIN входит как раньше');
+let pr = pinRun(null, { pin: '4321' });
+assert.deepEqual([pr.resp.ok, pr.resp.need_pin, pr.op], [false, true, 'none'], 'с PIN — сначала спросить PIN');
+pr = pinRun('1111', { pin: '4321', pin_oshibki: 3 });
+assert.deepEqual([pr.resp.need_pin, pr.op, pr.fails, pr.pin_row], [true, 'pin_fail', 4, 1], 'неверный PIN считается');
+assert.ok(/Осталось попыток: 6/.test(pr.resp.error));
+assert.equal(pinRun('4321', { pin: '4321', pin_oshibki: 3 }).resp.ok, true, 'верный PIN пускает');
+pr = pinRun('4321', { pin: '4321', pin_oshibki: 10 });
+assert.deepEqual([pr.resp.ok, pr.resp.locked], [false, true], 'после 10 ошибок заблокировано даже с верным PIN');
+ok('PIN к ссылке владельца: задать, убрать, проверка, блокировка после 10 ошибок');
+for (const need of ["action: 'owner_pin'", 'function pkOlPin(', "'Задать PIN'", "'Убрать PIN'"]) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран PIN в карточке пункта');
+// Утренние напоминания: текст уведомления собирает сервер приложения только из чисел.
+const { textFor } = await import('../push.js');
+assert.deepEqual(textFor({ kind: 'prokat_remind', visit: 3, owed: 2, owed_sum: 1234.5, broken: 1 }), { title: 'Прокат: напоминания', body: 'объезд: 3 пункт. давно не было · долг: 2 пункт. на 1 235 сомони · сломано больше 14 дн.: 1' });
+assert.equal(textFor({ kind: 'prokat_remind', visit: 0 }), null, 'нечего напоминать — не шлём');
+assert.ok(!/<|script/.test(textFor({ kind: 'prokat_remind', visit: '<script>', owed: 1, owed_sum: 'x' }).body), 'в текст попадают только числа');
+for (const need of ["data-pk=\"push\"", "TX('Присылать напоминания на этот телефон')", "S.view === 'prokat'"]) assert.ok(src.includes(need), `нет: ${need}`);
+ok('утренние напоминания проката на телефон');
+// Продажа = перевозка «в Продан» с ценой.
+assert.equal(mv({ action: 'move', from: 'Зарафшон сити', to: 'Продан', tool: 'Шрупаверт', qty: 1, id: 'sell001' }).resp.error, 'укажите цену продажи', 'без цены не продаём');
+m = mv({ action: 'move', from: 'Зарафшон сити', to: 'Продан', tool: 'Шрупаверт', qty: 1, price: 350, id: 'sell002' });
+assert.deepEqual([m.op, m.upd.kolvo, m.ins, m.stock, m.log.v, m.log.cena, m.resp.moved.price], ['move', 1, null, null, 'Продан', 350, 350], 'продажа с пункта: убавить, никуда не добавлять, цена в журнале');
+m = mv({ action: 'move', from: 'Склад', to: 'Продан', tool: 'Болгарка большая', qty: 1, price: 200, state: 'починен', id: 'sell003' });
+assert.deepEqual([m.stock.izmenenie, m.stock.primechanie, m.ins], [-1, 'продан', null], 'продажа со склада');
+TD['Перевозки'].push({ id: 3, data: day(1), instrument: 'Рубанок', iz: 'Ховарон', v: 'Продан', kolvo: 1, cena: 300 });
+assert.deepEqual(stat([{ mode: 'tools', point: 'Ховарон', name: 'Рубанок', qty: 0 }]).map(t => [t.status, t.status_text]), [['sold', 'продан за 300 смн']], 'статус «продан»');
+ok('продажа инструмента с пункта и со склада');
+// Закупочные цены и окупаемость (узел «Окупаемость: решить» в /prokat).
+const OK = fs.readFileSync(new URL('../n8n/prokat/okupaemost.js', import.meta.url), 'utf8');
+const OKD = { 'Итоги по точкам': [{ id: 1, tochka: 'Ховарон', dohod: 300 }, { id: 2, tochka: 'Зарнисор', dohod: 0 }],
+  'Инструменты пунктов': [{ id: 1, tip: 'Инструмент', tochka: 'Ховарон', instrument: 'Балгаркаи калон', kolvo: 2 }, { id: 2, tip: 'Инструмент', tochka: 'Ховарон', instrument: 'Фен', kolvo: 1 }, { id: 3, tip: 'Инструмент', tochka: 'Ховарон', instrument: 'Непонятное', kolvo: 1 }, { id: 4, tip: 'Перевезён', tochka: 'Ховарон', instrument: 'Лобзик', kolvo: 0 }, { id: 5, tip: 'Инструмент', tochka: 'Зарнисор', instrument: 'Фен', kolvo: 1 }],
+  'Аренды': [{ id: 1, tochka: 'Ховарон', instrument: 'Фен', status: 'вернули', dolya_nurullo: 64 }, { id: 2, tochka: 'Ховарон', instrument: 'Фен', status: 'сдача', dolya_nurullo: 64 }],
+  'Перевозки': [{ id: 1, iz: 'Ховарон', v: 'Продан', instrument: 'Лобзик', cena: 100 }],
+  'Закупочные цены': [{ id: 1, instrument: 'Большая болгарка', cena: 500, data: '2026-10-27' }, { id: 2, instrument: 'Строительный фен', cena: 200 }, { id: 3, instrument: 'Строительный фен', cena: 300 }] };
+function okp(body) {
+  const nodes = Object.assign({ 'Прокат: запрос': [{ json: { body } }], 'Кабинет': [{ json: { ok: true } }] }, Object.fromEntries(Object.entries(OKD).map(([k, v]) => [k, v.map(j => ({ json: j }))])));
+  return new Function('$', '$input', OK)(n => ({ first: () => nodes[n][0], all: () => nodes[n] }), { first: () => ({ json: { op: 'none', resp: { pass: 1 } } }) })[0].json;
+}
+assert.equal(okp({ action: 'points' }).resp.pass, 1, 'другие действия — дальше без изменений');
+let ob = okp({ action: 'buy_prices' }).resp;
+assert.deepEqual([ob.kinds.find(k => k.kind === 'Строительный фен').price, ob.kinds.find(k => k.kind === 'Большая болгарка').on_points, ob.kinds.find(k => k.kind === 'Лобзик').price, ob.unknown], [300, 2, null, [{ name: 'Непонятное', qty: 1 }]], 'последняя цена вида, сколько на пунктах, без цены, непонятные названия');
+ob = okp({ action: 'buy_price_set', kind: 'Лобзик', price: 250, id: 'buy0001' });
+assert.deepEqual([ob.op, ob.row.instrument, ob.row.cena], ['buy_price_set', 'Лобзик', 250]);
+assert.equal(okp({ action: 'buy_price_set', kind: 'Ракета', price: 1, id: 'buy0002' }).resp.ok, false, 'только известные виды');
+ob = okp({ action: 'payback', name: 'Ховарон' }).resp;
+assert.deepEqual([ob.cost, ob.income, ob.sold, ob.no_price, ob.percent], [1300, 364, 100, 1, 36], 'окупаемость: 2×500 + 300; доход 300 + 64 с аренды; продажа 100; (364+100)/1300');
+assert.equal(ob.tools.find(t => t.name === 'Фен').income, 64, 'доход по инструменту из окна владельца, без «сдачи»');
+ob = okp({ action: 'payback_all' }).resp;
+assert.deepEqual(ob.points.map(p => [p.name, p.percent]), [['Зарнисор', 0], ['Ховарон', 36]], 'пункты от худшего к лучшему');
+ok('закупочные цены и окупаемость пунктов');
+for (const need of ["action: 'buy_prices'", "action: 'buy_price_set'", "action: 'payback'", "action: 'payback_all'", 'function renderPkBuy(', 'function pkPbBlock(', "TX('Закупка и окупаемость')"]) assert.ok(src.includes(need), `нет: ${need}`);
+ok('экран закупки и окупаемости, блок в карточке пункта');
 console.log('PROKAT PASSED');
