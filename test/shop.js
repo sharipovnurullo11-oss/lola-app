@@ -173,4 +173,7 @@ const { textFor } = await import('../push.js');
 assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, alif: 12, dolg: 12, x: 5 } }), { title: 'Касса сдана: Зоир', body: 'Сдал 14, должно 16 — недостача 2 сомони. Смена: наличные 16, Алиф 12, в долг 12' });
 assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0, by: '<b>' }).body, 'Сдал 5, должно 5 — всё сходится');
 ok('сдача кассы: наличные, итог смены по способам, подтверждение руководителем, push хозяину');
+assert.deepEqual(textFor({ kind: 'shop_low', n: 5, items: [{ name: 'Краска бергер', qty: 2, min: 5 }, { name: '<b>Гвозди</b>', qty: 0, min: 10 }] }), { title: 'Заканчивается товар: 5', body: 'Краска бергер — 2 из 5 · bГвозди/b — 0 из 10 и ещё 3' });
+assert.equal(textFor({ kind: 'shop_low', n: 0, items: [] }), null, 'нечего заказывать — не шлём');
+ok('утреннее напоминание о заканчивающемся товаре');
 console.log('SHOP PASSED');

@@ -57,6 +57,14 @@ export function textFor(ev) {
     const parts = Object.keys(NAMES).filter((k) => Number(by[k])).map((k) => NAMES[k] + ' ' + money(by[k]));
     return { title: 'Касса сдана: ' + who, body: 'Сдал ' + sum + ', должно ' + money(ev.exp) + ' — ' + res + (parts.length ? '. Смена: ' + parts.join(', ') : '') };
   }
+  // Утреннее напоминание магазина: товары, остаток которых ниже заданного минимума (список «Заказать у поставщика»).
+  if (ev.kind === 'shop_low') {
+    const n = Math.max(0, Math.min(9999, Math.round(Number(ev.n) || 0)));
+    if (!n) return null;
+    const q = (x) => String(Math.round((Number(x) || 0) * 1000) / 1000);
+    const items = (Array.isArray(ev.items) ? ev.items : []).slice(0, 3).map((x) => String((x && x.name) || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40) + ' — ' + q(x && x.qty) + ' из ' + q(x && x.min)).filter((t) => t.length > 3);
+    return { title: 'Заканчивается товар: ' + n, body: (items.join(' · ') || 'Откройте «Анализ» → «Заказ»') + (n > items.length && items.length ? ' и ещё ' + (n - items.length) : '') };
+  }
   // Утренние напоминания проката: только числа, текст собирает сервер.
   if (ev.kind === 'prokat_remind') {
     const n = (x) => Math.max(0, Math.min(999, Math.round(Number(x) || 0)));
