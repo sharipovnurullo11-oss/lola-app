@@ -175,5 +175,10 @@ assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0,
 ok('сдача кассы: наличные, итог смены по способам, подтверждение руководителем, push хозяину');
 assert.deepEqual(textFor({ kind: 'shop_low', n: 5, items: [{ name: 'Краска бергер', qty: 2, min: 5 }, { name: '<b>Гвозди</b>', qty: 0, min: 10 }] }), { title: 'Заканчивается товар: 5', body: 'Краска бергер — 2 из 5 · bГвозди/b — 0 из 10 и ещё 3' });
 assert.equal(textFor({ kind: 'shop_low', n: 0, items: [] }), null, 'нечего заказывать — не шлём');
-ok('утреннее напоминание о заканчивающемся товаре');
+assert.deepEqual(textFor({ kind: 'shop_low', n: 2, items: [{ name: 'Кофе', qty: 1, min: 5 }] }, 'tg'), { title: 'Мол тамом шуда истодааст: 2', body: 'Кофе — 1 аз 5 ва боз 1' });
+assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, dolg: 12 } }, 'tg'), { title: 'Касса супорида шуд: Зоир', body: 'Супорид 14, бояд 16 — камомад 2 сомонӣ. Смена: нақд 16, қарз 12' });
+assert.equal(textFor({ kind: 'rashod', who: 'Зоир', sum: 50 }, 'tg').title, 'Хароҷоти шахсии фурӯшанда');
+assert.equal(textFor({ kind: 'rashod', who: 'Зоир', sum: 50 }, 'uz').title, 'Личный расход продавца', 'другой язык — по-русски');
+assert.ok(W.includes("lang: (window.LANG === 'tg' ? 'tg' : 'ru')"), 'телефон сообщает язык при включении уведомлений');
+ok('утреннее напоминание о заканчивающемся товаре; уведомления магазина по-таджикски');
 console.log('SHOP PASSED');
