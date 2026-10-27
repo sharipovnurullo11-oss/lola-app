@@ -291,6 +291,26 @@ if (act === 'itogi' || act === 'itogi_ok' || act === 'itogi_time') {
     sdachi: sd.length, diff: r2(sd.reduce((s, r) => s + Number(r.kolvo), 0)), open } });
 }
 
+// Выгрузка отчёта за месяц в Excel (№251): все строки месяца — продажи (с возвратами и «шеф взял»), приём товара, оплаты долгов.
+// Файл собирает телефон руководителя; отчёт (по дням, касса, долги) приходит вместе с ним в report.
+if (act === 'export') {
+  if (ID.role !== 'owner') return fail('нет доступа');
+  const ms = /^\d{4}-\d{2}$/.test(String(B.month || '')) ? String(B.month) : now.slice(0, 7);
+  const inM = r => String(r.data).startsWith(ms);
+  const byT = (a, b) => String(a.data).localeCompare(String(b.data)) || String(a.vremya).localeCompare(String(b.vremya));
+  const cb = chastOf();
+  // цена приёма: новая закупка, если её поменяли при приёме (строка товара с oid 't' + номер приёма), иначе прежняя
+  const newZ = {}; all.filter(r => r.tip === 'tovar').forEach(r => { newZ[String(r.oid)] = Number(r.zakup); });
+  const zOf = r => { const z = newZ[('t' + r.oid).slice(0, 40)]; return z > 0 ? z : Number(r.zakup); };
+  const ex = {
+    month: ms,
+    sales: sales.filter(inM).sort(byT).slice(0, 20000).map(r => ({ date: String(r.data), chek: String(r.chek), kod: String(r.kod), name: String(r.nazvanie), qty: Number(r.kolvo), price: Number(r.cena), sum: Number(r.summa), zakup: Number(r.zakup), pay: String(r.oplata), parts: r.oplata === 'mix' ? (cb[String(r.chek)] || []).map(p => p.oplata + ' ' + r2(p.summa)).join(', ') : '', who: String(r.pokupatel || ''), seller: String(r.ssylka || '') })),
+    receipts: all.filter(r => (r.tip === 'prihod' || r.tip === 'korrekt') && inM(r)).sort(byT).slice(0, 20000).map(r => ({ date: String(r.data), kod: String(r.kod), name: String(r.nazvanie), qty: Number(r.kolvo), zakup: zOf(r), sum: r2(Number(r.kolvo) * zOf(r)), post: String(r.pokupatel || ''), pay: String(r.oplata || ''), who: String(r.ssylka || ''), fix: r.tip === 'korrekt' })),
+    debtPays: pays.filter(inM).sort(byT).map(r => ({ date: String(r.data), who: String(r.pokupatel), sum: Number(r.summa) }))
+  };
+  return out(Object.assign(respond(), { export: ex }));
+}
+
 if (act === 'post_pay') {
   // Магазин платит поставщику долг (частями или целиком): наличными или переводом. Только руководитель.
   if (ID.role !== 'owner') return fail('нет доступа');

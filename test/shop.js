@@ -233,6 +233,24 @@ assert.deepEqual(r.report.postDebts, [], 'всё оплатили — долга
 assert.equal(call({ action: 'list' }, 'seller').report, undefined, 'продавец долгов поставщикам не видит');
 ok('долги поставщикам: приём в долг, оплаты частями, отмена, доступ');
 for (const need of ['function shPostDolg(', "action: 'post_pay', who: SH.ppf", "body.post_pay = rpy ? rpy.value : ''"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
+// Выгрузка за месяц в Excel (№251): все строки месяца, только руководитель.
+assert.equal(call({ action: 'export', month: '2026-10' }, 'seller').ok, false, 'продавец отчёт не выгружает');
+let ex = call({ action: 'export', month: '2026-10' });
+assert.equal(ex.export.month, '2026-10');
+const vd = new Set(DB.filter((x) => x.tip === 'void').map((x) => String(x.ssylka)));
+assert.equal(ex.export.sales.length, DB.filter((x) => x.tip === 'prodazha' && String(x.data).startsWith('2026-10') && !vd.has(String(x.chek))).length, 'в выгрузке все строки продаж месяца (без отменённых)');
+const sl = ex.export.sales.find((x) => x.chek === 'chit00002');
+assert.deepEqual([sl.date, sl.pay, sl.seller, sl.qty], ['2026-10-29', 'alif', 'Маруф', 1]);
+assert.ok(ex.export.sales.some((x) => x.qty < 0), 'возвраты в выгрузке');
+assert.ok(ex.export.sales.some((x) => x.pay === 'mix' && x.parts), 'части смешанной оплаты');
+const rp = ex.export.receipts.find((x) => x.kod === 'CEM' && x.post === 'Саид');
+assert.deepEqual([rp.qty, rp.zakup, rp.sum, rp.pay], [10, 2.5, 25, 'dolg'], 'приём по новой цене приёма 2,5');
+call({ action: 'pay', who: 'Карим', amount: 5, id: 'dpay000001', date: '2026-10-29' });
+assert.deepEqual(call({ action: 'export', month: '2026-10' }).export.debtPays.map((x) => [x.who, x.sum]), [['Карим', 5]], 'оплаты долгов покупателей');
+assert.ok(ex.report && ex.report.sdachi && ex.report.kassa, 'вместе с выгрузкой — отчёт (касса, сдачи)');
+assert.equal(call({ action: 'export', month: '2026-09' }).export.sales.length, 0, 'другой месяц — пусто');
+ok('выгрузка отчёта за месяц');
+for (const need of ['function xlsxBlob(', 'function shExportXlsx(', "action: 'export', month: xm"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
 const { textFor } = await import('../push.js');
 assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, alif: 12, dolg: 12, x: 5 } }), { title: 'Касса сдана: Зоир', body: 'Сдал 14, должно 16 — недостача 2 сомони. Смена: наличные 16, Алиф 12, в долг 12' });
 assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0, by: '<b>' }).body, 'Сдал 5, должно 5 — всё сходится');
