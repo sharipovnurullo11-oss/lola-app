@@ -6,7 +6,7 @@ const ok = (n) => console.log('ok -', n);
 const rd = (f) => fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const SOLVE = rd('n8n/magazin/reshit.js'), ANAL = rd('n8n/magazin/analiz.js'), PROD = rd('n8n/magazin/dlya-prodavca.js'), FOTO = rd('n8n/magazin/foto-razobrat.js'), BAR = rd('n8n/magazin/shtrihkody.js'), VOZ = rd('n8n/magazin/vozvrat.js');
 const KOD = 'ktestkabinet0000000000';
-const WHO = { owner: { ok: true, kod: KOD, role: 'owner', who: '' }, seller: { ok: true, kod: KOD, role: 'staff', srole: 'prodavec', who: 'Маруф' }, keeper: { ok: true, kod: KOD, role: 'staff', srole: 'kladovshchik', who: 'Али' } };
+const WHO = { owner: { ok: true, kod: KOD, role: 'owner', who: '' }, seller: { ok: true, kod: KOD, role: 'staff', srole: 'prodavec', who: 'Маруф' }, keeper: { ok: true, kod: KOD, role: 'staff', srole: 'kladovshchik', who: 'Али' }, seller2: { ok: true, kod: KOD, role: 'staff', srole: 'prodavec', who: 'Зоир' } };
 const DB = []; let nid = 1;
 function run(code, ctx, input, extra) {
   const $ = (n) => { const v = ctx[n]; return { first: () => ({ json: v[0] }), all: () => v.map((j) => ({ json: j })) }; };
@@ -19,7 +19,8 @@ function call(body, role, ai) {
   ctx['Для продавца'] = items.map((x) => x.json);
   items = run(BAR, ctx, items);
   if (items[0].json.vision) return run(FOTO, ctx, null, ai(items[0].json.vision))[0].json.resp;
-  items.filter((x) => x.json.rows).forEach((x) => DB.push(Object.assign({ id: nid++ }, x.json.row)));
+  // узел «Записать» ставит в ssylka продаж и приёма имя сотрудника
+  items.filter((x) => x.json.rows).forEach((x) => DB.push(Object.assign({ id: nid++ }, x.json.row, ['prodazha', 'prihod', 'korrekt'].includes(x.json.row.tip) ? { ssylka: WHO[role || 'owner'].who } : {})));
   return items[0].json.resp;
 }
 const P = (r, k) => r.products.find((x) => x.kod === k);
@@ -152,4 +153,24 @@ assert.equal(call({ action: 'chek_get', chek: 'chekret001' }, 'seller').chek.lin
 ok('возврат по чеку: часть позиций, склад, выручка, долг, повтор, отмена');
 for (const need of ["action: 'chek_get'", "action: 'vozvrat'", 'function shRetBox(', 'function shCode128(', "rc = { id: SH.cid"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
 ok('экран возврата и номер чека со штрихкодом на печатном чеке');
+
+// Сдача кассы (№299): должно быть только наличными, итог смены по способам оплаты, подтверждение руководителем.
+for (const [id, pay, who] of [['chsd00001', 'nal'], ['chsd00002', 'alif'], ['chsd00003', 'dolg', 'Карим']]) call({ action: 'sell', id, items: [{ kod: 'OLD1', qty: 1 }], pay, who, date: TODAY }, 'seller2');
+call({ action: 'sell', id: 'chsd00004', items: [{ kod: 'OLD1', qty: 2 }], pay: 'mix', parts: [{ pay: 'nal', sum: 4 }, { pay: 'dushanbe', sum: 20 }], date: TODAY }, 'seller2');
+r = call({ action: 'sdacha', id: 'sdac000001', fact: 14, date: TODAY }, 'seller2');
+assert.deepEqual([r.sdacha.expected, r.sdacha.fact, r.sdacha.diff], [16, 14, -2], 'должно 16 наличными (12 + 4 из смешанной), сдал 14 — недостача 2');
+assert.deepEqual(r.sdacha.by, { nal: 16, alif: 12, dolg: 12, dushanbe: 20 }, 'итог смены по способам оплаты');
+let sd = call({ action: 'list' }).report.sdachi.find((x) => x.id === 'sdac000001');
+assert.deepEqual([sd.who, sd.by.alif, sd.ok], ['Зоир', 12, ''], 'в отчёте сдача с разбивкой, ещё не подтверждена');
+assert.equal(call({ action: 'sdacha_ok', sdacha: 'sdac000001', id: 'sdok000001' }, 'seller2').ok, false, 'продавец сам не подтверждает');
+assert.equal(call({ action: 'sdacha_ok', sdacha: 'netakoi01', id: 'sdok000002' }).ok, false);
+r = call({ action: 'sdacha_ok', sdacha: 'sdac000001', id: 'sdok000003' });
+assert.ok(r.report.sdachi.find((x) => x.id === 'sdac000001').ok, 'руководитель подтвердил смену');
+const n1 = DB.length; call({ action: 'sdacha_ok', sdacha: 'sdac000001', id: 'sdok000004' }); assert.equal(DB.length, n1, 'повторное подтверждение не пишет');
+r = call({ action: 'sdacha', id: 'sdac000002', fact: 0, date: TODAY }, 'seller2');
+assert.deepEqual([r.sdacha.expected, r.sdacha.by], [0, {}], 'новая смена начинается с нуля');
+const { textFor } = await import('../push.js');
+assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, alif: 12, dolg: 12, x: 5 } }), { title: 'Касса сдана: Зоир', body: 'Сдал 14, должно 16 — недостача 2 сомони. Смена: наличные 16, Алиф 12, в долг 12' });
+assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0, by: '<b>' }).body, 'Сдал 5, должно 5 — всё сходится');
+ok('сдача кассы: наличные, итог смены по способам, подтверждение руководителем, push хозяину');
 console.log('SHOP PASSED');
