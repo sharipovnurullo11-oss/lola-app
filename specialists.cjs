@@ -2790,6 +2790,18 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return '<div style="font-size:15px"><b>' + esc(ui('Штрихкоды', 'Штрихкодҳо', 'Shtrix-kodlar')) + ':</b> ' + (bars.length ? bars.map(function (b) { return esc(b) + ' <button type="button" data-shop="unbind" data-k="' + esc(b) + '" aria-label="' + esc(ui('Отвязать', 'Ҷудо кардан', 'Ajratish')) + ' ' + esc(b) + '" style="border:0;background:none;color:#c0392b;cursor:pointer;font:inherit">✕</button>'; }).join(' · ') : '<span style="opacity:.7">' + esc(ui('не привязаны', 'пайваст нестанд', 'bogʻlanmagan')) + '</span>') + '</div>' +
       shBtn('scan', '📷 ' + ui('Привязать заводской штрихкод', 'Пайваст кардани штрихкоди заводӣ', 'Zavod shtrix-kodini bogʻlash'), { sec: true, st: 'min-height:44px' }, 'bindto');
   }
+  // Поставщик и оплата при приёме (№223, №224): наличными / переводом / в долг. В долг — поставщик попадает в «Кому должен магазин».
+  function shPostPayName(p) { return p === 'nal' ? ui('оплачено наличными', 'нақд пардохт шуд', 'naqd toʻlandi') : p === 'perevod' ? ui('оплачено переводом', 'бо интиқол пардохт шуд', 'oʻtkazma bilan toʻlandi') : p === 'dolg' ? ui('в долг у поставщика', 'қарз аз таъминкунанда', 'taʼminotchidan qarzga') : ''; }
+  function shPostNames() {
+    var n = [], add = function (x) { x = String(x || '').trim(); if (x && n.indexOf(x) < 0) n.push(x); };
+    try { ((SH.d && SH.d.report && SH.d.report.postDebts) || []).forEach(function (c) { add(c.name); }); ((SH.d && SH.d.receipts) || []).forEach(function (r) { add(r.post); }); } catch (e) {}
+    return n.slice(0, 30);
+  }
+  function shPostFields() {
+    return '<label for="sh-r-post" style="font-size:15px;font-weight:600">' + esc(ui('Поставщик (необязательно)', 'Таъминкунанда (ихтиёрӣ)', 'Taʼminotchi (ixtiyoriy)')) + '</label>' + shIn('sh-r-post', ui('Имя или магазин поставщика', 'Ном ё мағозаи таъминкунанда', 'Taʼminotchi nomi'), '', 'maxlength="40" list="sh-posts"') +
+      '<datalist id="sh-posts">' + shPostNames().map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>' +
+      '<label for="sh-r-pay" style="font-size:15px;font-weight:600">' + esc(ui('Как заплатили поставщику', 'Ба таъминкунанда чӣ тавр пардохтанд', 'Taʼminotchiga qanday toʻlandi')) + '</label><select id="sh-r-pay" class="in2" style="height:48px;font-size:16px"><option value="">' + esc(ui('— не отмечать —', '— қайд накардан —', '— belgilamaslik —')) + '</option><option value="nal">' + esc(ui('Наличными', 'Нақд', 'Naqd')) + '</option><option value="perevod">' + esc(ui('Переводом', 'Интиқол', 'Oʻtkazma')) + '</option><option value="dolg">' + esc(ui('В долг (заплатим потом)', 'Қарз (баъд пардохт мекунем)', 'Qarzga (keyin toʻlaymiz)')) + '</option></select>';
+  }
   function shPrihod() {
     if (SH.cnt && SH.cnt.open) return shCnt();
     var D = SH.d, h = '', f = SH.form;
@@ -2805,7 +2817,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var cur = shProd(SH.rcv.kod);
       h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b style="font-size:18px">' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) + ': ' + esc(cur ? cur.name : SH.rcv.kod) + ' <small>(' + esc(SH.rcv.kod) + ')</small></b>' + shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + shThumb(cur, 56) + shBtn('foto', '📷 ' + (cur && cur.foto ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'rcv') + '</div>') + '<b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + (cur ? '<small>' + esc(ui('Сейчас на складе: ', 'Ҳоло дар анбор: ', 'Hozir omborda: ')) + esc(shQ(cur, cur.qty)) + '</small>' : '') +
         shBarsHtml(cur) + '<div style="font-size:17px">' + esc(ui('Себестоимость сейчас', 'Арзиши аслии ҳозира', 'Joriy tannarx')) + ': <b>' + esc(cur ? shMoney(cur.zakup) : '') + '</b> ' + esc(shZa1(cur)) + '</div>' + shRcvQty(cur) +
-        '<label for="sh-r-zakup" style="font-size:15px;font-weight:600">' + esc(ui('Цена, по которой приняли', 'Нархе, ки қабул кардед', 'Qabul qilingan narx')) + ' (' + esc(shZa1(cur)) + ')</label>' + shIn('sh-r-zakup', ui('Цена приёма', 'Нархи қабул', 'Qabul narxi'), cur ? cur.zakup : '', 'inputmode="decimal"') +
+        '<label for="sh-r-zakup" style="font-size:15px;font-weight:600">' + esc(ui('Цена, по которой приняли', 'Нархе, ки қабул кардед', 'Qabul qilingan narx')) + ' (' + esc(shZa1(cur)) + ')</label>' + shIn('sh-r-zakup', ui('Цена приёма', 'Нархи қабул', 'Qabul narxi'), cur ? cur.zakup : '', 'inputmode="decimal"') + shPostFields() +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
     } else {
       h += '<h3 style="margin:4px 0 8px">' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) + '</h3><p style="margin:0 0 8px;opacity:.8"><small>' + esc(ui('1) Введите код или название товара и выберите его. 2) Укажите, сколько приняли (штук, метров, килограммов — как у товара) и по какой цене.', '1) Рамз ё номи молро ворид карда, интихоб кунед. 2) Чанд (дона, метр, килограмм) ва бо кадом нарх қабул кардаед нависед.', '1) Tovar kodi yoki nomini kiriting va tanlang. 2) Qancha (dona, metr, kilogramm) va qaysi narxda qabul qilganingizni yozing.')) + '</small></p><div><div style="display:grid;grid-template-columns:1fr auto;gap:8px">' + shIn('sh-pcode', ui('Код или название товара', 'Рамз ё номи мол', 'Tovar kodi yoki nomi'), SH.pcode, 'inputmode="text" enterkeyhint="done"') + shScanBtn('recv') + '</div>' + '<div id="sh-phints" style="margin-top:10px;min-height:48px">' + shPHints() + '</div></div>' +
@@ -2815,7 +2827,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     h += '<h3 style="margin-top:14px">' + esc(ui('Последние приёмы', 'Қабулҳои охирин', 'Oxirgi qabullar')) + '</h3>';
     if (!rc.length) return h + '<p style="opacity:.75">' + esc(ui('Приёмов пока нет.', 'Ҳоло қабул нест.', 'Hozircha qabul yoʻq.')) + '</p>';
     return h + rc.slice(0, 15).map(function (x) {
-      return '<div style="padding:8px 0;border-bottom:1px solid #e6e6e6"><b>' + esc(x.name) + '</b> <span style="color:' + (x.qty < 0 ? '#c0392b' : '#1f8a4c') + '">' + (x.qty > 0 ? '+' : '') + esc(shQ(shProd(x.kod), x.qty)) + '</span><br><small>' + esc(x.date) + (x.who ? ' · ' + esc(x.who) : '') + (x.fix ? ' · ' + esc(ui('поправка', 'ислоҳ', 'tuzatish')) : '') + '</small></div>';
+      return '<div style="padding:8px 0;border-bottom:1px solid #e6e6e6"><b>' + esc(x.name) + '</b> <span style="color:' + (x.qty < 0 ? '#c0392b' : '#1f8a4c') + '">' + (x.qty > 0 ? '+' : '') + esc(shQ(shProd(x.kod), x.qty)) + '</span><br><small>' + esc(x.date) + (x.who ? ' · ' + esc(x.who) : '') + (x.fix ? ' · ' + esc(ui('поправка', 'ислоҳ', 'tuzatish')) : '') + (x.post ? ' · ' + esc(x.post) : '') + (x.pay ? ' · ' + esc(shPostPayName(x.pay)) : '') + '</small></div>';
     }).join('');
   }
   function shTovar() {
@@ -2894,14 +2906,28 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     h += C.list.length ? C.list.map(function (x, i) { return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #e6e6e6"><span><b>' + esc(x.name) + '</b><br><small>' + esc(x.kod) + '</small></span><span style="display:flex;align-items:center;gap:8px"><b style="font-size:18px">' + esc(shQ(shProd(x.kod), x.fact)) + '</b>' + shBtn('crm', '×', { sec: true, st: 'width:44px;padding:0;min-height:40px' }, i) + '</span></div>'; }).join('') : '<p style="opacity:.7">' + esc(ui('Список пуст.', 'Рӯйхат холӣ.', 'Roʻyxat boʻsh.')) + '</p>';
     return h + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:10px">' + shBtn('csend', ui('Отправить на проверку', 'Барои санҷиш фиристодан', 'Tekshirishga yuborish')) + shBtn('cclose', ui('Закрыть', 'Пӯшидан', 'Yopish'), { sec: true }) + '</div>';
   }
+  // «Кому должен магазин» (поставщики, только руководитель): долг от приёма «в долг», кнопка «Оплатил поставщику» — частями или целиком.
+  function shPostDolg() {
+    var R = SH.d && SH.d.report; if (!R) return '';
+    var L = R.postDebts || [], h = '<h3 style="margin-top:18px">' + esc(ui('Кому должен магазин (поставщики)', 'Мағоза ба кӣ қарздор аст (таъминкунандагон)', 'Doʻkon kimga qarzdor (taʼminotchilar)')) + '</h3>';
+    if (!L.length) return h + '<p style="opacity:.75">' + esc(ui('Магазин никому не должен.', 'Мағоза ба касе қарздор нест.', 'Doʻkon hech kimga qarzdor emas.')) + '</p>';
+    return h + L.map(function (c) {
+      var open = SH.ppf === c.name;
+      return '<div style="padding:10px 0;border-bottom:1px solid #e6e6e6"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + esc(c.name) + '</b><b style="color:#c0392b">' + esc(shMoney(c.sum)) + '</b></div><small>' + esc(ui('с ', 'аз ', '')) + esc(c.since) + '</small>' +
+        (open ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">' + shIn('sh-pp-amt', ui('Сумма', 'Маблағ', 'Summa'), c.sum, 'inputmode="decimal"') + '<select id="sh-pp-pay" class="in2" style="height:48px;font-size:16px"><option value="nal">' + esc(ui('Наличными', 'Нақд', 'Naqd')) + '</option><option value="perevod">' + esc(ui('Переводом', 'Интиқол', 'Oʻtkazma')) + '</option></select>' + shBtn('ppok', ui('Записать оплату', 'Сабти пардохт', 'Toʻlovni yozish')) + shBtn('ppcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div>'
+          : '<div style="margin-top:6px">' + shBtn('ppopen', ui('Оплатил поставщику', 'Ба таъминкунанда пардохтам', 'Taʼminotchiga toʻladim'), { sec: true }, c.name) + '</div>') + '</div>';
+    }).join('');
+  }
   function shDolg() {
-    var D = SH.d; if (!D.debts.length) return '<p>' + esc(ui('Долгов нет.', 'Қарз нест.', 'Qarz yoʻq.')) + '</p>';
-    var tot = D.debts.reduce(function (s, c) { return s + cents(c.sum); }, 0);
-    return '<p><b>' + esc(ui('Всего должны', 'Ҳамагӣ қарздоранд', 'Jami qarz')) + ': ' + esc(money(tot)) + '</b></p>' + D.debts.map(function (c) {
+    var D = SH.d, R = D.report, mine = D.debts.reduce(function (s, c) { return s + cents(c.sum); }, 0), theirs = R ? (R.postDebts || []).reduce(function (s, c) { return s + cents(c.sum); }, 0) : 0;
+    var top = R ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0 10px">' + [[ui('Нам должны', 'Ба мо қарздоранд', 'Bizga qarz'), mine, '#1f8a4c'], [ui('Мы должны', 'Мо қарздорем', 'Biz qarzdormiz'), theirs, '#c0392b'], [ui('Разница', 'Фарқ', 'Farq'), mine - theirs, '']].map(function (x) { return '<div style="padding:8px;border:1px solid #e0e0e0;border-radius:10px"><small>' + esc(x[0]) + '</small><div style="font-weight:700;' + (x[2] ? 'color:' + x[2] : '') + '">' + esc(money(x[1])) + '</div></div>'; }).join('') + '</div>' : '';
+    if (!D.debts.length) return top + '<p>' + esc(ui('Покупатели магазину не должны.', 'Харидорон ба мағоза қарздор нестанд.', 'Xaridorlar doʻkonga qarzdor emas.')) + '</p>' + shPostDolg();
+    var tot = mine;
+    return top + '<p><b>' + esc(ui('Всего должны', 'Ҳамагӣ қарздоранд', 'Jami qarz')) + ': ' + esc(money(tot)) + '</b></p>' + D.debts.map(function (c) {
       var open = SH.payf === c.name;
       return '<div style="padding:10px 0;border-bottom:1px solid #e6e6e6' + (c.owner ? ';background:#fff7e6;padding-left:8px' : '') + '"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + esc(c.owner ? ui('Владелец (взял товар)', 'Соҳиб (мол гирифт)', 'Egasi (tovar oldi)') : c.name) + '</b><b>' + esc(shMoney(c.sum)) + '</b></div><small>' + esc(ui('с ', 'аз ', '')) + esc(c.since) + '</small>' +
         (open ? '<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-top:6px">' + shIn('sh-p-amt', ui('Сумма', 'Маблағ', 'Summa'), c.sum, 'inputmode="decimal"') + shBtn('pok', ui('Принять', 'Қабул', 'Qabul')) + shBtn('pcancel', '×', { sec: true, st: 'width:48px;padding:0' }) + '</div>' : '<div style="margin-top:6px">' + shBtn('pay-open', c.owner ? ui('Владелец рассчитался', 'Соҳиб ҳисоб кард', 'Egasi hisob qildi') : ui('Принял оплату', 'Пардохт қабул шуд', 'Toʻlov qabul qilindi'), { sec: true }, c.name) + '</div>') + '</div>';
-    }).join('');
+    }).join('') + shPostDolg();
   }
   // «Зарплата» (только руководитель): оклад + процент от выручки собственных чеков продавца − авансы − выдачи − личные расходы.
   function shZp() {
@@ -3053,9 +3079,17 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var rp = shProd(SH.rcv.kod), ru = shU(rp), rq = shNum('sh-r-qty'), rpc = shNum('sh-r-pcs'), q = rq !== '' ? shQR(ru, shParse(rq)) : (rpc !== '' && shPer(rp) ? shQR(ru, Math.round(shParse(rpc)) * shPer(rp)) : NaN);
       if (!(q > 0)) { SH.err = ru === 'sht' ? ui('Укажите, сколько штук пришло', 'Нависед, чанд дона омад', 'Necha dona kelganini yozing') : ui('Укажите, сколько пришло (', 'Нависед, чанд омад (', 'Qancha kelganini yozing (') + shUL(ru) + (shPer(rp) ? ui(' или штук)', ' ё дона)', ' yoki dona)') : ')'); return render(); }
       var zk = shNum('sh-r-zakup'), kd = SH.rcv.kod, body = { action: 'receive', kod: kd, qty: q, id: oid() }; if (zk) body.zakup = Number(zk);
+      var rpo = $s('sh-r-post'), rpy = $s('sh-r-pay'); body.post = rpo ? rpo.value.trim() : ''; body.post_pay = rpy ? rpy.value : '';
+      if (body.post_pay === 'dolg' && !body.post) { SH.err = ui('Для долга укажите поставщика', 'Барои қарз таъминкунандаро нависед', 'Qarz uchun taʼminotchini yozing'); return render(); }
       return shAct(body, ui('Приход записан', 'Воридот сабт шуд', 'Kirim yozildi'), function () { SH.rcv = null; SH.pcode = ''; });
     }
     if (a === 'pdel') { if (SH.delAsk !== k) { SH.delAsk = k; return render(); } SH.delAsk = ''; return shAct({ action: 'product_del', kod: k }, ui('Товар удалён', 'Мол нест шуд', 'Tovar oʻchirildi')); }
+    if (a === 'ppopen') { SH.ppf = k; SH.err = ''; return render(); }
+    if (a === 'ppcancel') { SH.ppf = null; return render(); }
+    if (a === 'ppok') {
+      var pam = shNum('sh-pp-amt'), ppy = $s('sh-pp-pay'); if (!(Number(pam) > 0)) { SH.err = ui('Укажите сумму', 'Маблағро нависед', 'Summani yozing'); return render(); }
+      return shAct({ action: 'post_pay', who: SH.ppf, amount: Number(pam), pay: ppy ? ppy.value : 'nal', id: oid(), date: today() }, ui('Оплата поставщику записана', 'Пардохт ба таъминкунанда сабт шуд', 'Taʼminotchiga toʻlov yozildi'), function () { SH.ppf = null; });
+    }
     if (a === 'pay-open') { SH.payf = k; SH.err = ''; return render(); }
     if (a === 'pcancel') { SH.payf = null; return render(); }
     if (a === 'pok') {

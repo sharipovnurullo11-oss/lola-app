@@ -17,6 +17,7 @@ const blank = { oid: '', kabinet_kod: kod, tip: '', kod: '', nazvanie: '', kolvo
 const mk = o => Object.assign({}, blank, o);
 const PAYS = ['nal', 'perevod', 'alif', 'dushanbe', 'mix', 'dolg', 'vladelec'];
 const PARTS = ['nal', 'alif', 'dushanbe', 'perevod'];
+const POST_PAY = ['nal', 'perevod', 'dolg'];
 // Единицы измерения товара (24.10.2026, магазин Шамсуло): штуки, метры (до сантиметра), килограммы (до грамма), граммы, рулоны.
 // В строке товара (tip=tovar) единица лежит в столбце oplata, а «сколько единиц в одной штуке» (труба 4 м, рулон 25 м) — в столбце summa.
 // Цена продажи, заданная вручную (24.10.2026), лежит в столбце cena строки товара; 0 — цену считаем из закупки и маржи.
@@ -53,6 +54,14 @@ const debts = () => {
   return Object.keys(m).map(k => ({ name: m[k].name, sum: r2(m[k].sum), since: m[k].since, owner: m[k].owner })).filter(c => c.sum > 0.004).sort((a, b) => String(a.since).localeCompare(String(b.since)));
 };
 const debtOf = name => { const d = debts().filter(c => c.name.toLowerCase() === String(name).toLowerCase())[0]; return d ? d.sum : 0; };
+// Долги магазина поставщикам: приход «в долг» (сумма = количество × цена приёма) минус оплаты поставщику (tip 'post_oplata').
+const postDebts = () => {
+  const m = {};
+  const get = (name, d) => (m[name.toLowerCase()] = m[name.toLowerCase()] || { name, sum: 0, since: d });
+  all.filter(r => r.tip === 'prihod' && r.oplata === 'dolg' && r.pokupatel).forEach(r => { const c = get(String(r.pokupatel), String(r.data)); c.sum += Number(r.summa); if (String(r.data) < c.since) c.since = String(r.data); });
+  all.filter(r => r.tip === 'post_oplata' && !voided.has(String(r.oid))).forEach(r => { const c = get(String(r.pokupatel), String(r.data)); c.sum -= Number(r.summa); });
+  return Object.keys(m).map(k => ({ name: m[k].name, sum: r2(m[k].sum), since: m[k].since })).filter(c => c.sum > 0.004).sort((a, b) => String(a.since).localeCompare(String(b.since)));
+};
 const view = month => {
   const ms = /^\d{4}-\d{2}$/.test(String(month || '')) ? String(month) : now.slice(0, 7);
   const inM = r => String(r.data).startsWith(ms);
@@ -79,7 +88,7 @@ const view = month => {
   const sdachi = all.filter(r => r.tip === 'sdacha' && inM(r)).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), fact: Number(r.summa), exp: Number(r.cena), diff: Number(r.kolvo), by: byOf(r.ssylka), ok: sdOk[String(r.oid)] || '' }));
   // Внесение и изъятие наличных в смене (tip 'kassa', oplata 'in' / 'out'): в отчёте отдельно, чтобы изъятие не выглядело недостачей.
   const kassa = all.filter(r => r.tip === 'kassa' && inM(r) && !voided.has(String(r.oid))).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), kind: String(r.oplata), sum: Number(r.summa), note: String(r.nazvanie) }));
-  return { month: ms, revenue: rev, profit, owner, debt: r2(debts().reduce((s, c) => s + c.sum, 0)), byDay, checks: list, low, expenses: r2(exps.reduce((s, r) => s + Number(r.summa), 0)), expBy, expList, payBy, payToday, sdachi, kassa };
+  return { month: ms, revenue: rev, profit, owner, debt: r2(debts().reduce((s, c) => s + c.sum, 0)), byDay, checks: list, low, expenses: r2(exps.reduce((s, r) => s + Number(r.summa), 0)), expBy, expList, payBy, payToday, sdachi, kassa, postDebts: postDebts(), postPays: all.filter(r => r.tip === 'post_oplata' && inM(r) && !voided.has(String(r.oid))).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), pay: String(r.oplata), sum: Number(r.summa) })) };
 };
 // Итоги дня: день по Душанбе и запасной час отправки (17–23, по умолчанию 21), который задаёт руководитель.
 const localDay = () => new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10);
@@ -155,8 +164,13 @@ if (act === 'receive') {
   if (!(q !== 0 && Math.abs(q) <= 1000000)) return fail('неверное количество');
   if (id.length < 6) return fail('нет номера записи');
   if (all.some(r => String(r.oid) === id)) return out(respond());
-  const rw = [mk({ oid: id, tip: B.fix ? 'korrekt' : 'prihod', kod: k, nazvanie: prod[k].name, kolvo: q, zakup: prod[k].zakup })];
-  const z = r2(B.zakup);
+  // Оплата поставщику при приёме (№223, №224): наличные / перевод / в долг; в долг — деньги не ушли, поставщик попадает в «Кому должен магазин».
+  const z = r2(B.zakup), pp = B.fix ? '' : String(B.post_pay || ''), post = B.fix ? '' : san(B.post, 40);
+  if (pp && POST_PAY.indexOf(pp) < 0) return fail('неверный способ оплаты поставщику');
+  if (pp === 'dolg' && !post) return fail('для долга укажите поставщика');
+  if (pp === 'dolg' && !(q > 0)) return fail('в долг можно только приход');
+  const zUsed = !B.fix && z > 0 ? z : prod[k].zakup;
+  const rw = [mk({ oid: id, tip: B.fix ? 'korrekt' : 'prihod', kod: k, nazvanie: prod[k].name, kolvo: q, zakup: prod[k].zakup, pokupatel: post, oplata: pp, summa: pp ? r2(q * zUsed) : 0 })];
   if (!B.fix && z > 0 && z !== prod[k].zakup) rw.push(tovRow(prod[k], { oid: ('t' + id).slice(0, 40), zakup: z, marzha: prod[k].sell ? r2((prod[k].sell / z - 1) * 100) : prod[k].marzha }));
   withRows(rw);
   return out(respond(), rw);
@@ -277,6 +291,23 @@ if (act === 'itogi' || act === 'itogi_ok' || act === 'itogi_time') {
     sdachi: sd.length, diff: r2(sd.reduce((s, r) => s + Number(r.kolvo), 0)), open } });
 }
 
+if (act === 'post_pay') {
+  // Магазин платит поставщику долг (частями или целиком): наличными или переводом. Только руководитель.
+  if (ID.role !== 'owner') return fail('нет доступа');
+  const who = san(B.who, 40), s = r2(B.amount), id = idc(B.id), date = String(B.date || ''), pay = B.pay === 'perevod' ? 'perevod' : 'nal';
+  if (!who) return fail('укажите поставщика');
+  if (id.length < 6) return fail('нет номера записи');
+  if (!(s > 0 && s <= 1000000000)) return fail('неверная сумма');
+  if (!okDate(date)) return fail('неверная дата');
+  if (all.some(r => String(r.oid) === id)) return out(respond());
+  const d = postDebts().find(c => c.name.toLowerCase() === who.toLowerCase());
+  if (!d) return fail('этому поставщику магазин не должен');
+  if (s > d.sum + 0.004) return fail('магазин должен ему только ' + d.sum + ' сомони');
+  const rw = [mk({ oid: id, tip: 'post_oplata', summa: s, pokupatel: d.name, oplata: pay, data: date })];
+  withRows(rw);
+  return out(respond(), rw);
+}
+
 if (act === 'expense') {
   // Личный расход продавца (взял из кассы на себя): простая запись, не долг.
   const id = idc(B.id), s = r2(B.amount), date = String(B.date || ''), note = san(B.note, 60);
@@ -334,7 +365,7 @@ if (act === 'void') {
   const id = idc(B.id);
   const isCheck = sales.some(r => String(r.chek) === id);
   const isPay = pays.some(r => String(r.oid) === id);
-  const isExp = all.some(r => (r.tip === 'rashod' || r.tip === 'vyplata' || r.tip === 'kassa') && String(r.oid) === id) && !voided.has(id);
+  const isExp = all.some(r => (r.tip === 'rashod' || r.tip === 'vyplata' || r.tip === 'kassa' || r.tip === 'post_oplata') && String(r.oid) === id) && !voided.has(id);
   if (!isCheck && !isPay && !isExp) return fail('запись не найдена');
   const rw = [mk({ oid: ('v' + id).slice(0, 40), tip: 'void', ssylka: id })];
   withRows(rw);

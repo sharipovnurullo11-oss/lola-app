@@ -1,10 +1,10 @@
 const ID = $('Кабинет').first().json;
 const items = $input.all();
-const all = $('Записи магазина').all().map(i => i.json).filter(r => r && r.id !== undefined);
+const all = $('Записи магазина').all().map(i => i.json).filter(r => r && r.id !== undefined && r.kabinet_kod === ID.kod);
 const rows = all.filter(r => r.tip === 'prodazha' && r.ssylka);
 const by = {}; rows.forEach(r => { by[String(r.chek)] = String(r.ssylka); });
 // Журнал приёма: кто, что и сколько принял (последние 40).
-const receipts = all.filter(r => r.tip === 'prihod' || r.tip === 'korrekt').sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 40).map(r => ({ id: String(r.oid), kod: r.kod, name: String(r.nazvanie), qty: Number(r.kolvo), zakup: Number(r.zakup), date: String(r.data), who: String(r.ssylka || ''), fix: r.tip === 'korrekt' }));
+const receipts = all.filter(r => r.tip === 'prihod' || r.tip === 'korrekt').sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 40).map(r => ({ id: String(r.oid), kod: r.kod, name: String(r.nazvanie), qty: Number(r.kolvo), zakup: Number(r.zakup), date: String(r.data), who: String(r.ssylka || ''), fix: r.tip === 'korrekt', post: String(r.pokupatel || ''), pay: String(r.oplata || '') }));
 // Подневные суммы за месяц для «Итогов дня» и «Бухгалтерии»: продано, пришло денег (нал/перевод + оплаты долгов), новые долги, прибыль, закупка, выплаты зарплаты (salary) и личные расходы (pers). Товар, взятый владельцем, выручкой не считается.
 const r2 = x => Math.round(Number(x) * 100) / 100;
 const voidedSet = new Set(all.filter(x => x.tip === 'void').map(x => String(x.ssylka)));
