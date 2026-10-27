@@ -127,6 +127,17 @@ MD['Перевозки'].push({ id: 1, oid: 'mmmmmm1', data: '2026-10-26', instr
 assert.equal(mv({ action: 'move', from: 'Зарафшон сити', to: 'Ховарон', tool: 'фен', qty: 1, id: 'mmmmmm1' }).resp.dup, true, 'повтор не задваивает');
 assert.equal(mv({ action: 'moves', name: 'Ховарон', tool: 'Фен' }).resp.moves[0].from, 'Зарафшон сити');
 ok('перевозки: пункт ↔ пункт, пункт ↔ склад, журнал, защита от повтора и минуса');
+m = mv({ action: 'move', from: 'Куплен', to: 'Ховарон', tool: '  Болгарка   большая ', qty: 2, price: 850, id: 'buy0001' });
+assert.deepEqual([m.op, m.upd, m.stock, m.ins.tochka, m.ins.gorod, m.ins.kolvo, m.ins.istochnik, m.log.iz, m.log.cena, m.resp.moved.price], ['move', null, null, 'Ховарон', 'Душанбе', 2, 'покупка', 'Куплен', 1700, 1700], 'покупка: добавить на пункт, в журнале цена за всё');
+m = mv({ action: 'move', from: 'Куплен', to: 'Ховарон', tool: 'Лобзик', qty: 1, id: 'buy0002' });
+assert.deepEqual([m.resp.ok, m.log.cena, m.ins.instrument], [true, 0, 'Лобзик'], 'покупка без цены');
+assert.equal(mv({ action: 'move', from: 'Куплен', to: 'Склад', tool: 'Лобзик', qty: 1, id: 'buy0003' }).resp.error, 'выберите пункт', 'покупка только на пункт');
+assert.equal(mv({ action: 'move', from: 'Куплен', to: 'Нет такого', tool: 'Лобзик', qty: 1, id: 'buy0004' }).resp.error, 'выберите пункт');
+assert.equal(mv({ action: 'move', from: 'Куплен', to: 'Ховарон', tool: '', qty: 1, id: 'buy0005' }).resp.error, 'выберите инструмент');
+assert.equal(mv({ action: 'move', from: 'Куплен', to: 'Ховарон', tool: 'Лобзик', qty: 1, price: -5, id: 'buy0006' }).resp.error, 'неверная цена покупки');
+assert.equal(mv({ action: 'move', from: 'Куплен', to: 'Ховарон', tool: 'Лобзик', qty: 1, price: 'abc', id: 'buy0007' }).resp.error, 'неверная цена покупки');
+assert.equal(mv({ action: 'move', from: 'Нет такого', to: 'Ховарон', tool: 'Лобзик', qty: 1, id: 'buy0008' }).resp.error, 'выберите, откуда и куда', 'выдуманное «откуда» не проходит');
+ok('новый инструмент на пункт: покупка с ценой и без, только на пункт');
 const OW = fs.readFileSync(new URL('../n8n/prokat/vladelets-reshit.js', import.meta.url), 'utf8'), SV = fs.readFileSync(new URL('../n8n/prokat/svezhee-foto.js', import.meta.url), 'utf8');
 const TK = 'tttttttttttttttttttttttttttttttt';
 const OD = { 'Владелец по ссылке': [{ id: 1, token: TK, tochka: 'Зарафшон сити', aktivno: true }],
