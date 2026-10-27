@@ -48,6 +48,15 @@ export function textFor(ev) {
   const money = (x) => String(Math.round(Number(x) || 0)).replace(/\B(?=(\d{3})+$)/g, ' ');
   const who = String(ev.who || '').slice(0, 40), sum = money(ev.sum), note = String(ev.note || '').slice(0, 60);
   if (ev.kind === 'rashod') return { title: 'Личный расход продавца', body: who + ': ' + sum + ' сомони' + (note ? ' (' + note + ')' : '') };
+  // Сдача кассы продавцом (магазин): сколько сдал, сколько должно быть, разница и итог смены по способам оплаты.
+  if (ev.kind === 'sdacha') {
+    const d = Math.round((Number(ev.diff) || 0) * 100) / 100;
+    const res = Math.abs(d) < 0.005 ? 'всё сходится' : (d < 0 ? 'недостача ' : 'излишек ') + money(Math.abs(d)) + ' сомони';
+    const by = ev.by && typeof ev.by === 'object' ? ev.by : {};
+    const NAMES = { nal: 'наличные', alif: 'Алиф', dushanbe: 'Душанбе Сити', perevod: 'перевод', dolg: 'в долг' };
+    const parts = Object.keys(NAMES).filter((k) => Number(by[k])).map((k) => NAMES[k] + ' ' + money(by[k]));
+    return { title: 'Касса сдана: ' + who, body: 'Сдал ' + sum + ', должно ' + money(ev.exp) + ' — ' + res + (parts.length ? '. Смена: ' + parts.join(', ') : '') };
+  }
   // Утренние напоминания проката: только числа, текст собирает сервер.
   if (ev.kind === 'prokat_remind') {
     const n = (x) => Math.max(0, Math.min(999, Math.round(Number(x) || 0)));

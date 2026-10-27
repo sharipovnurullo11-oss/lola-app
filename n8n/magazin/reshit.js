@@ -73,7 +73,10 @@ const view = month => {
   const payBy = payBreak(real);
   const td = now.slice(0, 10);
   const payToday = payBreak(real.filter(r => String(r.data) === td));
-  const sdachi = all.filter(r => r.tip === 'sdacha' && inM(r)).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), fact: Number(r.summa), exp: Number(r.cena), diff: Number(r.kolvo) }));
+  // Сдача кассы: разбивка смены по способам оплаты лежит в ssylka (JSON), подтверждение руководителя — строкой sdacha_ok (ssylka = номер сдачи).
+  const sdOk = {}; all.filter(r => r.tip === 'sdacha_ok').forEach(r => { sdOk[String(r.ssylka)] = String(r.data); });
+  const byOf = s => { try { const o = JSON.parse(String(s || '')); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } };
+  const sdachi = all.filter(r => r.tip === 'sdacha' && inM(r)).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), fact: Number(r.summa), exp: Number(r.cena), diff: Number(r.kolvo), by: byOf(r.ssylka), ok: sdOk[String(r.oid)] || '' }));
   return { month: ms, revenue: rev, profit, owner, debt: r2(debts().reduce((s, c) => s + c.sum, 0)), byDay, checks: list, low, expenses: r2(exps.reduce((s, r) => s + Number(r.summa), 0)), expBy, expList, payBy, payToday, sdachi };
 };
 const respond = (extra) => ({ ok: true, products: products(), debts: debts(), report: view(B.month) });
@@ -201,9 +204,23 @@ if (act === 'sdacha') {
   const cash = payBreak(mine).nal || 0;
   const spent = r2(all.filter(r => r.tip === 'rashod' && !voided.has(String(r.oid)) && String(r.pokupatel) === who && String(r.vremya) > since).reduce((s, r) => s + Number(r.summa), 0));
   const expected = r2(cash - spent), diff = r2(fact - expected);
-  const rw = [mk({ oid: id, tip: 'sdacha', pokupatel: who, summa: fact, cena: expected, kolvo: diff, data: date })];
+  // Итог смены по способам оплаты (наличные, Алиф, Душанбе Сити, перевод, в долг): сверяются только наличные, остальное — для отчёта хозяину.
+  const by = payBreak(mine);
+  const rw = [mk({ oid: id, tip: 'sdacha', pokupatel: who, summa: fact, cena: expected, kolvo: diff, data: date, ssylka: JSON.stringify(by) })];
   withRows(rw);
-  return out(Object.assign(respond(), { sdacha: { expected, fact, diff, cash: r2(cash), spent } }), rw);
+  return out(Object.assign(respond(), { sdacha: { expected, fact, diff, cash: r2(cash), spent, by } }), rw);
+}
+
+if (act === 'sdacha_ok') {
+  // Подтверждение смены руководителем: отмечает сдачу кассы как проверенную.
+  if (ID.role !== 'owner') return fail('подтверждает руководитель');
+  const sid = idc(B.sdacha), id = idc(B.id);
+  if (id.length < 6) return fail('нет номера записи');
+  if (!all.some(r => r.tip === 'sdacha' && String(r.oid) === sid)) return fail('сдача кассы не найдена');
+  if (all.some(r => r.tip === 'sdacha_ok' && String(r.ssylka) === sid)) return out(respond());
+  const rw = [mk({ oid: id, tip: 'sdacha_ok', ssylka: sid, data: now.slice(0, 10) })];
+  withRows(rw);
+  return out(respond(), rw);
 }
 
 if (act === 'expense') {
