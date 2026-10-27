@@ -190,6 +190,26 @@ r = call({ action: 'sdacha', id: 'sdac000003', fact: 80, date: TODAY }, 'seller2
 assert.deepEqual([r.sdacha.expected, r.sdacha.vnes, r.sdacha.vzyal, r.sdacha.diff], [80, 50, 30, 0], 'должно 60 продаж + 50 размен − 30 забрал = 80, всё сходится');
 ok('внесение и изъятие наличных в смене');
 for (const need of ['function shKopBox(', "action: 'kassa', kind: SH.kKind"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
+// Итоги дня (№252–253): за день по Душанбе; открытая смена — у продавца есть продажи после его последней сдачи кассы.
+const DAY = '2026-10-29';
+call({ action: 'sell', id: 'chit00001', items: [{ kod: 'OLD1', qty: 2 }], pay: 'nal', date: DAY }, 'seller2');
+call({ action: 'sell', id: 'chit00002', items: [{ kod: 'OLD1', qty: 1 }], pay: 'alif', date: DAY }, 'seller');
+call({ action: 'sell', id: 'chit00003', items: [{ kod: 'OLD1', qty: 1 }], pay: 'dolg', who: 'Карим', date: DAY }, 'seller');
+call({ action: 'sell', id: 'chit00004', items: [{ kod: 'OLD1', qty: 1 }], pay: 'vladelec', date: DAY });
+call({ action: 'sdacha', id: 'sdac000009', fact: 20, date: DAY }, 'seller2');
+assert.equal(call({ action: 'itogi', date: DAY }, 'seller').ok, false, 'продавец итоги не читает');
+let it = call({ action: 'itogi', date: DAY }).itogi;
+assert.deepEqual([it.revenue, it.by.nal, it.by.alif, it.debtNew, it.checks, it.sdachi, it.diff, it.open, it.sent, it.hour], [48, 24, 12, 12, 3, 1, -4, ['Маруф'], false, 21], 'выручка без «шеф взял», долг отдельно, сдача Зоира −4, у Маруфа смена открыта');
+call({ action: 'sdacha', id: 'sdac000010', fact: 0, date: DAY }, 'seller');
+it = call({ action: 'itogi', date: DAY }).itogi;
+assert.deepEqual([it.open, it.sdachi], [[], 2], 'все сдали кассу — открытых смен нет');
+assert.equal(call({ action: 'itogi_ok', date: DAY }).ok, true);
+const n3 = DB.length; assert.equal(call({ action: 'itogi_ok', date: DAY }).dup, true); assert.equal(DB.length, n3, 'отметка «отправлено» одна на день');
+assert.equal(call({ action: 'itogi', date: DAY }).itogi.sent, true);
+assert.equal(call({ action: 'itogi_time', hour: 25 }).ok, false);
+assert.equal(call({ action: 'itogi_time', hour: 22 }).report.itogiHour, 22, 'руководитель задал запасное время');
+assert.equal(call({ action: 'itogi', date: DAY }).itogi.hour, 22);
+ok('итоги дня: расчёт, незакрытые смены, одна отправка в день, запасное время');
 const { textFor } = await import('../push.js');
 assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, alif: 12, dolg: 12, x: 5 } }), { title: 'Касса сдана: Зоир', body: 'Сдал 14, должно 16 — недостача 2 сомони. Смена: наличные 16, Алиф 12, в долг 12' });
 assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0, by: '<b>' }).body, 'Сдал 5, должно 5 — всё сходится');
@@ -202,4 +222,8 @@ assert.equal(textFor({ kind: 'rashod', who: 'Зоир', sum: 50 }, 'tg').title, 
 assert.equal(textFor({ kind: 'rashod', who: 'Зоир', sum: 50 }, 'uz').title, 'Личный расход продавца', 'другой язык — по-русски');
 assert.ok(W.includes("lang: (window.LANG === 'tg' ? 'tg' : 'ru')"), 'телефон сообщает язык при включении уведомлений');
 ok('утреннее напоминание о заканчивающемся товаре; уведомления магазина по-таджикски');
+assert.deepEqual(textFor({ kind: 'itogi', date: '2026-10-29', revenue: 1250, by: { nal: 800, alif: 300, dolg: 150 }, debtNew: 150, debtPaid: 50, sdachi: 2, diff: -20, open: ['Маруф'] }), { title: 'Итоги дня 29.10', body: 'Выручка 1 250 (нал 800, Алиф 300) · новые долги 150 · оплатили долги 50 · касса: недостача 20 · смена не закрыта: Маруф' });
+assert.deepEqual(textFor({ kind: 'itogi', date: '2026-10-29', revenue: 100, by: { nal: 100 }, sdachi: 1, diff: 0, open: [] }, 'tg'), { title: 'Ҷамъбасти рӯз 29.10', body: 'Даромад 100 (нақд 100) · касса: ҳама мувофиқ' });
+assert.ok(W.includes("action: 'itogi_time', hour: Number(k)"), 'в отчёте выбор запасного времени');
+ok('текст итогов дня');
 console.log('SHOP PASSED');

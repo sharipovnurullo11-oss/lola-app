@@ -46,6 +46,10 @@ try:
         pg.click('[data-shop="tab"][data-k="otchet"]'); pg.wait_for_timeout(500)
         t = body(pg); check('Внесли и взяли из кассы' in t and 'забрал на товар' in t and '−40' in t, 'в отчёте видно изъятие')
         t = body(pg); check('Зоир' in t and 'Наличные 16 · Алиф 12 · В долг 12' in t, 'в отчёте сдача с разбивкой по способам')
+        check('Итоги дня на телефон' in t and pg.locator('[data-shop="ihour"][data-k="21"]').get_attribute('class') == 'btn', 'итоги дня: по умолчанию 21:00')
+        pg.click('[data-shop="ihour"][data-k="22"]'); pg.wait_for_timeout(500)
+        ih = [c for c in calls if c.get('action') == 'itogi_time']
+        check(len(ih) == 1 and ih[0]['hour'] == 22, 'запасное время итогов ушло на сервер')
         check(pg.locator('[data-shop="sdok"][data-k="sdac000001"]').count() == 1, 'кнопка «Подтвердить смену»')
         pg.click('[data-shop="sdok"][data-k="sdac000001"]'); pg.wait_for_timeout(600)
         ok = [c for c in calls if c.get('action') == 'sdacha_ok']

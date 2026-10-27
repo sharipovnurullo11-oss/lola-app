@@ -81,7 +81,10 @@ const view = month => {
   const kassa = all.filter(r => r.tip === 'kassa' && inM(r) && !voided.has(String(r.oid))).sort((a, b) => String(b.vremya).localeCompare(String(a.vremya))).slice(0, 30).map(r => ({ id: String(r.oid), date: String(r.data), who: String(r.pokupatel), kind: String(r.oplata), sum: Number(r.summa), note: String(r.nazvanie) }));
   return { month: ms, revenue: rev, profit, owner, debt: r2(debts().reduce((s, c) => s + c.sum, 0)), byDay, checks: list, low, expenses: r2(exps.reduce((s, r) => s + Number(r.summa), 0)), expBy, expList, payBy, payToday, sdachi, kassa };
 };
-const respond = (extra) => ({ ok: true, products: products(), debts: debts(), report: view(B.month) });
+// Итоги дня: день по Душанбе и запасной час отправки (17–23, по умолчанию 21), который задаёт руководитель.
+const localDay = () => new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10);
+const itogiHour = () => { const r = all.filter(x => x.tip === 'itogi_vremya').sort((a, b) => String(a.vremya).localeCompare(String(b.vremya))).pop(); const h = r ? Number(r.kolvo) : 21; return h >= 17 && h <= 23 ? h : 21; };
+const respond = (extra) => ({ ok: true, products: products(), debts: debts(), report: Object.assign(view(B.month), { itogiHour: itogiHour() }) });
 const out = (resp, rowsArr) => rowsArr && rowsArr.length ? rowsArr.map(r => ({ json: { rows: 1, row: r, resp } })) : [{ json: { resp } }];
 // после записи состояние пересчитывается с новыми строками
 const withRows = (rowsArr) => { all.push.apply(all, rowsArr); rowsArr.forEach(r => { if (r.tip === 'tovar') { prod[r.kod] = prodOf(r); if (r.ssylka) fotoOf[r.kod] = String(r.ssylka); } else if (r.tip === 'tovar_del') { delete prod[r.kod]; delete fotoOf[r.kod]; } else if (r.tip === 'prihod' || r.tip === 'korrekt') stock[r.kod] = (stock[r.kod] || 0) + Number(r.kolvo); else if (r.tip === 'prodazha') { sales.push(r); stock[r.kod] = (stock[r.kod] || 0) - Number(r.kolvo); } else if (r.tip === 'oplata') pays.push(r); else if (r.tip === 'void') { const v = String(r.ssylka); voided.add(v); for (let i = sales.length - 1; i >= 0; i--) if (String(sales[i].chek) === v) { stock[sales[i].kod] = (stock[sales[i].kod] || 0) + Number(sales[i].kolvo); sales.splice(i, 1); } for (let i = pays.length - 1; i >= 0; i--) if (String(pays[i].oid) === v) pays.splice(i, 1); } }); };
@@ -242,6 +245,36 @@ if (act === 'kassa') {
   const rw = [mk({ oid: id, tip: 'kassa', oplata: kind, summa: s, pokupatel: who, nazvanie: note, data: date })];
   withRows(rw);
   return out(respond(), rw);
+}
+
+// Итоги дня хозяину (№252–253): выручка по способам оплаты, новые долги и оплаты долгов, сдачи кассы (недостача / излишек),
+// незакрытые смены продавцов. Читает автоматизация «Магазин — вечером на телефон: итоги дня»; itogi_ok отмечает, что итоги за день отправлены.
+if (act === 'itogi' || act === 'itogi_ok' || act === 'itogi_time') {
+  if (ID.role !== 'owner') return fail('нет доступа');
+  if (act === 'itogi_time') {
+    const h = Math.round(Number(B.hour));
+    if (!(h >= 17 && h <= 23)) return fail('время от 17 до 23');
+    const rw = [mk({ oid: ('h' + Date.now().toString(36)).slice(0, 40), tip: 'itogi_vremya', kolvo: h })];
+    withRows(rw);
+    return out(Object.assign(respond(), { itogiHour: h }), rw);
+  }
+  const day = okDate(String(B.date || '')) ? String(B.date) : localDay();
+  const sent = all.some(r => r.tip === 'itogi' && String(r.data) === day);
+  if (act === 'itogi_ok') {
+    if (sent) return out({ ok: true, dup: true });
+    const rw = [mk({ oid: ('i' + day.replace(/-/g, '') + Date.now().toString(36)).slice(0, 40), tip: 'itogi', data: day })];
+    return out({ ok: true }, rw);
+  }
+  const today = sales.filter(r => String(r.data) === day);
+  const real = today.filter(r => r.oplata !== 'vladelec');
+  const sd = all.filter(r => r.tip === 'sdacha' && String(r.data) === day);
+  // Смена продавца открыта, если после его последней сдачи кассы были продажи (смотрим продажи этого дня).
+  const sellers = Array.from(new Set(today.map(r => String(r.ssylka || '')).filter(Boolean)));
+  const lastSd = n => all.filter(r => r.tip === 'sdacha' && String(r.pokupatel) === n).reduce((m, r) => String(r.vremya) > m ? String(r.vremya) : m, '');
+  const open = sellers.filter(n => today.some(r => String(r.ssylka) === n && String(r.vremya) > lastSd(n)));
+  return out({ ok: true, itogi: { date: day, sent, hour: itogiHour(), revenue: r2(real.reduce((s, r) => s + Number(r.summa), 0)), by: payBreak(real), checks: new Set(real.filter(r => Number(r.kolvo) > 0).map(r => String(r.chek))).size,
+    debtNew: r2(today.filter(r => r.oplata === 'dolg').reduce((s, r) => s + Number(r.summa), 0)), debtPaid: r2(pays.filter(r => String(r.data) === day).reduce((s, r) => s + Number(r.summa), 0)),
+    sdachi: sd.length, diff: r2(sd.reduce((s, r) => s + Number(r.kolvo), 0)), open } });
 }
 
 if (act === 'expense') {
