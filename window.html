@@ -4813,13 +4813,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   var SCAN = null;
   function shScanBtn(mode) { return shBtn('scan', '📷 ' + ui('Скан', 'Скан', 'Skan'), { sec: true, st: 'min-height:48px;padding:0 14px' }, mode); }
   function shCanCreate() { return !sellerView() || KEEPER; }
-  function shFindExact(code) { var t = String(code).toLowerCase(), hit = null; ((SH.d && SH.d.products) || []).forEach(function (p) { if (String(p.kod).toLowerCase() === t) hit = p; }); return hit; }
+  // Заводской штрихкод (bar) привязан к товару с коротким кодом магазина: ищем и по коду, и по штрихкоду.
+  function shHasBar(p, t) { return Array.isArray(p.bar) && p.bar.some(function (b) { return String(b).toLowerCase() === t; }); }
+  function shFindExact(code) { var t = String(code).toLowerCase(), hit = null, bh = null; ((SH.d && SH.d.products) || []).forEach(function (p) { if (String(p.kod).toLowerCase() === t) hit = p; else if (shHasBar(p, t)) bh = p; }); return hit || bh; }
   function shScanMsg(t) { var m = SCAN && SCAN.ov && SCAN.ov.querySelector('#sh-scan-msg'); if (m) m.textContent = t; }
   function shScanStop() {
     if (!SCAN) return; var s = SCAN; SCAN = null; clearInterval(s.timer);
     try { if (s.stream) s.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
     try { if (s.ov.parentNode) s.ov.parentNode.removeChild(s.ov); } catch (e) {}
   }
+  var SH_FMT = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code', 'code_39', 'code_93', 'itf', 'codabar', 'data_matrix', 'pdf417', 'aztec'];
   function shScanOpen(mode) {
     if (SCAN) return;
     var host = document.querySelector('dialog[open]') || document.body;
@@ -4836,7 +4839,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     ov.querySelector('#sh-scan-ok').addEventListener('click', function () { shScanDone(ov.querySelector('#sh-scan-in').value); });
     ov.querySelector('#sh-scan-in').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); shScanDone(this.value); } });
     var det = null;
-    try { if (typeof window.BarcodeDetector === 'function' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] }); } catch (e) { det = null; }
+    try { if (typeof window.BarcodeDetector === 'function' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) det = new window.BarcodeDetector({ formats: SH_FMT.slice(0, 6) }); } catch (e) { det = null; }
+    // Заводские коды бывают разные: берём все форматы из списка, которые этот телефон умеет читать (Code39, ITF, DataMatrix и др.).
+    if (det && window.BarcodeDetector.getSupportedFormats) window.BarcodeDetector.getSupportedFormats().then(function (sup) { var f = SH_FMT.filter(function (x) { return sup.indexOf(x) >= 0; }); if (f.length && SCAN && SCAN.ov === ov) try { det = new window.BarcodeDetector({ formats: f }); } catch (e) {} }, function () {});
     if (!det) { shScanMsg(ui('Сканер на этом телефоне недоступен. Введите код вручную.', 'Скануер дар ин телефон дастрас нест. Рамзро дастӣ ворид кунед.', 'Bu telefonda skaner ishlamaydi. Kodni qoʻlda kiriting.')); return; }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }).then(function (st) {
       if (!SCAN || SCAN.ov !== ov) { st.getTracks().forEach(function (t) { t.stop(); }); return; }
@@ -4849,21 +4854,22 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function shScanDone(raw) {
     if (!SCAN || SCAN.done) return;
-    var code = String(raw || '').trim().slice(0, 20); if (!code) return;
+    var code = String(raw || '').trim().slice(0, 64); if (!code) return;
     var mode = SCAN.mode; SCAN.done = true; shScanStop();
     SH.err = ''; SH.ok = ''; SH.found = null; SH.low = '';
+    // «Привязать штрихкод» у товара в приёме: отсканированный код сразу привязывается к этому товару.
+    if (mode === 'bindto') { if (SH.rcv) shBind(SH.rcv.kod, code); return render(); }
     var p = shFindExact(code), noAdd = ui('Товара с кодом «' + code + '» нет. Скажите кладовщику или владельцу.', 'Мол бо рамзи «' + code + '» нест. Ба анбордор ё соҳиб гӯед.', '«' + code + '» kodli tovar yoʻq. Omborchi yoki egasiga ayting.');
-    var newOne = ui('Товара с кодом «' + code + '» ещё нет. Заведите его: название, закупка и маржа.', 'Мол бо рамзи «' + code + '» ҳанӯз нест. Онро ворид кунед: ном, нархи харид ва маржа.', '«' + code + '» kodli tovar hali yoʻq. Uni kiriting: nomi, xarid narxi va marja.');
     if (mode === 'sell') {
       SH.tab = 'kassa'; SH.code = '';
       if (p) shPut(p.kod);
-      else if (shCanCreate()) { SH.tab = 'prihod'; SH.rcv = null; SH.pcode = ''; SH.fotoNew = ''; SH.form = { kod: code, name: '', zakup: '', marzha: '' }; SH.err = newOne; }
-      else SH.err = noAdd;
+      else if (shCanCreate()) { SH.tab = 'prihod'; SH.rcv = null; SH.form = null; SH.bind = { code: code, q: '' }; }
+      else SH.err = ui('Штрихкод «' + code + '» ещё не привязан к товару. Найдите товар по коду или названию и попросите кладовщика привязать этот штрихкод.', 'Штрихкоди «' + code + '» ҳанӯз ба мол пайваст нест. Молро бо рамз ё ном ёбед ва аз анбордор хоҳед, ки онро пайваст кунад.', '«' + code + '» shtrix-kodi hali tovarga bogʻlanmagan. Tovarni kod yoki nom bilan toping va omborchidan bogʻlashni soʻrang.');
       return render();
     }
     SH.tab = 'prihod'; SH.pcode = '';
-    if (p) { SH.rcv = { kod: p.kod, name: p.name }; SH.form = null; }
-    else if (shCanCreate()) { SH.rcv = null; SH.fotoNew = ''; SH.form = { kod: code, name: '', zakup: '', marzha: '' }; SH.err = newOne; }
+    if (p) { SH.rcv = { kod: p.kod, name: p.name }; SH.form = null; SH.bind = null; }
+    else if (shCanCreate()) { SH.rcv = null; SH.form = null; SH.bind = { code: code, q: '' }; }
     else { SH.rcv = null; SH.err = noAdd; }
     render();
   }
@@ -4880,6 +4886,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shAdd(text) {
     var t = String(text || '').trim().toLowerCase(); if (!t || !SH.d) return;
     var all = SH.d.products, hit = all.filter(function (p) { return p.kod.toLowerCase() === t; });
+    if (!hit.length) hit = all.filter(function (p) { return shHasBar(p, t); });
     if (!hit.length) hit = all.filter(function (p) { return p.kod.toLowerCase().indexOf(t) === 0 || p.name.toLowerCase().indexOf(t) >= 0; });
     SH.ok = ''; SH.err = '';
     if (!hit.length) { SH.found = null; SH.err = ui('Товара с таким кодом нет', 'Чунин рамзи мол нест', 'Bunday kodli tovar yoʻq'); return; }
@@ -4920,7 +4927,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // Подсказки по первым цифрам кода; когда код набран целиком, остаётся одна крупная карточка (нажатие добавляет ещё одну штуку).
   function shHintsHtml() {
     var D = SH.d, t = String(SH.code || '').trim().toLowerCase(); if (D && !t) return '<span style="opacity:.65">' + esc(ui('Подходящие товары появятся здесь', 'Молҳои мувофиқ дар ин ҷо пайдо мешаванд', 'Mos tovarlar shu yerda chiqadi')) + '</span>'; if (!D || !t) return '';
-    var exact = D.products.filter(function (p) { return p.kod.toLowerCase() === t; })[0];
+    var exact = D.products.filter(function (p) { return p.kod.toLowerCase() === t; })[0] || D.products.filter(function (p) { return shHasBar(p, t); })[0];
     if (exact) {
       var line = null; SH.cart.forEach(function (it) { if (it.kod === exact.kod) line = it; });
       return '<button type="button" class="btn sec" data-shop="put" data-k="' + esc(exact.kod) + '" style="display:block;width:100%;height:auto;text-align:left;padding:14px;margin:8px 0">' +
@@ -5100,9 +5107,35 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (!r.length) return '<small>' + esc(ui('Такого товара нет. Нажмите «Новый товар».', 'Чунин мол нест. «Моли нав»-ро пахш кунед.', 'Bunday tovar yoʻq. «Yangi tovar»ni bosing.')) + '</small>';
     return '<div style="display:grid;gap:6px">' + r.map(function (p) { return shBtn('rcv', p.kod + ' · ' + p.name + ' · ' + ui('ост. ', 'бок. ', 'qol. ') + shQ(p, p.qty) + ' · ' + ui('себестоимость ', 'арзиши аслӣ ', 'tannarx ') + shMoney(p.zakup) + shZa(p), { sec: true, st: 'text-align:left' }, p.kod); }).join('') + '</div>';
   }
+  // Привязка заводского штрихкода к товару: код из сканера → товар, который выбрал кладовщик.
+  function shBind(kod, code) {
+    var p = shProd(kod); if (!p) return;
+    shAct({ action: 'list', bind_barcode: { kod: kod, code: code, id: oid() } }, ui('Штрихкод привязан', 'Штрихкод пайваст шуд', 'Shtrix-kod bogʻlandi') + ': ' + code + ' → ' + p.name, function () { SH.bind = null; });
+  }
+  function shBindHints() {
+    var B = SH.bind, t = String(B && B.q || '').trim().toLowerCase();
+    if (!t) return '<small style="opacity:.75">' + esc(ui('Введите код магазина или название товара', 'Рамзи мағоза ё номи молро нависед', 'Doʻkon kodi yoki tovar nomini yozing')) + '</small>';
+    var r = ((SH.d && SH.d.products) || []).filter(function (p) { return p.kod.toLowerCase().indexOf(t) === 0 || p.name.toLowerCase().indexOf(t) >= 0; }).slice(0, 8);
+    if (!r.length) return '<small>' + esc(ui('Такого товара нет — заведите новый с этим штрихкодом.', 'Чунин мол нест — бо ҳамин штрихкод моли нав ворид кунед.', 'Bunday tovar yoʻq — shu shtrix-kod bilan yangi tovar kiriting.')) + '</small>';
+    return '<div style="display:grid;gap:6px">' + r.map(function (p) { return shBtn('bind', p.kod + ' · ' + p.name, { sec: true, st: 'text-align:left' }, p.kod); }).join('') + '</div>';
+  }
+  function shBindBox() {
+    var B = SH.bind, okKod = /^[a-zA-Z0-9_-]{1,20}$/.test(B.code);
+    return '<div style="display:grid;gap:8px;margin:8px 0;padding:12px;border:2px solid #b7860b;border-radius:10px"><b style="font-size:17px">' + esc(ui('Штрихкод', 'Штрихкод', 'Shtrix-kod')) + ' «' + esc(B.code) + '» ' + esc(ui('ещё не привязан', 'ҳанӯз пайваст нест', 'hali bogʻlanmagan')) + '</b>' +
+      '<small>' + esc(ui('Какой это товар? Найдите его и нажмите — штрихкод привяжется, и касса будет находить товар по нему.', 'Ин кадом мол аст? Онро ёбед ва пахш кунед — штрихкод пайваст мешавад.', 'Bu qaysi tovar? Uni toping va bosing — shtrix-kod bogʻlanadi.')) + '</small>' +
+      shIn('sh-b-q', ui('Код магазина или название', 'Рамз ё ном', 'Kod yoki nom'), B.q) + '<div id="sh-bhints">' + shBindHints() + '</div>' +
+      '<div style="display:grid;grid-template-columns:' + (okKod ? '2fr ' : '') + '1fr;gap:8px">' + (okKod ? shBtn('bnew', '＋ ' + ui('Новый товар с этим кодом', 'Моли нав бо ин рамз', 'Shu kod bilan yangi tovar'), { sec: true }) : '') + shBtn('bcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
+  }
+  function shBarsHtml(p) {
+    if (!p) return '';
+    var bars = Array.isArray(p.bar) ? p.bar : [];
+    return '<div style="font-size:15px"><b>' + esc(ui('Штрихкоды', 'Штрихкодҳо', 'Shtrix-kodlar')) + ':</b> ' + (bars.length ? bars.map(function (b) { return esc(b) + ' <button type="button" data-shop="unbind" data-k="' + esc(b) + '" aria-label="' + esc(ui('Отвязать', 'Ҷудо кардан', 'Ajratish')) + ' ' + esc(b) + '" style="border:0;background:none;color:#c0392b;cursor:pointer;font:inherit">✕</button>'; }).join(' · ') : '<span style="opacity:.7">' + esc(ui('не привязаны', 'пайваст нестанд', 'bogʻlanmagan')) + '</span>') + '</div>' +
+      shBtn('scan', '📷 ' + ui('Привязать заводской штрихкод', 'Пайваст кардани штрихкоди заводӣ', 'Zavod shtrix-kodini bogʻlash'), { sec: true, st: 'min-height:44px' }, 'bindto');
+  }
   function shPrihod() {
     if (SH.cnt && SH.cnt.open) return shCnt();
     var D = SH.d, h = '', f = SH.form;
+    if (SH.bind && !f) h += shBindBox();
     if (f) {
       h += '<form data-shopform="save" style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(ui('Новый товар', 'Моли нав', 'Yangi tovar')) + '</b>' +
         shIn('sh-f-kod', ui('Код товара (буквы и цифры)', 'Рамзи мол (ҳарф ва рақам)', 'Tovar kodi (harf va raqam)'), f.kod, 'maxlength="20"') +
@@ -5113,7 +5146,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     } else if (SH.rcv) {
       var cur = shProd(SH.rcv.kod);
       h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b style="font-size:18px">' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) + ': ' + esc(cur ? cur.name : SH.rcv.kod) + ' <small>(' + esc(SH.rcv.kod) + ')</small></b>' + shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + shThumb(cur, 56) + shBtn('foto', '📷 ' + (cur && cur.foto ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'rcv') + '</div>') + '<b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + (cur ? '<small>' + esc(ui('Сейчас на складе: ', 'Ҳоло дар анбор: ', 'Hozir omborda: ')) + esc(shQ(cur, cur.qty)) + '</small>' : '') +
-        '<div style="font-size:17px">' + esc(ui('Себестоимость сейчас', 'Арзиши аслии ҳозира', 'Joriy tannarx')) + ': <b>' + esc(cur ? shMoney(cur.zakup) : '') + '</b> ' + esc(shZa1(cur)) + '</div>' + shRcvQty(cur) +
+        shBarsHtml(cur) + '<div style="font-size:17px">' + esc(ui('Себестоимость сейчас', 'Арзиши аслии ҳозира', 'Joriy tannarx')) + ': <b>' + esc(cur ? shMoney(cur.zakup) : '') + '</b> ' + esc(shZa1(cur)) + '</div>' + shRcvQty(cur) +
         '<label for="sh-r-zakup" style="font-size:15px;font-weight:600">' + esc(ui('Цена, по которой приняли', 'Нархе, ки қабул кардед', 'Qabul qilingan narx')) + ' (' + esc(shZa1(cur)) + ')</label>' + shIn('sh-r-zakup', ui('Цена приёма', 'Нархи қабул', 'Qabul narxi'), cur ? cur.zakup : '', 'inputmode="decimal"') +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
     } else {
@@ -5271,6 +5304,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'put') { SH.err = ''; SH.found = null; SH.ff = null; var pc = $s('sh-code'), pt = pc ? pc.value.trim().toLowerCase() : ''; shPut(k); SH.code = pt === String(k).toLowerCase() ? k : ''; render(); var c3 = $s('sh-code'); if (c3) c3.focus(); return; }
     if (a === 'print') return shPrintReceipt();
     if (a === 'scan') return shScanOpen(k);
+    if (a === 'bind') { if (SH.bind) shBind(k, SH.bind.code); return; }
+    if (a === 'bcancel') { SH.bind = null; return render(); }
+    if (a === 'bnew') { var bc0 = SH.bind && SH.bind.code; SH.bind = null; SH.fotoNew = ''; SH.rcv = null; SH.form = { kod: bc0 || '', name: '', zakup: '', marzha: '', sell: '', fsm: false }; return render(); }
+    if (a === 'unbind') { if (SH.rcv) shAct({ action: 'list', unbind_barcode: { kod: SH.rcv.kod, code: k, id: oid() } }, ui('Штрихкод отвязан', 'Штрихкод ҷудо шуд', 'Shtrix-kod ajratildi') + ': ' + k); return; }
     if (a === 'foto') { var fi = $s('sh-foto-in'); if (fi) { fi.dataset.k = k; fi.value = ''; fi.click(); } return; }
     if (a === 'rw') { try { lstore('ew_rw', String(k)); } catch (e) {} return render(); }
     if (a === 'who') { SH.who = k; SH.err = ''; render(); return; }
@@ -5367,6 +5404,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (t.id === 'sh-code' && e.type === 'input') { SH.code = t.value; SH.found = null; SH.ff = null; var hb = $s('sh-hints'); if (hb) hb.innerHTML = shHintsHtml(); return; }
     if (e.type === 'input' && t.dataset && t.dataset.cq) { var cp0 = shProd(t.dataset.cq), cv = shParse(t.value); if (cp0 && cv >= 0) { SH.cart.forEach(function (it) { if (it.kod === t.dataset.cq) { it.qty = shQR(shU(cp0), cv); var ls = $s('sh-ls-' + it.kod); if (ls) ls.innerHTML = shLineTxt(cp0, SH.pay === 'vladelec' ? cp0.zakup : cp0.price, it.qty); } }); var tt = $s('sh-total'); if (tt) { var tb = tt.querySelector('b'); if (tb) tb.textContent = money(shCartSum()) + ' ' + ui('сом.', 'сом.', 'som'); } } return; }
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); }
+    if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
     if (t.id === 'shx-who' && e.type === 'input') { SH.who = t.value; var wb = $s('sh-whohint'); if (wb) wb.innerHTML = shWhoHtml(); return; }
     if (e.type === 'input' && (t.id === 'sh-f-zakup' || t.id === 'sh-f-marzha' || t.id === 'sh-f-sell')) {
