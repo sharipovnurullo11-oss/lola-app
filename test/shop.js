@@ -14,6 +14,8 @@ function run(code, ctx, input, extra) {
 }
 // как в автоматизации: Решить → Анализ и пересчёт → Для продавца → (по фото: ИИ → Разобрать ответ) или запись строк
 function call(body, role, ai) {
+  // записи одной миллисекунды неотличимы по времени («с прошлой сдачи кассы»), поэтому каждый вызов — в новую миллисекунду
+  const t0 = Date.now(); while (Date.now() === t0);
   const ctx = { 'Магазин: запрос': [{ body }], 'Кабинет': [WHO[role || 'owner']], 'Сотрудники': [], 'Записи магазина': DB.slice() };
   let items = run(SOLVE, ctx); items = run(ANAL, ctx, items); items = run(VOZ, ctx, items); items = run(PROD, ctx, items);
   ctx['Для продавца'] = items.map((x) => x.json);
@@ -169,6 +171,25 @@ assert.ok(r.report.sdachi.find((x) => x.id === 'sdac000001').ok, 'руковод
 const n1 = DB.length; call({ action: 'sdacha_ok', sdacha: 'sdac000001', id: 'sdok000004' }); assert.equal(DB.length, n1, 'повторное подтверждение не пишет');
 r = call({ action: 'sdacha', id: 'sdac000002', fact: 0, date: TODAY }, 'seller2');
 assert.deepEqual([r.sdacha.expected, r.sdacha.by], [0, {}], 'новая смена начинается с нуля');
+// Внесение и изъятие наличных (№223): размен и «руководитель забрал» учитываются в «должно быть» при сдаче кассы.
+call({ action: 'sell', id: 'chkop0001', items: [{ kod: 'OLD1', qty: 5 }], pay: 'nal', date: TODAY }, 'seller2');
+assert.equal(call({ action: 'kassa', kind: 'in', id: 'kop0000001', amount: 50, note: 'размен', date: TODAY }, 'seller2').ok, true, 'продавец вносит размен');
+assert.equal(call({ action: 'kassa', kind: 'out', id: 'kop0000002', amount: 40, who: 'Зоир', note: 'забрал', date: TODAY }).ok, true, 'руководитель забрал из кассы Зоира');
+call({ action: 'kassa', kind: 'out', id: 'kop0000003', amount: 7, date: TODAY });
+assert.equal(call({ action: 'kassa', kind: 'out', id: 'kop0000004', amount: 1, date: TODAY }, 'keeper').ok, false, 'кладовщик кассой не распоряжается');
+assert.equal(call({ action: 'kassa', kind: 'x', id: 'kop0000005', amount: 1, date: TODAY }).error, 'выберите: внесли или взяли');
+assert.equal(call({ action: 'kassa', kind: 'in', id: 'kop0000006', amount: 0, date: TODAY }).error, 'неверная сумма');
+const n2 = DB.length; call({ action: 'kassa', kind: 'in', id: 'kop0000001', amount: 50, date: TODAY }, 'seller2'); assert.equal(DB.length, n2, 'повтор не задваивает');
+r = call({ action: 'list' });
+assert.deepEqual(r.report.kassa.filter((x) => x.who === 'Зоир').map((x) => [x.kind, x.sum]).sort(), [['in', 50], ['out', 40]], 'в отчёте внесли и взяли');
+assert.ok(r.report.kassa.some((x) => x.who === 'Руководитель' && x.sum === 7), 'без имени — касса руководителя');
+r = call({ action: 'void', id: 'kop0000002' });
+assert.ok(r.ok && !r.report.kassa.some((x) => x.id === 'kop0000002'), 'изъятие можно отменить');
+call({ action: 'kassa', kind: 'out', id: 'kop0000007', amount: 30, who: 'Зоир', date: TODAY });
+r = call({ action: 'sdacha', id: 'sdac000003', fact: 80, date: TODAY }, 'seller2');
+assert.deepEqual([r.sdacha.expected, r.sdacha.vnes, r.sdacha.vzyal, r.sdacha.diff], [80, 50, 30, 0], 'должно 60 продаж + 50 размен − 30 забрал = 80, всё сходится');
+ok('внесение и изъятие наличных в смене');
+for (const need of ['function shKopBox(', "action: 'kassa', kind: SH.kKind"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
 const { textFor } = await import('../push.js');
 assert.deepEqual(textFor({ kind: 'sdacha', who: 'Зоир', sum: 14, exp: 16, diff: -2, by: { nal: 16, alif: 12, dolg: 12, x: 5 } }), { title: 'Касса сдана: Зоир', body: 'Сдал 14, должно 16 — недостача 2 сомони. Смена: наличные 16, Алиф 12, в долг 12' });
 assert.equal(textFor({ kind: 'sdacha', who: 'Зоир', sum: 5, exp: 5, diff: 0, by: '<b>' }).body, 'Сдал 5, должно 5 — всё сходится');
