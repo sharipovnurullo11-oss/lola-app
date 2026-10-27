@@ -136,9 +136,9 @@ export const server = http.createServer(async (req, res) => {
       if (!PUSH) return send(503, '{"ok":false}', { 'Content-Type': 'application/json' });
       if (tooMany('push|' + clientIp(req), 40, 60_000)) return send(429, '{"ok":false}', { 'Content-Type': 'application/json' });
       let j = {}; try { j = JSON.parse((await readRaw(req, 4000)).toString('utf8')); } catch { return send(400, '{"ok":false}', { 'Content-Type': 'application/json' }); }
-      if (p === '/push/sub') return send(200, JSON.stringify({ ok: PUSH.subscribe(j.code, j.sub) }), { 'Content-Type': 'application/json' });
+      if (p === '/push/sub') return send(200, JSON.stringify({ ok: PUSH.subscribe(j.code, j.sub, j.lang) }), { 'Content-Type': 'application/json' });
       const t = textFor(j || {}); if (!t) return send(200, '{"ok":true,"sent":0}', { 'Content-Type': 'application/json' });
-      return send(200, JSON.stringify({ ok: true, sent: await PUSH.notify(j.code, t) }), { 'Content-Type': 'application/json' });
+      return send(200, JSON.stringify({ ok: true, sent: await PUSH.notify(j.code, (lang) => textFor(j, lang) || t) }), { 'Content-Type': 'application/json' });
     }
 
     // Частота запросов с одного адреса: общая, на изменения и на вход/регистрацию

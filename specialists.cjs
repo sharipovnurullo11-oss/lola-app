@@ -401,7 +401,7 @@ if (S.view === 'mkt') return renderMkt(el);
       return fetch('/push/key', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
         if (!j || !j.key) return say(ui('Сервер пока не готов к уведомлениям. Попробуйте позже.', 'Сервер ҳоло омода нест.', 'Server hali tayyor emas.'));
         return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKey(j.key) }); }).then(function (sub) {
-          return fetch('/push/sub', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: store('ew_cab') || '', sub: sub.toJSON() }) }).then(function (r) { return r.json(); }).then(function (x) {
+          return fetch('/push/sub', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: store('ew_cab') || '', sub: sub.toJSON(), lang: (window.LANG === 'tg' ? 'tg' : 'ru') }) }).then(function (r) { return r.json(); }).then(function (x) {
             say(x && x.ok ? ui('Готово: уведомления включены на этом телефоне.', 'Тайёр: огоҳинома фаъол шуд.', 'Tayyor: bildirishnoma yoqildi.') : ui('Не удалось сохранить подписку.', 'Обуна захира нашуд.', 'Obuna saqlanmadi.'));
           });
         });
