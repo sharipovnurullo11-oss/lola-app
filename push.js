@@ -72,6 +72,22 @@ export function textFor(ev, lang) {
     const items = (Array.isArray(ev.items) ? ev.items : []).slice(0, 3).map((x) => String((x && x.name) || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40) + ' — ' + q(x && x.qty) + t(' из ', ' аз ') + q(x && x.min)).filter((x) => x.length > 3);
     return { title: t('Заканчивается товар: ', 'Мол тамом шуда истодааст: ') + n, body: (items.join(' · ') || t('Откройте «Анализ» → «Заказать»', '«Таҳлил» → «Фармоиш»-ро кушоед')) + (n > items.length && items.length ? t(' и ещё ', ' ва боз ') + (n - items.length) : '') };
   }
+  // Итоги дня магазина вечером: выручка по способам оплаты, долги, сдачи кассы, незакрытые смены.
+  if (ev.kind === 'itogi') {
+    const d = /^\d{4}-(\d{2})-(\d{2})$/.exec(String(ev.date || ''));
+    const by = ev.by && typeof ev.by === 'object' ? ev.by : {};
+    // продажи в долг показываем отдельно («новые долги»), в разбивке выручки — только деньги
+    const NAMES = tg ? { nal: 'нақд', alif: 'Алиф', dushanbe: 'Душанбе Сити', perevod: 'интиқол' } : { nal: 'нал', alif: 'Алиф', dushanbe: 'Душанбе Сити', perevod: 'перевод' };
+    const pays = Object.keys(NAMES).filter((k) => Number(by[k])).map((k) => NAMES[k] + ' ' + money(by[k]));
+    const parts = [t('Выручка ', 'Даромад ') + money(ev.revenue) + (pays.length ? ' (' + pays.join(', ') + ')' : '')];
+    if (Number(ev.debtNew)) parts.push(t('новые долги ', 'қарзи нав ') + money(ev.debtNew));
+    if (Number(ev.debtPaid)) parts.push(t('оплатили долги ', 'қарз пардохт шуд ') + money(ev.debtPaid));
+    const df = Math.round((Number(ev.diff) || 0) * 100) / 100;
+    if (Number(ev.sdachi)) parts.push(t('касса: ', 'касса: ') + (Math.abs(df) < 0.005 ? t('всё сходится', 'ҳама мувофиқ') : (df < 0 ? t('недостача ', 'камомад ') : t('излишек ', 'зиёдатӣ ')) + money(Math.abs(df))));
+    const open = (Array.isArray(ev.open) ? ev.open : []).slice(0, 5).map((n) => String(n || '').replace(/[\u0000-\u001f<>]/g, '').slice(0, 30)).filter(Boolean);
+    if (open.length) parts.push(t('смена не закрыта: ', 'смена пӯшида нашуд: ') + open.join(', '));
+    return { title: t('Итоги дня', 'Ҷамъбасти рӯз') + (d ? ' ' + d[2] + '.' + d[1] : ''), body: parts.join(' · ') };
+  }
   // Утренние напоминания проката: только числа, текст собирает сервер.
   if (ev.kind === 'prokat_remind') {
     const n = (x) => Math.max(0, Math.min(999, Math.round(Number(x) || 0)));
