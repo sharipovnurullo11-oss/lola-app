@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const ok = (n) => console.log('ok -', n);
 const rd = (f) => fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-const SOLVE = rd('n8n/magazin/reshit.js'), ANAL = rd('n8n/magazin/analiz.js'), PROD = rd('n8n/magazin/dlya-prodavca.js'), FOTO = rd('n8n/magazin/foto-razobrat.js'), BAR = rd('n8n/magazin/shtrihkody.js');
+const SOLVE = rd('n8n/magazin/reshit.js'), ANAL = rd('n8n/magazin/analiz.js'), PROD = rd('n8n/magazin/dlya-prodavca.js'), FOTO = rd('n8n/magazin/foto-razobrat.js'), BAR = rd('n8n/magazin/shtrihkody.js'), VOZ = rd('n8n/magazin/vozvrat.js');
 const KOD = 'ktestkabinet0000000000';
 const WHO = { owner: { ok: true, kod: KOD, role: 'owner', who: '' }, seller: { ok: true, kod: KOD, role: 'staff', srole: 'prodavec', who: 'Маруф' }, keeper: { ok: true, kod: KOD, role: 'staff', srole: 'kladovshchik', who: 'Али' } };
 const DB = []; let nid = 1;
@@ -15,7 +15,7 @@ function run(code, ctx, input, extra) {
 // как в автоматизации: Решить → Анализ и пересчёт → Для продавца → (по фото: ИИ → Разобрать ответ) или запись строк
 function call(body, role, ai) {
   const ctx = { 'Магазин: запрос': [{ body }], 'Кабинет': [WHO[role || 'owner']], 'Сотрудники': [], 'Записи магазина': DB.slice() };
-  let items = run(SOLVE, ctx); items = run(ANAL, ctx, items); items = run(PROD, ctx, items);
+  let items = run(SOLVE, ctx); items = run(ANAL, ctx, items); items = run(VOZ, ctx, items); items = run(PROD, ctx, items);
   ctx['Для продавца'] = items.map((x) => x.json);
   items = run(BAR, ctx, items);
   if (items[0].json.vision) return run(FOTO, ctx, null, ai(items[0].json.vision))[0].json.resp;
@@ -120,4 +120,36 @@ ok('заводские штрихкоды: привязка, один код —
 const W = rd('specialists.cjs');
 for (const need of ['function shHasBar(', 'bind_barcode', 'unbind_barcode', "'code_39'", "'itf'", "'data_matrix'", 'getSupportedFormats', "mode === 'bindto'", 'function shBindBox(']) assert.ok(W.includes(need), 'нет в экране: ' + need);
 ok('экран: поиск по штрихкоду, привязка при скане, больше форматов');
+// Возврат по чеку (узел «Возврат»): часть позиций, по цене продажи, товар на склад, деньги тем же способом.
+r = call({ action: 'list' });
+const cemQ = P(r, 'CEM').qty, TODAY = '2026-10-27';
+r = call({ action: 'sell', id: 'chekret001', items: [{ kod: 'CEM', qty: 3 }, { kod: 'OLD1', qty: 2 }], pay: 'nal', date: TODAY }, 'seller');
+const rev0 = call({ action: 'list', month: '2026-10' }).report.revenue;
+r = call({ action: 'chek_get', chek: 'chekret001' }, 'seller');
+assert.deepEqual(r.chek.lines.map((l) => [l.kod, l.qty, l.left]), [['CEM', 3, 3], ['OLD1', 2, 2]], 'чек с позициями');
+assert.equal(call({ action: 'chek_get', chek: 'ret001' }, 'seller').chek.id, 'chekret001', 'чек находится по последним 6 знакам');
+assert.equal(call({ action: 'chek_get', chek: 'nettakogo' }, 'seller').ok, false);
+assert.equal(call({ action: 'chek_get', chek: 'chekret001' }, 'keeper').ok, false, 'кладовщик возврат не оформляет');
+r = call({ action: 'vozvrat', chek: 'chekret001', id: 'vozv000001', date: TODAY, items: [{ kod: 'CEM', qty: 4 }] }, 'seller');
+assert.ok(!r.ok && /не больше 3/.test(r.error), 'больше купленного не вернуть');
+r = call({ action: 'vozvrat', chek: 'chekret001', id: 'vozv000002', date: TODAY, items: [{ kod: 'CEM', qty: 1 }] }, 'seller');
+assert.deepEqual([r.ok, r.vozvrat.total, r.vozvrat.pay, r.vozvrat.from], [true, 3, 'nal', 'chekret001'], 'вернули 1 кг цемента по цене продажи наличными');
+r = call({ action: 'list', month: '2026-10' });
+assert.equal(P(r, 'CEM').qty, Math.round((cemQ - 3 + 1) * 1000) / 1000, 'товар вернулся на склад');
+assert.equal(r.report.revenue, Math.round((rev0 - 3) * 100) / 100, 'выручка уменьшилась на сумму возврата');
+assert.ok(r.report.checks.some((c) => c.total === -3), 'в списке чеков есть возврат с минусом');
+assert.equal(call({ action: 'chek_get', chek: 'chekret001' }, 'seller').chek.lines[0].left, 2, 'осталось вернуть 2');
+const n0 = DB.length;
+call({ action: 'vozvrat', chek: 'chekret001', id: 'vozv000002', date: TODAY, items: [{ kod: 'CEM', qty: 1 }] }, 'seller');
+assert.equal(DB.length, n0, 'повтор не задваивает');
+r = call({ action: 'sell', id: 'chekret002', items: [{ kod: 'OLD1', qty: 2 }], pay: 'dolg', who: 'Карим', date: TODAY }, 'seller');
+const d0 = call({ action: 'list' }).debts.find((d) => d.name === 'Карим').sum;
+call({ action: 'vozvrat', chek: 'chekret002', id: 'vozv000003', date: TODAY, items: [{ kod: 'OLD1', qty: 1 }] }, 'seller');
+assert.equal(call({ action: 'list' }).debts.find((d) => d.name === 'Карим').sum, Math.round(d0 / 2 * 100) / 100, 'возврат долговой покупки уменьшает долг');
+r = call({ action: 'void', id: DB.filter((x) => x.oid === 'vozv000002l0')[0].chek });
+assert.equal(r.ok, true, 'возврат можно отменить');
+assert.equal(call({ action: 'chek_get', chek: 'chekret001' }, 'seller').chek.lines[0].left, 3, 'после отмены возврата снова можно вернуть 3');
+ok('возврат по чеку: часть позиций, склад, выручка, долг, повтор, отмена');
+for (const need of ["action: 'chek_get'", "action: 'vozvrat'", 'function shRetBox(', 'function shCode128(', "rc = { id: SH.cid"]) assert.ok(W.includes(need), 'нет в экране: ' + need);
+ok('экран возврата и номер чека со штрихкодом на печатном чеке');
 console.log('SHOP PASSED');
