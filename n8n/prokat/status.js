@@ -1,6 +1,6 @@
 // Цветной статус инструмента на пункте (иконки и карточка инструмента) и доход по нему за месяц.
 // 🟢 ok — работает, 🟡 repair — увезён на склад в ремонт, 🔴 broken — сломан, 🔴 lost — потерян (на объезде «нет»),
-// ⚪ pickup — сломан больше 14 дней, нужно забрать; moved — весь перевезён на другой пункт, sklad — весь на складе исправный.
+// ⚪ pickup — сломан больше 14 дней, нужно забрать; moved — весь перевезён на другой пункт, sold — продан, sklad — весь на складе исправный.
 const items = $input.all();
 const first = items[0] && items[0].json;
 // Инструмент без фото приходит готовым ответом (skip) — статус добавляем прямо в ответ.
@@ -24,6 +24,7 @@ const statusOf = (name, qty) => {
   if (!(qty > 0)) {
     const mv = moves.filter(m => norm(m.instrument) === k).pop();
     if (!mv) return res('', '');
+    if (String(mv.v) === 'Продан') return res('sold', 'продан' + (Number(mv.cena) > 0 ? ' за ' + num(mv.cena) + ' смн' : ''));
     if (String(mv.v) !== 'Склад') return res('moved', 'перевезён: ' + mv.v);
     const st = String(mv.sostoyanie || '');
     return st === 'починен' ? res('sklad', 'на складе') : res('repair', 'на складе: ' + (st || 'в ремонте'));

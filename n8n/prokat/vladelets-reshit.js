@@ -6,6 +6,16 @@ const out = (resp, extra) => [{ json: Object.assign({ op: 'none', photos: [], re
 const token = String(B.token || '');
 const me = token.length >= 20 ? R('Владелец по ссылке').find(r => String(r.token) === token && r.aktivno !== false) : null;
 if (!me) return out({ ok: false, error: 'ссылка не подходит' });
+// PIN пункта (4 цифры), если Нурулло его задал: без верного PIN окно не открывается.
+// После 10 неверных PIN ссылка закрыта, пока Нурулло не задаст PIN заново (счётчик pin_oshibki).
+if (/^\d{4}$/.test(String(me.pin || ''))) {
+  const fails = Number(me.pin_oshibki) || 0;
+  if (fails >= 10) return out({ ok: false, need_pin: true, locked: true, error: 'PIN заблокирован после 10 ошибок. Позвоните Нурулло.' });
+  if (String(B.pin || '') !== String(me.pin)) {
+    if (!B.pin) return out({ ok: false, need_pin: true, error: 'введите PIN' });
+    return out({ ok: false, need_pin: true, error: 'Неверный PIN. Осталось попыток: ' + (9 - fails) }, { op: 'pin_fail', pin_row: me.id, fails: fails + 1 });
+  }
+}
 const point = String(me.tochka);
 { const sh = {}; R('Доли пунктов').sort((a, b) => Number(a.id) - Number(b.id)).forEach(r => { const p = Number(r.dolya), k = String(r.tochka); if (p === -1 && k !== '*') delete sh[k]; else if (p >= 0 && p <= 100) sh[k] = p; }); PCT = sh[point] != null ? sh[point] : sh['*'] != null ? sh['*'] : 20; }
 const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
