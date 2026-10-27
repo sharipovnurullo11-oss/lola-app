@@ -5385,9 +5385,81 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (pl.length) h += '<h3 style="margin-top:14px">' + esc(ui('Выплаты', 'Супоришҳо', 'Toʻlovlar')) + '</h3>' + pl.map(function (x) { var ask = SH.voidAsk === x.id; return '<div style="padding:6px 0;border-bottom:1px solid #eee;display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><small>' + esc(x.date) + ' · ' + esc(x.who) + ' · ' + esc(kn[x.kind] || x.kind) + '</small></div><b>' + esc(money(cents(x.sum))) + '</b>' + shBtn('void', ask ? ui('Точно?', 'Боварӣ?', 'Aniqmi?') : '×', { sec: true, st: 'width:56px;padding:0' }, x.id) + '</div>'; }).join('');
     return h;
   }
+  // Файл Excel (.xlsx) без сторонних библиотек: несколько листов, первая строка жирная. Zip без сжатия (stored) с CRC32.
+  // sheets = [{ name, rows: [[ячейка, …], …] }]; число — числовая ячейка, остальное — текст.
+  function xlsxBlob(sheets) {
+    var enc = new TextEncoder(), xe = function (v) { return String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var col = function (i) { var c = ''; i++; while (i > 0) { var m = (i - 1) % 26; c = String.fromCharCode(65 + m) + c; i = Math.floor((i - 1) / 26); } return c; };
+    var files = [];
+    var add = function (name, text) { files.push({ name: name, data: enc.encode(text) }); };
+    var X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    add('[Content_Types].xml', X + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '</Types>');
+    add('_rels/.rels', X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    add('xl/workbook.xml', X + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + sheets.map(function (s, i) { return '<sheet name="' + xe(String(s.name).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets></workbook>');
+    add('xl/_rels/workbook.xml.rels', X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    add('xl/styles.xml', X + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+    sheets.forEach(function (s, i) {
+      var w = [];
+      s.rows.forEach(function (r) { r.forEach(function (v, j) { w[j] = Math.max(w[j] || 8, Math.min(50, String(v == null ? '' : v).length + 2)); }); });
+      var cols = w.length ? '<cols>' + w.map(function (x, j) { return '<col min="' + (j + 1) + '" max="' + (j + 1) + '" width="' + x + '" customWidth="1"/>'; }).join('') + '</cols>' : '';
+      var data = s.rows.map(function (r, ri) {
+        return '<row r="' + (ri + 1) + '">' + r.map(function (v, j) {
+          var ref = col(j) + (ri + 1), st = s.bold && s.bold.indexOf(ri) >= 0 ? ' s="1"' : '';
+          if (typeof v === 'number' && isFinite(v)) return '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>';
+          if (v == null || v === '') return '';
+          return '<c r="' + ref + '"' + st + ' t="inlineStr"><is><t xml:space="preserve">' + xe(v) + '</t></is></c>';
+        }).join('') + '</row>';
+      }).join('');
+      add('xl/worksheets/sheet' + (i + 1) + '.xml', X + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + cols + '<sheetData>' + data + '</sheetData></worksheet>');
+    });
+    var T = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; T[n] = c >>> 0; }
+    var crc = function (b) { var c = 0xFFFFFFFF; for (var q = 0; q < b.length; q++) c = T[(c ^ b[q]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+    var parts = [], central = [], off = 0;
+    var u16 = function (v) { return [v & 255, (v >>> 8) & 255]; }, u32 = function (v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; };
+    files.forEach(function (f) {
+      var nm = enc.encode(f.name), c = crc(f.data), sz = f.data.length;
+      var head = [].concat(u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0x21), u32(c), u32(sz), u32(sz), u16(nm.length), u16(0));
+      parts.push(new Uint8Array(head), nm, f.data);
+      central.push(new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0x21), u32(c), u32(sz), u32(sz), u16(nm.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(off))), nm);
+      off += head.length + nm.length + sz;
+    });
+    var csz = central.reduce(function (s, b) { return s + b.length; }, 0);
+    var end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(csz), u32(off), u16(0)));
+    return new Blob(parts.concat(central, [end]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  function saveBlob(blob, name) {
+    var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; a.style.display = 'none'; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 4000);
+  }
+  // Отчёт магазина за месяц в Excel (№251): по дням, продажи, приём товара, долги, касса.
+  function shExportXlsx(r) {
+    var E = r.export, R = r.report || {}, num = function (x) { return Math.round((Number(x) || 0) * 100) / 100; };
+    var PN = { nal: ui('наличные', 'нақд', 'naqd'), alif: 'Алиф', dushanbe: 'Душанбе Сити', perevod: ui('перевод', 'интиқол', 'oʻtkazma'), mix: ui('смешанная', 'омехта', 'aralash'), dolg: ui('в долг', 'қарз', 'qarzga'), vladelec: ui('шеф взял', 'роҳбар гирифт', 'rahbar oldi'), 'in': ui('внесли', 'гузоштанд', 'qoʻyildi'), out: ui('взяли', 'гирифтанд', 'olindi') };
+    var pn = function (p) { return PN[p] || p || ''; };
+    var D = R.days || {}, dk = Object.keys(D).sort(), tot = [0, 0, 0, 0, 0, 0, 0];
+    var dayRows = dk.map(function (d) { var x = D[d], v = [x.sold, x.cashIn, x.debtNew, x.profit, x.purchase, x.salary, x.pers].map(num); v.forEach(function (n, i) { tot[i] += n; }); return [d].concat(v); });
+    var days = { name: ui('По дням', 'Аз рӯи рӯз', 'Kunlar'), bold: [0, dayRows.length + 1], rows: [[ui('Дата', 'Сана', 'Sana'), ui('Продано', 'Фурӯхта шуд', 'Sotildi'), ui('Пришло денег', 'Пул омад', 'Pul keldi'), ui('Новые долги', 'Қарзи нав', 'Yangi qarz'), ui('Прибыль', 'Фоида', 'Foyda'), ui('Закупка', 'Харид', 'Xarid'), ui('Зарплата', 'Маош', 'Maosh'), ui('Личные расходы', 'Хароҷоти шахсӣ', 'Shaxsiy xarajat')]].concat(dayRows, [[ui('Итого', 'Ҳамагӣ', 'Jami')].concat(tot.map(num))]) };
+    var sales = { name: ui('Продажи', 'Фурӯш', 'Sotuv'), bold: [0], rows: [[ui('Дата', 'Сана', 'Sana'), ui('Чек', 'Чек', 'Chek'), ui('Код', 'Рамз', 'Kod'), ui('Товар', 'Мол', 'Tovar'), ui('Кол-во', 'Миқдор', 'Miqdor'), ui('Цена', 'Нарх', 'Narx'), ui('Сумма', 'Маблағ', 'Summa'), ui('Закупка', 'Харид', 'Xarid'), ui('Оплата', 'Пардохт', 'Toʻlov'), ui('Покупатель', 'Харидор', 'Xaridor'), ui('Продавец', 'Фурӯшанда', 'Sotuvchi')]].concat((E.sales || []).map(function (x) { return [x.date, String(x.chek).slice(-8), x.kod, x.name, x.qty, num(x.price), num(x.sum), num(x.zakup), pn(x.pay) + (x.parts ? ' (' + String(x.parts).split(', ').map(function (t) { var m = t.split(' '); return pn(m[0]) + ' ' + (m[1] || ''); }).join(', ') + ')' : '') + (x.qty < 0 ? ' · ' + ui('возврат', 'баргардон', 'qaytarish') : ''), x.who, x.seller || ui('руководитель', 'роҳбар', 'rahbar')]; })) };
+    var rec = { name: ui('Приём товара', 'Қабули мол', 'Tovar qabuli'), bold: [0], rows: [[ui('Дата', 'Сана', 'Sana'), ui('Код', 'Рамз', 'Kod'), ui('Товар', 'Мол', 'Tovar'), ui('Кол-во', 'Миқдор', 'Miqdor'), ui('Цена приёма', 'Нархи қабул', 'Qabul narxi'), ui('Сумма', 'Маблағ', 'Summa'), ui('Поставщик', 'Таъминкунанда', 'Taʼminotchi'), ui('Оплата', 'Пардохт', 'Toʻlov'), ui('Принял', 'Қабул кард', 'Qabul qildi'), ui('Поправка', 'Ислоҳ', 'Tuzatish')]].concat((E.receipts || []).map(function (x) { return [x.date, x.kod, x.name, x.qty, num(x.zakup), num(x.sum), x.post, pn(x.pay), x.who, x.fix ? ui('да', 'ҳа', 'ha') : '']; })) };
+    var dr = [[ui('Нам должны (покупатели)', 'Ба мо қарздоранд (харидорон)', 'Bizga qarz (xaridorlar)'), '', ''], [ui('Кто', 'Кӣ', 'Kim'), ui('Сумма', 'Маблағ', 'Summa'), ui('С какого числа', 'Аз кадом сана', 'Qaysi sanadan')]], bold = [0, 1];
+    (r.debts || []).forEach(function (c) { dr.push([c.owner ? ui('Владелец', 'Соҳиб', 'Egasi') : c.name, num(c.sum), c.since]); });
+    dr.push([]); bold.push(dr.length); dr.push([ui('Магазин должен (поставщики)', 'Мағоза қарздор (таъминкунандагон)', 'Doʻkon qarzdor (taʼminotchilar)'), '', '']); bold.push(dr.length); dr.push([ui('Кому', 'Ба кӣ', 'Kimga'), ui('Сумма', 'Маблағ', 'Summa'), ui('С какого числа', 'Аз кадом сана', 'Qaysi sanadan')]);
+    (R.postDebts || []).forEach(function (c) { dr.push([c.name, num(c.sum), c.since]); });
+    dr.push([]); bold.push(dr.length); dr.push([ui('Оплаты долгов за месяц', 'Пардохти қарзҳо дар моҳ', 'Oy davomida qarz toʻlovlari'), '', '']); bold.push(dr.length); dr.push([ui('Дата', 'Сана', 'Sana'), ui('Кто', 'Кӣ', 'Kim'), ui('Сумма', 'Маблағ', 'Summa')]);
+    (E.debtPays || []).forEach(function (x) { dr.push([x.date, x.who, num(x.sum)]); });
+    (R.postPays || []).forEach(function (x) { dr.push([x.date, ui('поставщику ', 'ба таъминкунанда ', 'taʼminotchiga ') + x.who + ' (' + pn(x.pay) + ')', -num(x.sum)]); });
+    var kr = [[ui('Сдача кассы', 'Супоридани касса', 'Kassa topshirish'), '', '', '', ''], [ui('Дата', 'Сана', 'Sana'), ui('Кто', 'Кӣ', 'Kim'), ui('Должно быть', 'Бояд бошад', 'Boʻlishi kerak'), ui('Сдал', 'Супорид', 'Topshirdi'), ui('Разница', 'Фарқ', 'Farq')]], kb = [0, 1];
+    (R.sdachi || []).slice().reverse().forEach(function (x) { kr.push([x.date, x.who, num(x.exp), num(x.fact), num(x.diff)]); });
+    kr.push([]); kb.push(kr.length); kr.push([ui('Внесли и взяли из кассы', 'Ба касса гузоштанд ва гирифтанд', 'Kassaga qoʻyildi va olindi'), '', '', '', '']); kb.push(kr.length); kr.push([ui('Дата', 'Сана', 'Sana'), ui('Чья касса', 'Кассаи кӣ', 'Kimning kassasi'), ui('Что', 'Чӣ', 'Nima'), ui('Сумма', 'Маблағ', 'Summa'), ui('Пояснение', 'Шарҳ', 'Izoh')]);
+    (R.kassa || []).slice().reverse().forEach(function (x) { kr.push([x.date, x.who, pn(x.kind), x.kind === 'out' ? -num(x.sum) : num(x.sum), x.note]); });
+    kr.push([]); kb.push(kr.length); kr.push([ui('Личные расходы продавцов', 'Хароҷоти шахсии фурӯшандагон', 'Sotuvchilarning shaxsiy xarajatlari'), '', '', '', '']); kb.push(kr.length); kr.push([ui('Дата', 'Сана', 'Sana'), ui('Кто', 'Кӣ', 'Kim'), ui('На что', 'Барои чӣ', 'Nimaga'), ui('Сумма', 'Маблағ', 'Summa'), '']);
+    (R.expList || []).slice().reverse().forEach(function (x) { kr.push([x.date, x.who, x.note, num(x.sum), '']); });
+    return xlsxBlob([days, sales, rec, { name: ui('Долги', 'Қарзҳо', 'Qarzlar'), bold: bold, rows: dr }, { name: ui('Касса', 'Касса', 'Kassa'), bold: kb, rows: kr }]);
+  }
   function shOtchet() {
     var R = SH.d.report, h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">' + shBtn('mprev', '‹', { sec: true, st: 'width:56px;padding:0' }) + '<b>' + esc(monthName(R.month)) + '</b>' + shBtn('mnext', '›', { sec: true, st: 'width:56px;padding:0' }) + '</div>';
     var cell = function (l, v, c) { return '<div style="padding:10px;border:1px solid #e0e0e0;border-radius:10px"><small>' + esc(l) + '</small><div style="font-size:20px;font-weight:700;' + (c ? 'color:' + c : '') + '">' + esc(money(cents(v))) + '</div></div>'; };
+    h += shBtn('xlsx', '📥 ' + (SH.xBusy ? TX('Загрузка…') : ui('Скачать отчёт за месяц в Excel', 'Ҳисоботи моҳро ба Excel гирифтан', 'Oylik hisobotni Excel’ga yuklash')), { sec: true, st: 'width:100%;margin:0 0 10px' });
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + cell(ui('Выручка', 'Даромад', 'Tushum'), R.revenue) + cell(ui('Прибыль', 'Фоида', 'Foyda'), R.profit, '#1f8a4c') + cell(ui('Шеф Шамсуло взял', 'Роҳбар гирифт', 'Rahbar oldi'), R.owner, '#b36b00') + cell(ui('Долги всего', 'Қарзҳо ҳамагӣ', 'Jami qarz'), R.debt, '#c0392b') + '</div>';
     if (R.expenses > 0) {
       h += '<h3 style="margin-top:14px">' + esc(ui('Личные расходы продавцов', 'Хароҷоти шахсии фурӯшандагон', 'Sotuvchilarning shaxsiy xarajatlari')) + ': ' + esc(money(cents(R.expenses))) + '</h3>';
@@ -5476,6 +5548,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'echip') { var ew = $s('sh-e-who'); if (ew) { ew.value = k; ew.focus(); } return; }
     // введённое в форме «внёс / взял» не теряется, когда экран перерисовывается
     var kKeep = function () { var g = function (id) { var e = $s(id); return e ? e.value : ''; }; SH.kv = { amt: g('sh-k-amt'), note: g('sh-k-note'), who: g('sh-k-who') }; };
+    if (a === 'xlsx') {
+      if (SH.xBusy) return; SH.xBusy = true; SH.err = ''; SH.ok = ''; render();
+      var xm = (SH.d && SH.d.report && SH.d.report.month) || SH.month;
+      return callTo('/magazin', { action: 'export', month: xm }).then(function (r) {
+        SH.xBusy = false;
+        if (!r || !r.ok || !r.export) { SH.err = (r && r.error) || TX('Не удалось записать'); return render(); }
+        try { saveBlob(shExportXlsx(r), 'otchet-' + r.export.month + '.xlsx'); SH.ok = ui('Файл отчёта скачан', 'Файли ҳисобот гирифта шуд', 'Hisobot fayli yuklandi'); } catch (e) { SH.err = ui('Не получилось сделать файл', 'Файл сохта нашуд', 'Fayl yaratilmadi'); }
+        render();
+      }).catch(function () { SH.xBusy = false; SH.err = TX('нет связи'); render(); });
+    }
     if (a === 'ihour') { if (SH.busy) return; return shAct({ action: 'itogi_time', hour: Number(k) }, ui('Запасное время итогов: ', 'Вақти эҳтиётии ҷамъбаст: ', 'Zaxira vaqti: ') + k + ':00'); }
     if (a === 'kopen') { SH.kOpen = !SH.kOpen; SH.kKind = ''; SH.kv = null; SH.err = ''; return render(); }
     if (a === 'kkind') { kKeep(); SH.kKind = k; SH.err = ''; return render(); }
