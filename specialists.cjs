@@ -2562,6 +2562,11 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shNumTxt(n) { return String(n).replace('.', ','); }
   function shPer(p) { return p && Number(p.per) > 0 && shU(p) !== 'sht' ? Number(p.per) : 0; }
   function shQ(p, q) { var u = shU(p), n = shQR(u, q), per = shPer(p), t = shNumTxt(n) + ' ' + shUL(u); if (per && Math.abs(n) >= per) t += ' (≈' + shNumTxt(Math.floor(Math.abs(n) / per * 10) / 10) + ' ' + ui('шт', 'дона', 'dona') + ')'; return t; }
+  // Рулон/штука целиком: закупка и продажа за весь рулон (цена за метр × метров в рулоне).
+  function shRollLine(p) {
+    var per = shPer(p); if (!per) return '';
+    return ui('Рулон', 'Рулон', 'Rulon') + ' (' + shNumTxt(per) + ' ' + shUL(shU(p)) + '): ' + ui('закупка ', 'харид ', 'xarid ') + shMoney(shR2(p.zakup * per)) + ' · ' + ui('продажа ', 'фурӯш ', 'sotuv ') + shMoney(shR2(p.price * per));
+  }
   function shZa(p) { return shU(p) === 'sht' ? '' : ' ' + ui('за ', 'барои ', '') + shUL(shU(p)) + ui('', '', ' uchun'); }
   function shStep(p) { return shPer(p) || 1; }
   function shLineSum(price, q) { return Math.round(cents(price) * Number(q)); }
@@ -2791,7 +2796,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var line = null; SH.cart.forEach(function (it) { if (it.kod === exact.kod) line = it; });
       return '<button type="button" class="btn sec" data-shop="put" data-k="' + esc(exact.kod) + '" style="display:block;width:100%;height:auto;text-align:left;padding:14px;margin:8px 0">' +
         '<small style="opacity:.75">' + esc(ui('Код ', 'Рамз ', 'Kod ')) + esc(exact.kod) + '</small><br><b style="font-size:20px">' + esc(exact.name) + '</b><br>' +
-        '<span style="font-size:18px">' + esc(shMoney(exact.price)) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy')) + esc(shZa(exact)) + '</span><br>' +
+        '<span style="font-size:18px">' + esc(shMoney(exact.price)) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy')) + esc(shZa(exact)) + '</span><br>' + (shPer(exact) ? '<small>' + esc(ui('Рулон (', 'Рулон (', 'Rulon (') + shNumTxt(shPer(exact)) + ' ' + shUL(shU(exact)) + '): ' + shMoney(shR2(exact.price * shPer(exact)))) + '</small><br>' : '') +
         '<small style="opacity:.75">' + esc(ui('Осталось ', 'Боқимонда ', 'Qoldi ')) + esc(shQ(exact, exact.qty)) + ' · ' + esc(line ? ui('В корзине: ', 'Дар сабад: ', 'Savatda: ') + shQ(exact, line.qty) + '. ' + ui('Нажмите ещё раз, чтобы добавить.', 'Боз пахш кунед, то илова шавад.', 'Yana bossangiz, qoʻshiladi.') : ui('Нажмите на карточку, чтобы добавить.', 'Барои илова кардан ба корт пахш кунед.', 'Qoʻshish uchun kartani bosing.')) + '</small></button>';
     }
     var r = D.products.filter(function (p) { return p.kod.toLowerCase().indexOf(t) === 0 || p.name.toLowerCase().indexOf(t) >= 0; }).slice(0, 8);
@@ -2971,8 +2976,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var u = SH_U[f.unit] ? f.unit : 'sht';
     return '<label for="sh-f-unit" style="font-size:15px;font-weight:600">' + esc(ui('Как продаётся (единица)', 'Чӣ тавр фурӯхта мешавад (воҳид)', 'Qanday sotiladi (birlik)')) + '</label><select class="in2" id="sh-f-unit" style="height:48px;font-size:16px">' + SH_UN.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === u ? ' selected' : '') + '>' + esc(ui(x[1], x[2], x[3])) + '</option>'; }).join('') + '</select>' +
       '<div id="sh-f-perbox"' + (u === 'sht' ? ' hidden' : '') + ' style="display:grid;gap:4px"><label for="sh-f-per" style="font-size:15px;font-weight:600" id="sh-f-perl">' + esc(shPerLabel(u)) + '</label>' + shIn('sh-f-per', ui('Например 4', 'Масалан 4', 'Masalan 4'), f.per || '', 'inputmode="decimal"') +
-      '<label for="sh-f-zroll" style="font-size:15px;font-weight:600">' + esc(ui('Закупка за 1 рулон (необязательно)', 'Харид барои 1 рулон (ихтиёрӣ)', '1 rulon xaridi (ixtiyoriy)')) + '</label>' + shIn('sh-f-zroll', ui('Цена рулона', 'Нархи рулон', 'Rulon narxi'), '', 'inputmode="decimal"') +
-      '<label for="sh-f-sroll" style="font-size:15px;font-weight:600">' + esc(ui('Продажа за 1 рулон (необязательно)', 'Фурӯш барои 1 рулон (ихтиёрӣ)', '1 rulon sotuvi (ixtiyoriy)')) + '</label>' + shIn('sh-f-sroll', ui('Цена рулона', 'Нархи рулон', 'Rulon narxi'), '', 'inputmode="decimal"') +
+      '<label for="sh-f-zroll" style="font-size:15px;font-weight:600">' + esc(ui('Закупка за 1 рулон (необязательно)', 'Харид барои 1 рулон (ихтиёрӣ)', '1 rulon xaridi (ixtiyoriy)')) + '</label>' + shIn('sh-f-zroll', ui('Цена рулона', 'Нархи рулон', 'Rulon narxi'), f.zroll || '', 'inputmode="decimal"') +
+      '<label for="sh-f-sroll" style="font-size:15px;font-weight:600">' + esc(ui('Продажа за 1 рулон (необязательно)', 'Фурӯш барои 1 рулон (ихтиёрӣ)', '1 rulon sotuvi (ixtiyoriy)')) + '</label>' + shIn('sh-f-sroll', ui('Цена рулона', 'Нархи рулон', 'Rulon narxi'), f.sroll || '', 'inputmode="decimal"') +
       '<small style="opacity:.75">' + esc(ui('Если заполнить, цена за метр (кг) посчитается сама: цена рулона ÷ сколько в рулоне.', 'Агар пур кунед, нархи як метр (кг) худ ҳисоб мешавад.', 'Toʻldirsangiz, bir metr (kg) narxi oʻzi hisoblanadi.')) + '</small></div>';
   }
   // Цена за рулон/штуку: кладовщик пишет цену рулона, программа сама считает цену за метр (кг) = цена / сколько в рулоне.
@@ -3063,7 +3068,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     } else if (SH.rcv) {
       var cur = shProd(SH.rcv.kod);
       h += '<div style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b style="font-size:18px">' + esc(ui('Приём товара', 'Қабули мол', 'Tovar qabuli')) + ': ' + esc(cur ? cur.name : SH.rcv.kod) + ' <small>(' + esc(SH.rcv.kod) + ')</small></b>' + shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + shThumb(cur, 56) + shBtn('foto', '📷 ' + (cur && cur.foto ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'rcv') + '</div>') + '<b>' + esc(ui('Приход товара', 'Воридоти мол', 'Tovar kirimi')) + ': ' + esc(SH.rcv.name) + '</b>' + (cur ? '<small>' + esc(ui('Сейчас на складе: ', 'Ҳоло дар анбор: ', 'Hozir omborda: ')) + esc(shQ(cur, cur.qty)) + '</small>' : '') +
-        shBarsHtml(cur) + '<div style="font-size:17px">' + esc(ui('Себестоимость сейчас', 'Арзиши аслии ҳозира', 'Joriy tannarx')) + ': <b>' + esc(cur ? shMoney(cur.zakup) : '') + '</b> ' + esc(shZa1(cur)) + '</div>' + shRcvQty(cur) +
+        shBarsHtml(cur) + '<div style="font-size:17px">' + esc(ui('Себестоимость сейчас', 'Арзиши аслии ҳозира', 'Joriy tannarx')) + ': <b>' + esc(cur ? shMoney(cur.zakup) : '') + '</b> ' + esc(shZa1(cur)) + '</div>' + (cur && shRollLine(cur) ? '<div style="font-size:16px"><b>' + esc(shRollLine(cur)) + '</b></div>' : '') + shRcvQty(cur) +
         '<label for="sh-r-zakup" style="font-size:15px;font-weight:600">' + esc(ui('Цена, по которой приняли', 'Нархе, ки қабул кардед', 'Qabul qilingan narx')) + ' (' + esc(shZa1(cur)) + ')</label>' + shIn('sh-r-zakup', ui('Цена приёма', 'Нархи қабул', 'Qabul narxi'), cur ? cur.zakup : '', 'inputmode="decimal"') + shZRoll(cur) + shPostFields() +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('rok', ui('Записать приход', 'Сабти воридот', 'Kirimni yozish')) + shBtn('rcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></div>';
     } else {
@@ -3092,7 +3097,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     h += D.products.map(function (p) {
       var ask = SH.delAsk === p.kod;
       return '<div style="padding:10px 0;border-bottom:1px solid #e6e6e6"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + esc(p.name) + '</b><span style="white-space:nowrap">' + esc(shMoney(p.price)) + esc(shZa(p)) + '</span></div><small>' + esc(p.kod) + ' · ' + esc(ui('закупка', 'харид', 'xarid')) + ' ' + esc(shMoney(p.zakup)) + (Number(p.sell) > 0 ? ' · ' + esc(ui('цена задана', 'нарх муқаррар', 'narx belgilangan')) + ' (' + esc(shNumTxt(p.marzha)) + '%)' : ' + ' + esc(String(p.marzha)) + '%') + ' · <b style="' + (p.qty <= 2 ? 'color:#c0392b' : '') + '">' + esc(ui('остаток', 'боқимонда', 'qoldiq')) + ' ' + esc(shQ(p, p.qty)) + '</b></small>' +
-        '<div style="display:flex;gap:6px;margin-top:6px">' + shBtn('rcv', ui('Приход', 'Воридот', 'Kirim'), { sec: true, st: 'flex:1' }, p.kod) + shBtn('fedit', ui('Изменить', 'Тағйир', 'Oʻzgartirish'), { sec: true, st: 'flex:1' }, p.kod) + shBtn('pdel', ask ? ui('Удалить?', 'Нест кунем?', 'Oʻchiraymi?') : '×', { sec: true, st: 'width:56px;padding:0' + (ask ? ';background:#c0392b;color:#fff' : '') }, p.kod) + '</div></div>';
+        (shRollLine(p) ? '<div style="margin-top:4px;font-size:15px"><b>' + esc(shRollLine(p)) + '</b></div>' : '') + '<div style="display:flex;gap:6px;margin-top:6px">' + shBtn('rcv', ui('Приход', 'Воридот', 'Kirim'), { sec: true, st: 'flex:1' }, p.kod) + shBtn('fedit', ui('Изменить', 'Тағйир', 'Oʻzgartirish'), { sec: true, st: 'flex:1' }, p.kod) + shBtn('pdel', ask ? ui('Удалить?', 'Нест кунем?', 'Oʻchiraymi?') : '×', { sec: true, st: 'width:56px;padding:0' + (ask ? ';background:#c0392b;color:#fff' : '') }, p.kod) + '</div></div>';
     }).join('');
     return h;
   }
@@ -3399,7 +3404,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'cadd') { var C2 = cntState(), ck = String(shNum('sh-c-kod') || '').trim().toLowerCase(), cp = SH.d && SH.d.products.filter(function (p) { return p.kod.toLowerCase() === ck; })[0], cf = cp ? shQR(shU(cp), shParse(shNum('sh-c-fact'))) : NaN; if (!cp) { C2.err = ui('Товара с таким кодом нет', 'Чунин рамзи мол нест', 'Bunday kodli tovar yoʻq'); return render(); } if (!(cf >= 0) || shNum('sh-c-fact') === '') { C2.err = ui('Укажите, сколько штук по факту', 'Миқдори воқеиро нависед', 'Haqiqiy sonini yozing'); return render(); } C2.err = ''; C2.list = C2.list.filter(function (x) { return x.kod !== cp.kod; }); C2.list.unshift({ kod: cp.kod, name: cp.name, fact: cf }); return render(); }
     if (a === 'crm') { var C3 = cntState(); C3.list.splice(Number(k), 1); return render(); }
     if (a === 'csend') { var C4 = cntState(); if (!C4.list.length) { C4.err = ui('Сначала добавьте товары в список', 'Аввал молҳоро илова кунед', 'Avval tovarlarni qoʻshing'); return render(); } return callTo('/magazin', { action: 'count', id: oid(), items: C4.list.map(function (x) { return { kod: x.kod, fact: x.fact }; }) }).then(function (r) { if (!r || !r.ok) C4.err = (r && r.error) || TX('Не удалось отправить'); else { C4.err = ''; C4.list = []; C4.msg = ui('Пересчёт отправлен руководителю', 'Ҳисобкунӣ ба роҳбар фиристода шуд', 'Sanoq rahbarga yuborildi'); } render(); }); }
-    if (a === 'fedit') { var p = shProd(k); if (p) SH.form = { kod: p.kod, name: p.name, zakup: p.zakup, marzha: p.marzha, sell: p.price, fsm: Number(p.sell) > 0, unit: shU(p), per: shPer(p) || '', edit: true }; SH.rcv = null; return render(); }
+    if (a === 'fedit') { var p = shProd(k); if (p) SH.form = { kod: p.kod, name: p.name, zakup: p.zakup, marzha: p.marzha, sell: p.price, fsm: Number(p.sell) > 0, unit: shU(p), per: shPer(p) || '', edit: true }; if (p && shPer(p)) { SH.form.zroll = SH.form.zroll0 = String(shR2(p.zakup * shPer(p))); SH.form.sroll = SH.form.sroll0 = String(shR2(p.price * shPer(p))); } SH.rcv = null; return render(); }
     if (a === 'fcancel') { SH.fotoNew = ''; SH.form = null; SH.err = ''; return render(); }
     if (a === 'save') return shSave();
     if (a === 'rcv') { var p2 = shProd(k); if (p2) SH.rcv = { kod: p2.kod, name: p2.name }; SH.form = null; return render(); }
@@ -3436,7 +3441,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function shSave() {
     var fu = $s('sh-f-unit'), f = { kod: ($s('sh-f-kod').value || '').trim(), name: ($s('sh-f-name').value || '').trim(), zakup: shNum('sh-f-zakup'), marzha: shNum('sh-f-marzha'), sell: shNum('sh-f-sell'), fsm: !!(SH.form && SH.form.fsm), unit: fu && SH_U[fu.value] ? fu.value : 'sht', per: shNum('sh-f-per') };
-    var zrl2 = shNum('sh-f-zroll'), srl2 = shNum('sh-f-sroll'), per2 = shParse(f.per);
+    var zrl2 = shNum('sh-f-zroll'), srl2 = shNum('sh-f-sroll'), per2 = shParse(f.per), z0 = SH.form && SH.form.zroll0, s0 = SH.form && SH.form.sroll0;
+    if (z0 != null && shParse(zrl2) === shParse(z0)) zrl2 = '';
+    if (s0 != null && shParse(srl2) === shParse(s0)) srl2 = '';
     if ((zrl2 !== '' || srl2 !== '') && !(f.unit !== 'sht' && per2 > 0)) { SH.form = Object.assign({ edit: SH.form && SH.form.edit }, f); SH.err = ui('Чтобы считать по рулону, впишите, сколько ' + shUL(f.unit) + ' в одном рулоне', 'Барои ҳисоб аз рӯи рулон нависед, ки дар як рулон чанд ' + shUL(f.unit) + ' аст', 'Rulon boʻyicha hisoblash uchun bir rulonda necha ' + shUL(f.unit) + ' borligini yozing'); return render(); }
     if (zrl2 !== '') f.zakup = String(Math.round(shParse(zrl2) / per2 * 10000) / 10000);
     if (srl2 !== '') { f.sell = String(Math.round(shParse(srl2) / per2 * 10000) / 10000); f.fsm = true; }
