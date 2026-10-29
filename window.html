@@ -2768,10 +2768,12 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '#sp-home .sp-hero .ic{font-size:40px;line-height:1;flex:none}#sp-home .sp-hero b{display:block;font-size:19px}#sp-home .sp-hero small{display:block;opacity:.9;font-size:13px;margin-top:2px}' +
       '#sp-home .sp-hero:focus-visible{outline:3px solid #fff;outline-offset:2px}#sp-home .sp-hero.wait small{opacity:1;font-weight:700}' +
       '#sp-home .sp-grid{gap:8px!important}#sp-home .sp-tile{padding:10px 8px!important}#sp-home .sp-tile .ic{font-size:28px!important}#sp-home .sp-tile small{display:none}' +
+      '#sp-home .sp-hero.pa{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 18px rgba(15,118,110,.35)}#sp-home.pa-lock .sp-hero:not(.pa),#sp-home.pa-lock .sp-grid{opacity:.45}#sp-home .sp-lockmsg{margin:-6px 0 14px;font-size:13px;opacity:.85}' +
       '#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
     document.head.appendChild(st);
     var home = document.createElement('section'); home.id = 'sp-home'; home.hidden = true; home.setAttribute('aria-label', TX('Специалисты'));
     home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p>' +
+      '<button type="button" class="sp-hero pa" data-home="pa"><span class="ic" aria-hidden="true">🤝</span><span><b>' + esc(ui('Личный ассистент', 'Ёвари шахсӣ', 'Shaxsiy yordamchi')) + '</b><small id="sp-pa-sub">' + esc(ui('Расскажите о себе, и я настрою кабинет', 'Дар бораи худ нақл кунед, кабинетро танзим мекунам', 'Oʻzingiz haqingizda ayting, kabinetni sozlayman')) + '</small></span></button><p class="sp-lockmsg" id="sp-lockmsg" hidden>' + esc(ui('Сначала познакомьтесь с личным ассистентом, остальное откроется после этого.', 'Аввал бо ёвари шахсӣ шинос шавед, боқӣ баъд кушода мешавад.', 'Avval shaxsiy yordamchi bilan tanishing, qolgani shundan keyin ochiladi.')) + '</p>' +
       '<button type="button" class="sp-hero" data-home="assistant"><span class="ic" aria-hidden="true">✨</span><span><b>' + esc(TX('Мой ассистент: сводка дня')) + '</b><small id="sp-hero-sub">' + esc(TX('Что происходит у всех ваших специалистов, в одном окне')) + '</small></span></button>' +
       '<div class="sp-grid">' +
       LIST.filter(function (x) { return !x.hide; }).map(function (x) {
@@ -2783,6 +2785,8 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     app.insertBefore(back, ref);
     home.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-home]'); if (!b) return;
+      if (b.dataset.home === 'pa') return openPa();
+      if (!paDone()) { paCheck(); return openPa(); }
       if (b.dataset.home === 'assistant') return openAsst();
       if (b.dataset.home === 'seller') { HOME = false; return applyHome(); }
       openOne(b.dataset.home);
@@ -2803,11 +2807,15 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var shopTile = document.querySelector('#sp-home [data-home="shop"]'); if (shopTile) shopTile.hidden = !shopOn();
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
+    var lock = show && !paDone(); if (show) paCheck();
+    $s('sp-home').classList.toggle('pa-lock', lock);
+    var lm = $s('sp-lockmsg'); if (lm) lm.hidden = !lock;
   }
 
   function render() {
     var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop'), dbd = dl && dl.querySelector('.dbody'); if (dl) { dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; } } } catch (e) {}
     if (SELLER) return renderShop(el);
+    if (S.view === 'pa') return renderPa(el);
     if (S.view === 'asst') return renderAsst(el);
     if (S.view === 'fin') return renderFin(el);
     if (S.view === 'prokat') return renderProkat(el);
@@ -2856,6 +2864,108 @@ if (S.view === 'mkt') return renderMkt(el);
       });
     }).catch(function () { say(ui('Не получилось включить уведомления.', 'Огоҳинома фаъол нашуд.', 'Bildirishnomani yoqib boʻlmadi.')); });
   }
+  /* ---------- Личный ассистент: обязательный первый шаг ---------- */
+  // Новый арендатор сначала знакомится с личным ассистентом: рассказывает, чем занимается, есть ли товар и сотрудники, что нужно в соцсетях.
+  // По ответам ассистент сохраняет профиль (его же читает «Бухгалтер») и открывает кабинет. Пока знакомства нет, остальные кнопки закрыты.
+  // Кабинеты, где профиль уже есть (на этом телефоне или на сервере), и кабинет с учётом магазина не блокируются.
+  var PA = { step: 0, kind: '', other: '', about: '', stock: '', staff: '', goals: [], saving: false, asked: '', ok: false, err: '' };
+  var PA_GOALS = [
+    ['clients', 'Больше клиентов', 'Муштариёни бештар', 'Koʻproq mijozlar'],
+    ['posts', 'Подписи к постам', 'Тавсифи постҳо', 'Postlarga izohlar'],
+    ['plan', 'План публикаций на неделю', 'Нақшаи ҳафтаина', 'Haftalik reja'],
+    ['replies', 'Ответы клиентам в переписках', 'Ҷавоб ба муштариён', 'Mijozlarga javoblar'],
+    ['none', 'Пока соцсети не нужны', 'Ҳоло шабакаҳои иҷтимоӣ лозим нест', 'Hozircha ijtimoiy tarmoq kerak emas']
+  ];
+  function paKey() { return 'ew_pa_' + hsh(code().code || ''); }
+  function paAdminView() { try { return typeof AS_KOD !== 'undefined' && !!AS_KOD; } catch (e) { return false; } }
+  function paDone() {
+    if (paAdminView() || PA.ok) return true;
+    try { if (lstore(paKey()) === '1') return true; } catch (e) {}
+    if (readProf()) return true;
+    if (shopOn()) return true;
+    return false;
+  }
+  // Один раз спрашиваем сервер, нет ли у кабинета уже профиля (например, вошли с нового телефона)
+  function paCheck() {
+    var c = ''; try { c = String(store('ew_cab') || ''); } catch (e) {}
+    if (!c || PA.asked === c) return; PA.asked = c;
+    call({ action: 'profile-get' }).then(function (r) {
+      if (r && r.ok && r.profile && r.profile.kind) { try { lstore(pkey(), JSON.stringify(r.profile)); lstore(paKey(), '1'); } catch (e) {} PA.ok = true; applyHome(); }
+      else if (!r || !r.ok) PA.asked = '';
+    });
+  }
+  function openPa() {
+    if (!owner()) return; ensure(); S.view = 'pa'; PA.err = '';
+    if (PA.step >= 4) PA.step = 0;
+    var pr = readProf(); if (pr && !PA.kind) { PA.kind = pr.kind || ''; PA.other = pr.other || ''; PA.about = pr.about || ''; PA.stock = pr.stock || ''; PA.staff = pr.staff || ''; PA.goals = Array.isArray(pr.goals) ? pr.goals.slice() : []; }
+    var d = $s('m-spec');
+    if (!d._paIn) { d._paIn = 1; d.addEventListener('input', function (e) { var t = e.target; if (t && t.id === 'pa-about') PA.about = t.value; else if (t && t.id === 'pa-other') PA.other = t.value; }); }
+    render(); open_dlg('m-spec');
+  }
+  function paBubble(t) { return '<div style="max-width:92%;margin:6px 0;padding:10px 14px;border-radius:16px 16px 16px 4px;background:#eef0ff;color:#26235f">' + esc(t) + '</div>'; }
+  function paOpt(key, val, label, on) { return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-pa="' + key + ':' + val + '" style="height:40px;padding:0 14px">' + esc(label) + '</button>'; }
+  function renderPa(el) {
+    var h = '<h2 style="padding-right:36px">🤝 ' + esc(ui('Личный ассистент', 'Ёвари шахсӣ', 'Shaxsiy yordamchi')) + '</h2>';
+    if (PA.step === 0) {
+      h += paBubble(ui('Здравствуйте! Я ваш личный ассистент. Давайте познакомимся: расскажите, чем вы занимаетесь. Это нужно один раз, чтобы я настроил кабинет под вас.', 'Салом! Ман ёвари шахсии шумо ҳастам. Биёед шинос шавем: бигӯед, ба чӣ машғул ҳастед. Ин танҳо як бор лозим аст, то ман кабинетро барои шумо танзим кунам.', 'Salom! Men sizning shaxsiy yordamchingizman. Tanishaylik: nima bilan shugʻullanishingizni ayting. Bu faqat bir marta kerak, kabinetni sizga moslayman.'));
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:10px 0">' + KINDS.map(function (k) {
+        var on = PA.kind === k.id;
+        return '<button type="button" data-pa="kind:' + k.id + '" style="display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;padding:12px 8px;border:' + (on ? '3px solid ' + k.fg : '3px solid transparent') + ';border-radius:16px;background:' + k.bg + ';color:' + k.fg + ';font:inherit;cursor:pointer"><span aria-hidden="true" style="font-size:30px">' + k.ico + '</span><b>' + esc(TX(k.name)) + '</b><small style="opacity:.8">' + esc(TX(k.sub)) + '</small></button>';
+      }).join('') + '</div>';
+      if (PA.kind === 'other') h += '<input class="in2" id="pa-other" maxlength="80" placeholder="' + esc(TX('Напишите, чем вы занимаетесь')) + '" value="' + esc(PA.other) + '" style="margin:4px 0 8px">';
+      h += '<label for="pa-about" style="display:block;margin:8px 0 4px"><b>' + esc(ui('Расскажите о себе своими словами (по желанию)', 'Дар бораи худ бо суханони худ нависед (ихтиёрӣ)', 'Oʻzingiz haqingizda oʻz soʻzlaringiz bilan yozing (ixtiyoriy)')) + '</b></label><textarea class="in2" id="pa-about" maxlength="600" rows="3" style="width:100%" placeholder="' + esc(ui('Например: принимаю клиентов онлайн и в кабинете, веду Instagram', 'Масалан: муштариёнро онлайн қабул мекунам', 'Masalan: mijozlarni onlayn qabul qilaman')) + '">' + esc(PA.about) + '</textarea>';
+      h += '<button type="button" class="btn" data-pa="next" style="width:100%;height:46px;margin-top:12px"' + (PA.kind ? '' : ' disabled') + '>' + esc(ui('Дальше', 'Минбаъд', 'Keyingisi')) + '</button>';
+    } else if (PA.step === 1) {
+      h += paBubble(ui('Хорошо. Ещё два коротких вопроса о делах.', 'Хуб. Боз ду саволи кӯтоҳ.', 'Yaxshi. Yana ikkita qisqa savol.'));
+      h += '<b>' + esc(TX('Есть ли у вас товар или склад?')) + '</b><div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px">' + paOpt('stock', 'yes', TX('Да'), PA.stock === 'yes') + paOpt('stock', 'no', TX('Нет'), PA.stock === 'no') + '</div>';
+      h += '<b>' + esc(TX('Сколько у вас сотрудников?')) + '</b><div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px">' + STAFF.map(function (s) { return paOpt('staff', s[0], TX(s[1]), PA.staff === s[0]); }).join('') + '</div>';
+      h += '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn sec" data-pa="back" style="height:46px">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button><button type="button" class="btn" data-pa="next" style="flex:1;height:46px"' + (PA.stock && PA.staff ? '' : ' disabled') + '>' + esc(ui('Дальше', 'Минбаъд', 'Keyingisi')) + '</button></div>';
+    } else if (PA.step === 2) {
+      h += paBubble(ui('Что вам нужно в соцсетях? Отметьте всё, что подходит.', 'Дар шабакаҳои иҷтимоӣ чӣ лозим аст? Ҳамаи мувофиқро қайд кунед.', 'Ijtimoiy tarmoqlarda nima kerak? Mos hammasini belgilang.'));
+      h += '<div style="display:flex;flex-direction:column;gap:8px;margin:10px 0">' + PA_GOALS.map(function (g) {
+        var on = PA.goals.indexOf(g[0]) >= 0;
+        return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-pa="goal:' + g[0] + '" style="height:44px;text-align:left;padding:0 14px">' + (on ? '✓ ' : '') + esc(ui(g[1], g[2], g[3])) + '</button>';
+      }).join('') + '</div>';
+      h += '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn sec" data-pa="back" style="height:46px">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button><button type="button" class="btn" data-pa="next" style="flex:1;height:46px"' + (PA.goals.length ? '' : ' disabled') + '>' + esc(ui('Дальше', 'Минбаъд', 'Keyingisi')) + '</button></div>';
+    } else if (PA.step === 3) {
+      var tags = ['Приход и расход', 'Остаток денег', 'Прибыль', 'Наличные и переводы отдельно'];
+      if (PA.stock === 'yes') tags.push('Склад');
+      if (PA.staff !== '1') tags.push('Зарплаты');
+      h += paBubble(ui('Спасибо, я всё понял. Вот что я включу для вас.', 'Ташаккур, ҳама чизро фаҳмидам. Инро барои шумо фаъол мекунам.', 'Rahmat, hammasini tushundim. Mana sizga nimani yoqaman.'));
+      h += '<p style="margin:10px 0 6px"><b>📒 ' + esc(ui('Ваш бухгалтер', 'Ҳисобдори шумо', 'Sizning buxgalteringiz')) + '</b></p><div style="display:flex;flex-wrap:wrap;gap:6px">' + tags.map(function (t) { return '<span style="padding:5px 10px;border-radius:12px;background:#e3f6ea;color:#1f8a4c;font-size:13px">' + esc(TX(t)) + '</span>'; }).join('') + '</div>';
+      h += '<p style="margin:12px 0 6px"><b>📣 ' + esc(ui('Соцсети: что я буду предлагать', 'Шабакаҳои иҷтимоӣ: чӣ пешниҳод мекунам', 'Ijtimoiy tarmoq: nimani taklif qilaman')) + '</b></p><div style="display:flex;flex-wrap:wrap;gap:6px">' + PA.goals.map(function (id) { var g = PA_GOALS.filter(function (x) { return x[0] === id; })[0]; return g ? '<span style="padding:5px 10px;border-radius:12px;background:#eef0ff;color:#3C3489;font-size:13px">' + esc(ui(g[1], g[2], g[3])) + '</span>' : ''; }).join('') + '</div>';
+      if (PA.err) h += '<p role="alert" style="color:#b3261e;margin:10px 0 0">' + esc(PA.err) + '</p>';
+      h += '<div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn sec" data-pa="back" style="height:46px">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button><button type="button" class="btn" data-pa="save" style="flex:1;height:46px"' + (PA.saving ? ' disabled' : '') + '>' + esc(ui('Настроить мой кабинет', 'Кабинетро танзим кунед', 'Kabinetimni sozlash')) + '</button></div>';
+    } else {
+      h += paBubble(ui('Готово! Кабинет настроен под вас. Теперь все специалисты открыты. Хорошей работы!', 'Тайёр! Кабинет барои шумо танзим шуд. Акнун ҳамаи мутахассисон кушодаанд. Кори хуш!', 'Tayyor! Kabinet siz uchun sozlandi. Endi barcha mutaxassislar ochiq. Ishingiz baraka topsin!'));
+      h += '<button type="button" class="btn" data-pa="finish" style="width:100%;height:46px;margin-top:14px">' + esc(ui('К специалистам', 'Ба мутахассисон', 'Mutaxassislarga')) + '</button>';
+    }
+    el.innerHTML = h;
+  }
+  function paClick(b) {
+    var v = b.dataset.pa, i = v.indexOf(':'), key = i < 0 ? v : v.slice(0, i), val = i < 0 ? '' : v.slice(i + 1);
+    if (key === 'kind') PA.kind = val;
+    else if (key === 'stock') PA.stock = val;
+    else if (key === 'staff') PA.staff = val;
+    else if (key === 'goal') { var k = PA.goals.indexOf(val); if (val === 'none') PA.goals = k >= 0 ? [] : ['none']; else { PA.goals = PA.goals.filter(function (x) { return x !== 'none'; }); if (k >= 0) PA.goals.splice(k, 1); else PA.goals.push(val); } }
+    else if (key === 'next') { if (PA.step === 0 && !PA.kind) return; if (PA.step === 1 && !(PA.stock && PA.staff)) return; if (PA.step === 2 && !PA.goals.length) return; PA.step++; }
+    else if (key === 'back') { if (PA.step > 0) PA.step--; }
+    else if (key === 'save') return paSave();
+    else if (key === 'finish') { var d = $s('m-spec'); if (d && d.open) d.close(); S.view = 'list'; applyHome(); return; }
+    render();
+  }
+  function paSave() {
+    if (PA.saving || !PA.kind || !PA.stock || !PA.staff) return;
+    PA.saving = true; PA.err = ''; render();
+    var P = { kind: PA.kind, other: String(PA.other || '').trim().slice(0, 80), stock: PA.stock, staff: PA.staff, about: String(PA.about || '').trim().slice(0, 600), goals: PA.goals.slice(), ts: Date.now() };
+    callTo('/buhgalter', { action: 'profile', profile: P }).then(function (r) {
+      PA.saving = false;
+      if (!r || r.ok === false) { PA.err = ui('Не получилось сохранить. Проверьте интернет и нажмите ещё раз.', 'Захира нашуд. Интернетро санҷед ва боз пахш кунед.', 'Saqlab boʻlmadi. Internetni tekshirib, qayta bosing.'); return render(); }
+      try { lstore(pkey(), JSON.stringify(P)); lstore(paKey(), '1'); } catch (e) {}
+      S.prof = P; PA.ok = true; PA.step = 4; applyHome(); render();
+    });
+  }
+
   /* ---------- Финансист проката строительных инструментов ---------- */
   // Данные хранит n8n по адресу /prokat. Кому показывать прокат, решает сервер: чужому кабинету он отвечает «нет доступа», и тогда открывается обычная бухгалтерия.
   var PK = { mv: null, pt: null, points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, phG: '', big: null, cmp: null, tour: null, rem: null, ol: null, sh: null, buy: null, pb: null, add: null };
@@ -5792,6 +5902,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
     if (b.hasAttribute('data-sp-back')) { if (b.getAttribute('data-sp-back') === 'fin' && shopOn()) { S.fromFin = false; S.view = 'fin'; render(); return; } S.fromFin = false; $s('m-spec').close(); return; }
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
+    if (b.dataset.pa) return paClick(b);
     if (b.dataset.asst) return asstClick(b);
     if (b.dataset.onb) return onbClick(b);
 if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) { S.fromFin = true; openShop(); } return; } if (b.dataset.fin === 'push') { pushEnable(); return; } if (b.dataset.fin === 'team') { if (shopOn() && owner() && window.open_team) { var mst = $s('m-spec'); window.open_team('fin'); } return; }
