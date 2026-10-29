@@ -769,7 +769,7 @@ function prettyPhone(full){ return '+'+full; }
 fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
-function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; }
+function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
 var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
