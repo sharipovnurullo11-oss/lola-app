@@ -410,7 +410,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Финансист проката строительных инструментов ---------- */
   // Данные хранит n8n по адресу /prokat. Кому показывать прокат, решает сервер: чужому кабинету он отвечает «нет доступа», и тогда открывается обычная бухгалтерия.
-  var PK = { mv: null, pt: null, points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, big: null, cmp: null, tour: null, rem: null, ol: null, sh: null, buy: null, pb: null, add: null };
+  var PK = { mv: null, pt: null, points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, phOpen: {}, big: null, cmp: null, tour: null, rem: null, ol: null, sh: null, buy: null, pb: null, add: null };
   var PK_ST = { minus: 'В минусе', plus: 'В плюсе', idle: 'Нет движения' };
   var PK_PAY = { cash: 'Наличные', ds: 'Душанбе Сити', alif: 'Алиф' };
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
@@ -1052,12 +1052,14 @@ if (S.view === 'mkt') return renderMkt(el);
     if (!ph || ph.loading) return h + '<p style="opacity:.75">' + esc(TX('Загрузка…')) + '</p>';
     if (ph.error) return h + '<p style="color:#c0392b">' + esc(ph.error) + '</p>' + pkBtn('ph-retry', esc(TX('Ещё раз')), true);
     if (!ph.tools.length) return h + '<p style="opacity:.75">' + esc(TX('Инструментов пока нет')) + '</p>';
-    return h + '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на инструмент, чтобы увидеть все его фото по датам')) + '<br><small>🟢 ' + esc(TX('работает')) + ' · 🟡 ' + esc(TX('в ремонте')) + ' · 🔴 ' + esc(TX('сломан или потерян')) + ' · ⚪ ' + esc(TX('нужно забрать')) + '</small></p><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px">' + ph.tools.map(function (t, i) {
-      var u = pkSafeUrl(t.url), n = pkNum(t.count);
-      return '<button type="button" data-pk="pt:' + i + '" style="display:block;padding:0;border:1px solid rgba(127,127,127,.3);border-radius:10px;overflow:hidden;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' +
-        (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(t.name || '') + '" style="display:block;width:100%;aspect-ratio:1;object-fit:cover">' : '<span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:rgba(127,127,127,.15);font-size:30px">🧰</span>') +
-        '<span style="display:block;padding:4px 6px;font-size:12px;line-height:1.3"><b style="display:block;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + esc(t.name || '') + (pkNum(t.qty) > 1 ? ' × ' + esc(t.qty) : '') + '</b>' + pkTStatus(t) +
-        '<span style="opacity:.75">' + (n ? '📷 ' + n + (t.last ? ' · ' + esc(pkDay(t.last)) : '') : esc(TX('фото нет'))) + '</span>' + (pkPriceMin(t.prices) ? '<span style="display:block;font-weight:600">💰 ' + esc(TX('от')) + ' ' + pkPriceMin(t.prices) + ' ' + esc(TX('смн')) + '</span>' : '') + '</span></button>';
+    return h + '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на ярлык инструмента, чтобы открыть его фото')) + '<br><small>🟢 ' + esc(TX('работает')) + ' · 🟡 ' + esc(TX('в ремонте')) + ' · 🔴 ' + esc(TX('сломан или потерян')) + ' · ⚪ ' + esc(TX('нужно забрать')) + '</small></p><div style="display:grid;gap:8px">' + ph.tools.map(function (t, i) {
+      var u = pkSafeUrl(t.url), n = pkNum(t.count), on = !!(PK.phOpen && PK.phOpen[t.name]), c = PK_TST[t && t.status];
+      return '<div style="border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden">' +
+        '<button type="button" data-pk="ptx:' + i + '" aria-expanded="' + on + '" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:10px 12px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer"><span aria-hidden="true" style="flex:none">' + (c ? c[1] : '🧰') + '</span><b style="flex:1;min-width:0">' + esc(t.name || '') + (pkNum(t.qty) > 1 ? ' × ' + esc(t.qty) : '') + '</b><span style="flex:none;opacity:.75;font-size:13px">' + (n ? '📷 ' + n : '') + '</span><span style="flex:none;width:14px" aria-hidden="true">' + (on ? '▾' : '▸') + '</span></button>' +
+        (on ? '<div style="padding:0 12px 12px">' +
+          (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(t.name || '') + '" style="display:block;width:100%;max-height:420px;object-fit:contain;border-radius:10px;background:rgba(127,127,127,.12)">' : '<p style="margin:6px 0;opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>') +
+          '<div style="margin:8px 0 0;font-size:14px">' + pkTStatus(t) + (n && t.last ? '<span style="opacity:.8">📅 ' + esc(pkDay(t.last)) + '</span>' : '') + (pkPriceMin(t.prices) ? '<span style="display:block;font-weight:600">💰 ' + esc(TX('от')) + ' ' + pkPriceMin(t.prices) + ' ' + esc(TX('смн')) + '</span>' : '') + '</div>' +
+          pkBtn('pt:' + i, esc(TX('Все фото по датам, цена')), true, 'margin-top:8px') + '</div>' : '') + '</div>';
     }).join('') + '</div>';
   }
   // Цена аренды из прайса: «до 3 ч — 30 смн · сутки — 40 смн».
@@ -1483,6 +1485,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'all') return pkAllOpen();
     if (k === 'all-retry') return pkAllOpen();
     if (k.indexOf('grp:') === 0) { if (PK.all) { var gi = +k.slice(4); PK.all.open[gi] = !PK.all.open[gi]; render(); } return; }
+    if (k.indexOf('ptx:') === 0) { var tx = PK.ph && PK.ph.tools[+k.slice(4)]; if (tx) { PK.phOpen[tx.name] = !PK.phOpen[tx.name]; render(); } return; }
     if (k.indexOf('pt:') === 0) return pkToolOpen(+k.slice(3));
     if (k === 'pt-back') { PK.pt = null; PK.mv = null; PK.big = null; return render(); }
     if (k === 'pt-retry') { if (PK.pt) { var ti = PK.ph ? PK.ph.tools.map(function (t) { return t.name; }).indexOf(PK.pt.tool) : -1; PK.pt = null; if (ti >= 0) pkToolOpen(ti); else render(); } return; }
