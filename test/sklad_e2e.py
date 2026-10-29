@@ -4,7 +4,7 @@ import subprocess, time, json, os
 from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8127'], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
-DB = {'st': [], 'ph': [], 'nid': 1}; calls = []
+DB = {'st': [], 'ph': [], 'nid': 1}; calls = []; KARTA = {}
 RUN = r'''
 const fs = require('fs'); const [code, inp] = [fs.readFileSync(process.argv[1], 'utf8'), JSON.parse(fs.readFileSync(0, 'utf8'))];
 const nodes = { 'Прокат: запрос': [{ json: { body: inp.body } }], 'Кабинет': [{ json: { ok: true } }], 'Склад': inp.st.map(j => ({ json: j })), 'Фото склада': inp.ph.map(j => ({ json: j })) };
@@ -39,6 +39,10 @@ def h(route):
         if a == 'reminders': return route.fulfill(json={"ok": True, "visit": [], "owed": [], "broken": []})
         if str(a).startswith('stock'): return route.fulfill(json=solve(b))
     if u.endswith('/magazin'): return route.fulfill(json={"ok": False, "error": "нет доступа"})
+    if u.endswith('/prokat-karta'):
+        b = json.loads(route.request.post_data); calls.append(b)
+        if b['action'] == 'set': KARTA[b['vid']] = {"firma": b['firma'], "cena": str(b['cena']), "kredit": b['kredit'], "data": "2026-10-29"}; return route.fulfill(json={"ok": True, "card": dict(KARTA[b['vid']], vid=b['vid'])})
+        return route.fulfill(json={"ok": True, "card": dict({"firma": "", "cena": "", "kredit": "", "data": ""}, **KARTA.get(b['vid'], {}), vid=b['vid'])})
     if u.endswith('/prokat-foto'):
         b = json.loads(route.request.post_data); calls.append(b); img = 'http://localhost:8127/public/icon-192.png'
         if b.get('action') == 'tools': return route.fulfill(json={"ok": True, "point": b['name'], "tools": [{"name": "Перфаратори майда 1", "kind": "Маленький перфоратор", "prices": [{"srok": "коротко", "cena": 30, "note": ""}, {"srok": "сутки", "cena": 40, "note": ""}], "qty": 1, "count": 2, "first": "2026-02-22", "last": "2026-10-20", "url": img, "status": "ok", "status_text": "работает", "out": 1, "month_income": 80}, {"name": "Лобзик", "qty": 2, "count": 0, "first": "", "last": "", "url": "", "status": "pickup", "status_text": "сломан 20 дн. — забрать", "out": 0, "month_income": 0}]})
@@ -81,18 +85,19 @@ try:
         t = body(pg); check('Инструменты на пункте' in t and 'Маленький перфоратор' in t and 'Лобзик' in t, 'в окне пункта значки видов инструментов')
         check(pg.evaluate("[...document.querySelectorAll('button')].filter(b => (b.getAttribute('data-pk')||'').startsWith('ptg:')).length") == 2 and pg.evaluate("getComputedStyle([...document.querySelectorAll('button')].find(b => (b.getAttribute('data-pk')||'').startsWith('ptg:')).parentElement).gridTemplateColumns.split(' ').length") == 3, 'значки в сетке по три в ряд')
         check(pg.locator('img[alt="Перфаратори майда 1"]').count() == 0, 'пока не нажал на значок — фото не видно')
-        pg.click('[data-pk="ptg:0"]'); pg.wait_for_timeout(200)
         pg.screenshot(path=os.environ.get('SHOT3', '/tmp/ikonki.png'), full_page=True)
-        check(pg.locator('img[alt="Перфаратори майда 1"]').count() == 1, 'по нажатию на значок открылись фото инструментов этого вида')
-        t = body(pg); check('от 30 смн' in t and '🟢 работает · в аренде 1' in t, 'у инструмента вида цена из прайса и цветной статус')
-        pg.click('[data-pk="ptg:1"]'); pg.wait_for_timeout(200)
-        t = body(pg); check('пока нет' in t and '⚪ сломан 20 дн. — забрать' in t and pg.locator('img[alt="Перфаратори майда 1"]').count() == 0, 'у другого вида свои фото: у Лобзика фото нет, виден статус')
-        pg.click('[data-pk="ptg:0"]'); pg.wait_for_timeout(200)
         check(any(c.get('action') == 'tools' and c.get('name') == 'Зарафшон сити' for c in calls), 'запрос инструментов пункта ушёл с action tools')
-        pg.click('[data-pk="pt:0"]'); pg.wait_for_timeout(800)
+        pg.click('[data-pk="ptg:0"]'); pg.wait_for_timeout(900)
         t = body(pg); check('22.02.2026' in t and '20.10.2026' in t and t.index('22.02.2026') < t.index('20.10.2026') and 'объезд' in t, 'фото инструмента по датам с подписью даты, от старого к новому')
         check('🟢 работает' in t and 'Доход за этот месяц' in t, 'в карточке инструмента статус и доход за месяц')
         check('Перевозки' in t and 'Ховарон → Зарафшон сити' in t, 'в истории инструмента журнал перевозок')
+        check(pg.is_visible('#pk-cd-firma') and pg.is_visible('#pk-cd-cena') and pg.is_visible('#pk-cd-kredit'), 'в окне инструмента строки: фирма, цена покупки, кредит')
+        pg.fill('#pk-cd-firma', 'Total'); pg.fill('#pk-cd-cena', '1500'); pg.fill('#pk-cd-kredit', 'в кредит, платёж 250 в месяц'); pg.click('[data-pk="cd-save"]'); pg.wait_for_timeout(500)
+        sv = [c for c in calls if c.get('action') == 'set' and c.get('vid')]
+        check(len(sv) == 1 and sv[0]['vid'] == 'Маленький перфоратор' and sv[0]['firma'] == 'Total' and sv[0]['cena'] == '1500' and 'кредит' in sv[0]['kredit'] and len(sv[0]['id']) >= 6, 'фирма и цена ушли на сервер с номером записи')
+        check('Сохранено' in body(pg), 'сообщение о сохранении карточки')
+        pg.click('[data-pk="pt-back"]'); pg.wait_for_timeout(300); pg.click('[data-pk="ptg:0"]'); pg.wait_for_timeout(700)
+        check(pg.input_value('#pk-cd-firma') == 'Total' and pg.input_value('#pk-cd-cena') == '1500', 'при повторном открытии фирма и цена на месте')
         pg.click('[data-pk="sell-open"]'); pg.wait_for_timeout(200); pg.click('[data-pk="mv-save"]'); pg.wait_for_timeout(200)
         check('Укажите цену продажи' in body(pg) and not [c for c in calls if c.get('action') == 'move'], 'продажа без цены не отправляется')
         pg.fill('#pk-mv-price', '350'); pg.click('[data-pk="mv-save"]'); pg.wait_for_timeout(600)
@@ -140,7 +145,7 @@ try:
         t = body(pg); check(t.count('Прошлое фото') == 1 and '20.10.2026' in t, 'в объезде прошлое фото инструмента для сравнения')
         pg.click('[data-pk="tprev:0"]'); pg.wait_for_timeout(300); check(pg.is_visible('[data-pk="big-close"]'), 'прошлое фото открывается крупно'); pg.click('[data-pk="big-close"]')
         pg.click('[data-pk="tour-back"]'); pg.wait_for_timeout(300)
-        pg.click('[data-pk="pt:0"]'); pg.wait_for_timeout(600); pg.screenshot(path=os.environ.get('SHOT2', '/tmp/istoriya.png'), full_page=True)
+        pg.click('[data-pk="ptg:0"]'); pg.wait_for_timeout(600); pg.screenshot(path=os.environ.get('SHOT2', '/tmp/istoriya.png'), full_page=True)
         pg.click('[data-pk="pt-back"]'); pg.wait_for_timeout(300); pg.click('[data-pk="back"]'); pg.wait_for_timeout(300); pg.click('[data-pk="home"]'); pg.wait_for_timeout(300)
         check('Присылать напоминания на этот телефон' in body(pg), 'кнопка утренних напоминаний')
         pg.click('[data-pk="buy"]'); pg.wait_for_timeout(600)
