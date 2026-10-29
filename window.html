@@ -5875,5 +5875,79 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
 
 /*specialists:end*/
 </script>
+<script>
+/*exitguard:start*/
+// Защита от случайного выхода: кнопка или жест «Назад» не закрывает приложение сразу, а спрашивает «Вы точно хотите выйти?» (Да / Нет).
+// «Нет» — человек остаётся на той же странице, где работал. «Да» — выход (возврат на предыдущую страницу или закрытие установленного приложения).
+// Работает только во вшитом входе клиента или сотрудника; админ «как клиент» и гость не затрагиваются.
+(function (root) {
+  'use strict';
+  if (typeof root.history === 'undefined' || typeof document === 'undefined') return;
+  var leaving = false, guarded = false, asking = false;
+  function lang() { var l = root.LANG; return l === 'tg' || l === 'uz' ? l : 'ru'; }
+  var TXT = {
+    ru: { t: 'Выйти из приложения?', p: 'Вы точно хотите выйти из приложения?', y: 'Да', n: 'Нет', h: 'Чтобы выйти, нажмите «Назад» ещё раз.' },
+    tg: { t: 'Аз барнома мебароед?', p: 'Шумо мутмаин ҳастед, ки мехоҳед аз барнома бароед?', y: 'Бале', n: 'Не', h: 'Барои баромадан боз як бор «Бозгашт»-ро пахш кунед.' },
+    uz: { t: 'Ilovadan chiqasizmi?', p: 'Ilovadan chiqishni aniq xohlaysizmi?', y: 'Ha', n: 'Yoʻq', h: 'Chiqish uchun yana bir marta «Orqaga»ni bosing.' }
+  };
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function eligible() {
+    try {
+      if (typeof AS_KOD !== 'undefined' && AS_KOD) return false;
+      return typeof mode === 'function' && mode() === 'user';
+    } catch (e) { return false; }
+  }
+  function dlg() {
+    var d = document.getElementById('m-exit'); if (d) return d;
+    d = document.createElement('dialog'); d.id = 'm-exit'; d.setAttribute('aria-labelledby', 'exit-t');
+    d.style.cssText = 'width:min(360px,calc(100vw - 32px));border:0;border-radius:18px;padding:0;box-shadow:0 12px 40px rgba(0,0,0,.35)';
+    document.body.appendChild(d);
+    d.addEventListener('cancel', function () { asking = false; }); // Esc = «Нет»
+    d.addEventListener('close', function () { asking = false; });
+    d.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-exit]'); if (!b) return;
+      if (b.dataset.exit === 'no') { d.close(); return; }
+      d.close(); doExit();
+    });
+    return d;
+  }
+  function ask() {
+    if (asking) return; asking = true;
+    var T = TXT[lang()], d = dlg();
+    d.innerHTML = '<div style="padding:22px 20px 18px;text-align:center"><h2 id="exit-t" style="margin:0 0 8px;font-size:20px">' + esc(T.t) + '</h2><p style="margin:0 0 18px;opacity:.85">' + esc(T.p) + '</p>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button type="button" class="btn" data-exit="no" autofocus style="min-height:52px;font-size:18px">' + esc(T.n) + '</button><button type="button" class="btn sec" data-exit="yes" style="min-height:52px;font-size:18px">' + esc(T.y) + '</button></div></div>';
+    try { if (!d.open) d.showModal(); } catch (e) { asking = false; }
+  }
+  function toast(t) {
+    var el = document.getElementById('exit-toast');
+    if (!el) { el = document.createElement('div'); el.id = 'exit-toast'; el.setAttribute('role', 'status'); el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:18px;z-index:99999;padding:12px 16px;border-radius:12px;background:#222;color:#fff;text-align:center;font-size:16px'; document.body.appendChild(el); }
+    el.textContent = t; el.hidden = false; setTimeout(function () { el.hidden = true; }, 4000);
+  }
+  // «Да»: снимаем защиту и уходим на шаг назад за пределы приложения. Если назад идти некуда (установленное приложение), просим нажать «Назад» ещё раз — теперь оно уже выйдет.
+  function doExit() {
+    leaving = true;
+    try { root.history.go(-2); } catch (e) {}
+    // Если назад идти некуда, остаёмся на первой записи приложения: следующее нажатие «Назад» уже выйдет само
+    setTimeout(function () { if (!document.hidden) { try { root.history.back(); } catch (e) {} } }, 500);
+    setTimeout(function () { if (!document.hidden) toast(TXT[lang()].h); }, 1200);
+  }
+  function guard() {
+    if (guarded || !eligible()) return;
+    guarded = true;
+    try { root.history.pushState({ ewGuard: 1 }, '', root.location.href); } catch (e) { guarded = false; }
+  }
+  root.addEventListener('popstate', function () {
+    if (leaving || !guarded) return;
+    if (!eligible()) return;
+    // Вернулись на запись под защитой: ставим защиту снова и спрашиваем
+    try { root.history.pushState({ ewGuard: 1 }, '', root.location.href); } catch (e) {}
+    ask();
+  });
+  function start() { guard(); if (!guarded) { var n = 0, t = setInterval(function () { guard(); if (guarded || ++n > 25) clearInterval(t); }, 400); } }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  root.EWExitGuard = { ask: ask, _state: function () { return { guarded: guarded, leaving: leaving, asking: asking }; } };
+})(typeof window !== 'undefined' ? window : globalThis);
+/*exitguard:end*/
+</script>
 </body>
 </html>
