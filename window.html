@@ -315,6 +315,13 @@ dialog .dbody{overflow-x:hidden;overscroll-behavior:contain}
 dialog::backdrop{touch-action:none}
 
 .langrow{display:flex;gap:6px;margin:0 0 14px}.langrow button{flex:1;height:34px;border-radius:9px;border:1.5px solid var(--line,#d9deee);background:transparent;color:inherit;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.langrow button.on{background:var(--navy,#16224F);border-color:var(--navy,#16224F);color:#fff}
+/* кнопки и цифры статистики: не выделяются, без текстового курсора */
+button,summary,label,select,.btn,.cbtn,.chip,.sm,.mi,.seg,.tabs,.tag,.pill,.stc,.sum,.sc,.sc *,.grid,.act,.top,.menu,.brand,.row,.row2,.who,.sl-nav,.sl-day,.sl-g,.sl-leg,.kbi,.kbl,.dh,.langrow,.dlrow,h1,h2,h3,h4{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button,summary,select,.btn,.cbtn,.chip,.sm,.mi,.seg button,.tabs button,[role=button],[data-act]{cursor:pointer}
+body,.stc,.sum,.sc,.sc *,.grid,.act,.dh,h1,h2,h3,h4,label,.tag,.pill{cursor:default}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;cursor:text}
+:not(input):not(textarea):not([contenteditable]){caret-color:transparent}
+button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visible{outline:2px solid #f5a623;outline-offset:2px}
 </style>
 </head>
 <body>
