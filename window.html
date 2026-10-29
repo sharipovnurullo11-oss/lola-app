@@ -322,6 +322,11 @@ body,.stc,.sum,.sc,.sc *,.grid,.act,.dh,h1,h2,h3,h4,label,.tag,.pill{cursor:defa
 input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;cursor:text}
 :not(input):not(textarea):not([contenteditable]){caret-color:transparent}
 button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visible{outline:2px solid #f5a623;outline-offset:2px}
+/* кнопки сотрудника: цвета по смыслу */
+.acts button.sm[data-act=reset]{background:#2563eb!important;border-color:#2563eb!important;color:#fff!important;font-weight:600}
+.acts button.sm[data-act=on]{background:#16a34a!important;border-color:#16a34a!important;color:#fff!important;font-weight:600}
+.acts button.sm[data-act=off]{background:#dc2626!important;border-color:#dc2626!important;color:#fff!important;font-weight:600}
+.acts button.sm[data-act]:hover{filter:brightness(1.1)}
 </style>
 </head>
 <body>
