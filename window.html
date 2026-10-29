@@ -770,7 +770,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/magazin','/shop','/smm','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -3510,7 +3510,7 @@ if (S.view === 'mkt') return renderMkt(el);
     return h;
   }
   // Вид инструмента: из прайса (kind), а если его нет — по названию (болгарка, перфоратор, фен...).
-  var PK_FAM = [[/болгар|балгар|ушм/, 'болгарка', ['Большая болгарка', 'Малая болгарка', 'Болгарка'], '💿'], [/перфор|перфар/, 'перфоратор', ['Большой перфоратор', 'Маленький перфоратор', 'Перфоратор'], '🔨'], [/отбо[йи]|молот/, 'отбойный молоток', ['Отбойный молоток', 'Отбойный молоток', 'Отбойный молоток'], '⛏️'], [/шуруп/, 'шуруповёрт', ['Шуруповёрт', 'Шуруповёрт', 'Шуруповёрт'], '🪛'], [/(^|[^а-яё])фен([^а-яё]|$)/, 'фен', ['Строительный фен', 'Строительный фен', 'Строительный фен'], '💨'], [/бензопил/, 'бензопила', ['Бензопила', 'Бензопила', 'Бензопила'], '🪚'], [/утиг|утюг/, 'утюг', ['Утюг для труб', 'Утюг для труб', 'Утюг для труб'], '♨️'], [/дрел/, 'дрель', ['Дрель', 'Дрель', 'Дрель'], '🔩'], [/лобзик/, 'лобзик', ['Лобзик', 'Лобзик', 'Лобзик'], '🪚']];
+  var PK_FAM = [[/болгар|балгар|ушм/, 'болгарка', ['Большая болгарка', 'Маленькая болгарка', 'Болгарка'], '💿'], [/перфор|перфар/, 'перфоратор', ['Большой перфоратор', 'Маленький перфоратор', 'Перфоратор'], '🔨'], [/отбо[йи]|молот/, 'отбойный молоток', ['Отбойный молоток', 'Отбойный молоток', 'Отбойный молоток'], '⛏️'], [/шуруп/, 'шуруповёрт', ['Шуруповёрт аккумуляторный', 'Шуруповёрт аккумуляторный', 'Шуруповёрт аккумуляторный'], '🔧'], [/(^|[^а-яё])фен([^а-яё]|$)/, 'фен', ['Строительный фен', 'Строительный фен', 'Строительный фен'], '💨'], [/бензопил/, 'бензопила', ['Бензопила', 'Бензопила', 'Бензопила'], '⛓️'], [/паяльн|утиг|утюг/, 'паяльник', ['Паяльник для пластиковых труб', 'Паяльник для пластиковых труб', 'Паяльник для пластиковых труб'], '🔥'], [/дрел/, 'дрель', ['Дрель', 'Дрель', 'Дрель'], '🔩'], [/лобзик/, 'лобзик', ['Лобзик', 'Лобзик', 'Лобзик'], '✂️']];
   function pkKindOf(t) {
     var nm = String((t && t.name) || ''), kd = String((t && t.kind) || ''), low = (kd || nm).toLowerCase(), sz = /калон|больш|катта/.test(low) ? 0 : /майда|мал|кичик/.test(low) ? 1 : 2;
     for (var i = 0; i < PK_FAM.length; i++) if (PK_FAM[i][0].test(low)) return { label: kd || PK_FAM[i][2][sz], icon: PK_FAM[i][3] };
@@ -3533,7 +3533,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkPriceMin(list) { var c = (Array.isArray(list) ? list : []).map(function (p) { return pkNum(p.cena); }).filter(function (x) { return x > 0; }); return c.length ? Math.min.apply(null, c) : 0; }
   function pkToolOpen(i) {
     var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
-    var pt = PK.pt = { point: PK.cur.name, tool: t.name, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '', st: { status: t.status, status_text: t.status_text, out: t.out, month_income: t.month_income } }; PK.big = null; render();
+    var pt = PK.pt = { point: PK.cur.name, tool: t.name, vid: pkKindOf(t).label, icon: pkKindOf(t).icon, card: { loading: true, firma: '', cena: '', kredit: '', msg: '', err: '', busy: false, id: '' }, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '', st: { status: t.status, status_text: t.status_text, out: t.out, month_income: t.month_income } }; PK.big = null; render();
     callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
       if (PK.pt !== pt) return;
       pt.loading = false;
@@ -3541,8 +3541,40 @@ if (S.view === 'mkt') return renderMkt(el);
       else { pt.photos = Array.isArray(r.photos) ? r.photos : []; pt.total = pkNum(r.total) || pt.photos.length; if (Array.isArray(r.prices)) { pt.prices = r.prices; pt.kind = r.kind || ''; } if (r.status != null) pt.st = { status: r.status, status_text: r.status_text, out: r.out, month_income: r.month_income }; }
       if (S.view === 'prokat') render();
     });
-    pkMovesLoad(pt);
+    pkMovesLoad(pt); pkCardLoad(pt);
   }
+  // Карточка вида: фирма и цена покупки (в т.ч. в кредит) — хранится в n8n, вебхук /prokat-карта.
+  function pkCardLoad(pt) {
+    callTo('/prokat-karta', { action: 'get', vid: pt.vid }).then(function (r) {
+      if (PK.pt !== pt) return;
+      var c = pt.card; c.loading = false;
+      if (!r || !r.ok) c.err = (r && r.error) || TX('не удалось загрузить');
+      else { c.err = ''; c.firma = String(r.card.firma || ''); c.cena = String(r.card.cena || ''); c.kredit = String(r.card.kredit || ''); c.data = String(r.card.data || ''); }
+      if (S.view === 'prokat') render();
+    });
+  }
+  function pkCardKeep() { var c = PK.pt && PK.pt.card; if (!c) return; ['firma', 'cena', 'kredit'].forEach(function (k) { var el = $s('pk-cd-' + k); if (el) c[k] = el.value; }); }
+  function pkCardSave() {
+    var pt = PK.pt, c = pt && pt.card; if (!c || c.busy || c.loading) return;
+    pkCardKeep(); c.err = ''; c.msg = ''; c.busy = true; c.id = c.id || oid(); render();
+    callTo('/prokat-karta', { action: 'set', vid: pt.vid, firma: c.firma, cena: c.cena, kredit: c.kredit, id: c.id }).then(function (r) {
+      if (PK.pt !== pt) return;
+      c.busy = false;
+      if (!r || !r.ok) { c.err = (r && r.error) || TX('Не получилось сохранить'); if (r && r.error && r.error !== TX('нет связи')) c.id = ''; }
+      else { c.id = ''; c.msg = TX('Сохранено'); if (r.card) { c.firma = String(r.card.firma || ''); c.cena = String(r.card.cena || ''); c.kredit = String(r.card.kredit || ''); } }
+      if (S.view === 'prokat') render();
+    });
+  }
+  function pkCardBlock(pt) {
+    var c = pt.card || {}, inp = function (k, label, ph, mode) { return '<label style="display:block;margin:0 0 8px">' + esc(label) + '<input id="pk-cd-' + k + '" type="text"' + (mode ? ' inputmode="' + mode + '"' : '') + ' maxlength="' + (k === 'kredit' ? 200 : 80) + '" autocomplete="off" placeholder="' + esc(ph) + '" value="' + esc(c[k] || '') + '" style="display:block;width:100%"' + (c.loading ? ' disabled' : '') + '></label>'; };
+    return '<div style="margin:0 0 12px;padding:10px;border-radius:10px;border:1px solid rgba(127,127,127,.35)"><b style="display:block;margin-bottom:8px">' + (pt.icon || '🧰') + ' ' + esc(pt.vid || pt.tool) + '</b>' +
+      inp('firma', TX('Фирма (кто сделал)'), TX('например: Bosch, Makita, Total'), '') +
+      inp('cena', TX('Цена покупки, смн'), TX('сколько заплатили или во сколько обошёлся'), 'decimal') +
+      inp('kredit', TX('Если в кредит — запишите'), TX('например: в кредит, платёж 250 в месяц'), '') +
+      (c.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(c.err) + '</p>' : '') + (c.msg ? '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(c.msg) + '</p>' : '') +
+      pkBtn('cd-save', esc(TX(c.busy ? 'Сохраняю…' : 'Сохранить')), false, c.busy || c.loading ? 'opacity:.6' : '') + '</div>';
+  }
+  document.addEventListener('input', function (e) { var t = e.target; if (PK.pt && t && t.id && t.id.indexOf('pk-cd-') === 0) pkCardKeep(); });
   // «Это другой инструмент»: перенести фото в другой инструмент этого пункта или под новым названием.
   function pkRelabel(pt, p, i) {
     var R = pt.rl;
@@ -3676,7 +3708,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function renderPkToolHist(el) {
     var pt = PK.pt, h = pkBtn('pt-back', '← ' + esc(pt.point), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px;margin-bottom:2px">🧰 ' + esc(pt.tool) + '</h2><p style="margin:0 0 10px;opacity:.8">' + esc(pt.point) + '</p>' + pkTStatus(pt.st, true) +
       (pt.st && pkNum(pt.st.month_income) > 0 ? '<p style="margin:0 0 8px">' + esc(TX('Доход за этот месяц')) + ': <b>' + pkMoney(pt.st.month_income) + '</b></p>' : '') +
-      '<div style="margin:0 0 12px;padding:10px;border-radius:10px;background:rgba(31,138,76,.1)"><b>💰 ' + esc(TX('Цена аренды')) + (pt.kind ? ' (' + esc(TX(pt.kind)) + ')' : '') + '</b><br>' + esc(pkPrices(pt.prices) || TX('В прайсе цены для этого инструмента нет')) + '</div>';
+      '<div style="margin:0 0 12px;padding:10px;border-radius:10px;background:rgba(31,138,76,.1)"><b>💰 ' + esc(TX('Цена аренды')) + (pt.kind ? ' (' + esc(TX(pt.kind)) + ')' : '') + '</b><br>' + esc(pkPrices(pt.prices) || TX('В прайсе цены для этого инструмента нет')) + '</div>' + pkCardBlock(pt);
     if (pt.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
     if (pt.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(pt.error) + '</p>' + pkBtn('pt-retry', esc(TX('Ещё раз')), true));
     if (pt.msg) h += '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(pt.msg) + '</p>';
@@ -3948,8 +3980,9 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'all') return pkAllOpen();
     if (k === 'all-retry') return pkAllOpen();
     if (k.indexOf('grp:') === 0) { if (PK.all) { var gi = +k.slice(4); PK.all.open[gi] = !PK.all.open[gi]; render(); } return; }
-    if (k.indexOf('ptg:') === 0) { var gg = pkGroups(PK.ph && PK.ph.tools)[+k.slice(4)]; if (gg) { PK.phG = PK.phG === gg.key ? '' : gg.key; render(); } return; }
+    if (k.indexOf('ptg:') === 0) { var gg = pkGroups(PK.ph && PK.ph.tools)[+k.slice(4)]; if (gg) { if (gg.items.length === 1) return pkToolOpen(gg.items[0]); PK.phG = PK.phG === gg.key ? '' : gg.key; render(); } return; }
     if (k.indexOf('pt:') === 0) return pkToolOpen(+k.slice(3));
+    if (k === 'cd-save') { pkCardSave(); return; }
     if (k === 'pt-back') { PK.pt = null; PK.mv = null; PK.big = null; return render(); }
     if (k === 'pt-retry') { if (PK.pt) { var ti = PK.ph ? PK.ph.tools.map(function (t) { return t.name; }).indexOf(PK.pt.tool) : -1; PK.pt = null; if (ti >= 0) pkToolOpen(ti); else render(); } return; }
     if (k.indexOf('rl:') === 0) { if (PK.pt) { PK.pt.rl = { i: +k.slice(3), to: '', name: '', busy: false, err: '' }; PK.pt.msg = ''; render(); } return; }
