@@ -653,6 +653,7 @@ dialog::backdrop{touch-action:none}
   <h2 id="s-title" style="padding-right:36px">Команда</h2>
   <div class="seg" id="s-days"><button type="button" class="on" data-d="1">Сегодня</button><button type="button" data-d="7">7 дней</button></div>
   <div class="sum" id="s-sum"></div>
+  <div class="okb" id="s-new" hidden></div>
   <div id="s-list"></div>
   <h3>Устройства</h3>
   <div id="s-devs"></div>
@@ -666,7 +667,6 @@ dialog::backdrop{touch-action:none}
     <p class="err" id="s-err" hidden></p>
     <button class="btn" id="s-add" type="submit">Добавить</button>
   </form>
-  <div class="okb" id="s-new" hidden></div>
   <h3 id="s-dlgh">Кому какой диалог</h3>
   <div id="s-dlgs"></div>
 </div></dialog>
@@ -1633,7 +1633,7 @@ function render_staff(){
     });
   });
 }
-function show_new(t){ var n = $('s-new'); n.textContent = t + T('. Передайте сотруднику номер и код: он входит через кнопку «Сотрудник».'); n.hidden = false; }
+function show_new(t){ var n = $('s-new'); n.textContent = t + T('. Передайте сотруднику номер и код: он входит через кнопку «Сотрудник».'); n.hidden = false; try { n.scrollIntoView({block:'nearest'}); } catch(_){} }
 function team_scope_ui(){
   var fin = !!TEAM_SCOPE;
   $('s-title').textContent = TEAM_SCOPE === 'prodavec' ? T('Продавцы') : TEAM_SCOPE === 'kladovshchik' ? T('Кладовщики') : T('Команда');
