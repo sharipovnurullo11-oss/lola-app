@@ -431,7 +431,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function paKey() { return 'ew_pa_' + hsh(code().code || ''); }
   function paAdminView() { try { return typeof AS_KOD !== 'undefined' && !!AS_KOD; } catch (e) { return false; } }
   function paDone() {
-    if (paAdminView() || PA.ok) return true;
+    return true; /* otklyucheno 30.10 */ if (paAdminView() || PA.ok) return true;
     try { if (lstore(paKey()) === '1') return true; } catch (e) {}
     if (readProf()) return true;
     if (shopOn()) return true;
