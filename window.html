@@ -6207,8 +6207,14 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
   root.addEventListener('popstate', function () {
     if (leaving || !guarded) return;
     if (!eligible()) return;
-    // Вернулись на запись под защитой: ставим защиту снова и спрашиваем
+    // Вернулись на запись под защитой: ставим защиту снова
     try { root.history.pushState({ ewGuard: 1 }, '', root.location.href); } catch (e) {}
+    // Если открыто другое окно (специалист, форма), «Назад» только закрывает его, без вопроса о выходе
+    try {
+      var od = document.querySelectorAll('dialog[open]'), closed = false;
+      for (var i = 0; i < od.length; i++) { if (od[i].id !== 'm-exit') { od[i].close(); closed = true; } }
+      if (closed) return;
+    } catch (e) {}
     ask();
   });
   function start() { guard(); if (!guarded) { var n = 0, t = setInterval(function () { guard(); if (guarded || ++n > 25) clearInterval(t); }, 400); } }
