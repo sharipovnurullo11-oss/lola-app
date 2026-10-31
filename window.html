@@ -782,7 +782,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/smm-tg','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -4129,9 +4129,9 @@ if (S.view === 'mkt') return renderMkt(el);
   }
 
   /* ---------- SMM-специалист ---------- */
-  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0, tg: null, tgBusy: false, tgErr: '', tgCh: '' };
+  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0, tg: null, tgBusy: false, tgErr: '', tgCh: '', tips: null, tipsBusy: false, tipsErr: '' };
   function openSmm() {
-    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; SM.tg = null; SM.tgErr = ''; anStop(); render();
+    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; SM.tg = null; SM.tgErr = ''; SM.tips = null; SM.tipsErr = ''; anStop(); render();
     callTo('/smm', { action: 'status' }).then(function (r) {
       SM.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
       if (S.view === 'smm') render();
@@ -4142,8 +4142,41 @@ if (S.view === 'mkt') return renderMkt(el);
   function tgLoad() {
     return callTo('/smm-tg', { action: 'status' }).then(function (r) {
       SM.tg = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
+      if (r.ok && r.connected) tipsLoad();
       if (S.view === 'smm') render();
     });
+  }
+  function tipsLoad() {
+    return callTo('/smm-tips', { action: 'list' }).then(function (r) {
+      SM.tips = r.ok ? (r.tips || []) : null; if (!r.ok) SM.tipsErr = r.error || TX('не удалось загрузить');
+      if (S.view === 'smm') render();
+    });
+  }
+  function tipsCall(body) {
+    if (SM.tipsBusy) return; SM.tipsBusy = true; SM.tipsErr = ''; render();
+    callTo('/smm-tips', body).then(function (r) {
+      SM.tipsBusy = false; if (!r.ok) SM.tipsErr = r.error || TX('Не получилось');
+      tipsLoad();
+    });
+  }
+  function tipsGen() { tipsCall({ action: 'generate', lang: (typeof LANG !== 'undefined' && LANG) ? LANG : 'ru' }); }
+  function tipsApprove() { tipsCall({ action: 'approve' }); }
+  function tipsDel(id) { tipsCall({ action: 'remove', id: Number(id) }); }
+  function tipsHtml() {
+    var t = SM.tips, h = '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line,#ddd)"><b>' + esc(ui('Советы на месяц', 'Маслиҳатҳо барои моҳ', 'Oy uchun maslahatlar')) + '</b>';
+    if (!t) return h + '<p style="margin:6px 0 0">' + esc(TX('Загрузка…')) + '</p>' + (SM.tipsErr ? '<p class="err">' + esc(SM.tipsErr) + '</p>' : '') + '</div>';
+    var drafts = t.filter(function (x) { return x.status === 'draft'; }).length;
+    if (!t.length) h += '<small style="display:block;opacity:.8;margin:6px 0">' + esc(ui('Я подготовлю 12 советов, вы их просмотрите и подтвердите. В канал они выходят по понедельникам, средам и пятницам в 10:00. Без вашего подтверждения ничего не публикуется.', 'Ман 12 маслиҳат тайёр мекунам, шумо онҳоро дида мебароед ва тасдиқ мекунед. Онҳо дар канал душанбе, чоршанбе ва ҷумъа соати 10:00 мебароянд. Бе тасдиқи шумо ҳеҷ чиз нашр намешавад.', 'Men 12 ta maslahat tayyorlayman, siz koʻrib chiqib tasdiqlaysiz. Ular kanalga dushanba, chorshanba va juma kunlari soat 10:00 da chiqadi. Tasdigʻingizsiz hech narsa chop etilmaydi.')) + '</small><button class="btn" data-smm="tips-gen" type="button"' + (SM.tipsBusy ? ' disabled' : '') + '>' + esc(SM.tipsBusy ? TX('Готовлю, до минуты…') : ui('Подготовить советы на месяц','Маслиҳатҳоро барои моҳ тайёр кардан','Oy uchun maslahatlarni tayyorlash')) + '</button>';
+    else {
+      var lab = { draft: ui('ждёт вашего подтверждения','мунтазири тасдиқи шумо','tasdigʻingizni kutmoqda'), approved: ui('подтверждён, выйдет в канал','тасдиқ шуд, дар канал мебарояд','tasdiqlandi, kanalga chiqadi'), sent: ui('опубликован','нашр шуд','chop etildi') };
+      t.forEach(function (x) {
+        var d = String(x.date || ''); d = d.slice(8, 10) + '.' + d.slice(5, 7);
+        h += '<div style="border:1px solid var(--line,#ddd);border-radius:10px;padding:8px 10px;margin:6px 0"><small style="opacity:.75">' + esc(d) + ' · ' + esc(lab[x.status] || '') + '</small><div style="white-space:pre-wrap;word-break:break-word;font-size:14px;margin-top:4px">' + esc(x.text) + '</div>' + (x.status === 'draft' ? '<button class="btn sec" data-smm="tips-del:' + esc(x.id) + '" type="button" style="margin-top:6px;height:34px"' + (SM.tipsBusy ? ' disabled' : '') + '>' + esc(ui('Убрать', 'Хориҷ кардан', 'Olib tashlash')) + '</button>' : '') + '</div>';
+      });
+      if (drafts) h += '<button class="btn" data-smm="tips-ok" type="button"' + (SM.tipsBusy ? ' disabled' : '') + '>' + esc(ui('Подтвердить все','Ҳамаро тасдиқ кардан','Hammasini tasdiqlash') + ' (' + drafts + ')') + '</button>';
+    }
+    if (SM.tipsErr) h += '<p class="err" style="margin:6px 0 0">' + esc(SM.tipsErr) + '</p>';
+    return h + '</div>';
   }
   function tgConnect() {
     if (SM.tgBusy) return;
@@ -4151,7 +4184,7 @@ if (S.view === 'mkt') return renderMkt(el);
     SM.tgBusy = true; SM.tgErr = ''; render();
     callTo('/smm-tg', { action: 'connect', channel: SM.tgCh }).then(function (r) {
       SM.tgBusy = false;
-      if (r.ok) { SM.tg = r; SM.tgErr = ''; } else SM.tgErr = r.error || TX('Не получилось');
+      if (r.ok) { SM.tg = r; SM.tgErr = ''; tipsLoad(); } else SM.tgErr = r.error || TX('Не получилось');
       if (S.view === 'smm') render();
     });
   }
@@ -4242,6 +4275,7 @@ if (S.view === 'mkt') return renderMkt(el);
         '<div style="display:grid;gap:8px"><input class="in2" id="sm-tg-ch" maxlength="60" placeholder="@mychannel" value="' + esc(SM.tgCh) + '"><button class="btn" data-smm="tg-connect" type="button"' + (SM.tgBusy ? ' disabled' : '') + '>' + esc(SM.tgBusy ? TX('Проверяю…') : ui('Подключить','Пайваст кардан','Ulash')) + '</button></div>';
       if (SM.tgErr) tgh += '<p class="err" style="margin:6px 0 0">' + esc(SM.tgErr) + '</p>';
     }
+    if (tg && tg.connected) tgh += tipsHtml();
     h += tgh + '</div>';
     h += anCard();
     h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
@@ -4289,6 +4323,9 @@ if (S.view === 'mkt') return renderMkt(el);
   function smmClick(a) {
     if (a === 'reload') return openSmm();
     if (a === 'tg-connect') return tgConnect();
+    if (a === 'tips-gen') return tipsGen();
+    if (a === 'tips-ok') return tipsApprove();
+    if (a.indexOf('tips-del:') === 0) return tipsDel(a.slice(9));
     if (a === 'an-reload') { SM.an = null; render(); return anLoad(); }
     if (a === 'an-start') return anStart();
     if (a === 'an-copy') return copyText((SM.an && SM.an.otchet) || '', function () { SM.anCopied = true; if (S.view === 'smm') render(); });
