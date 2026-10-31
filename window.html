@@ -4912,6 +4912,88 @@ function load() {
   function tile(label, sub, val, color) {
     return '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:10px 6px;text-align:center"><small style="display:block;opacity:.8">' + esc(TX(label)) + '</small><b style="font-size:18px;color:' + color + '">' + val + '</b><small style="display:block;opacity:.65;font-size:11px">' + esc(TX(sub)) + '</small></div>';
   }
+  /* ---------- Простые «Финансы» психолога: Приход / Расход / Итог (31.10.2026) ---------- */
+  // Работает поверх той же записи (тип «приход/расход», сумма, подпись, дата), отдельной базы нет.
+  var PSY = { tab: 'in', kind: 'Сеанс онлайн', okind: 'Аренда кабинета', debt: false, sum: '', name: '' };
+  var PSY_IN = [['Сеанс онлайн', 'Сеанс онлайн', 'Машварати онлайн', 'Onlayn seans'], ['Сеанс в кабинете', 'Сеанс в кабинете', 'Машварат дар кабинет', 'Kabinetda seans'], ['Курс', 'Курс', 'Курс', 'Kurs']];
+  var PSY_OUT = [['Аренда кабинета', 'Аренда кабинета', 'Иҷораи кабинет', 'Kabinet ijarasi'], ['Зарплата сотрудников', 'Зарплата сотрудников', 'Маоши кормандон', 'Xodimlar maoshi'], ['Аренда приложения', 'Аренда приложения', 'Иҷораи барнома', 'Ilova ijarasi'],
+    ['Оплата специалистам', 'Оплата специалистам (SMM, видеограф)', 'Пардохт ба мутахассисон (SMM, видеограф)', 'Mutaxassislarga to‘lov (SMM, videograf)'], ['Таргет', 'Таргет', 'Таргет', 'Target'], ['Дорога', 'Дорога', 'Роҳ', 'Yo‘l'], ['Обед', 'Обед', 'Хӯроки нисфирӯзӣ', 'Tushlik'],
+    ['Обучение и супервизия', 'Обучение и супервизия', 'Омӯзиш ва супервизия', 'O‘qish va supervizya'], ['Связь и интернет', 'Связь и интернет', 'Алоқа ва интернет', 'Aloqa va internet'], ['Налоги', 'Налоги', 'Андоз', 'Soliq'], ['Прочее', 'Прочее', 'Дигар', 'Boshqa']];
+  function psyL(list, k) { for (var i = 0; i < list.length; i++) if (list[i][0] === k) return ui(list[i][1], list[i][2], list[i][3]); return k; }
+  function psyDay(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function psyTot(ops, from) {
+    var r = { i: 0, o: 0, ses: 0, crs: 0 };
+    ops.forEach(function (p) {
+      if (p.date < from) return;
+      var c = cents(p.amount);
+      if (p.type === 'in') { r.i += c; if (/^Курс/.test(p.note || '')) r.crs += c; else if (/^Сеанс/.test(p.note || '')) r.ses += c; } else r.o += c;
+    });
+    return r;
+  }
+  function psyBox(label, t, color) {
+    var rest = t.i - t.o;
+    return '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:8px 0"><b>' + esc(label) + '</b>' +
+      '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>' + esc(ui('Пришло', 'Омад', 'Keldi')) + '</span><b style="color:#1f8a4c">' + money(t.i) + '</b></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>' + esc(ui('Ушло', 'Рафт', 'Chiqdi')) + '</span><b style="color:#c0392b">' + money(t.o) + '</b></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--line,#ddd);margin-top:4px"><span>' + esc(ui('Осталось', 'Монд', 'Qoldi')) + '</span><b style="color:' + (rest < 0 ? '#c0392b' : 'inherit') + '">' + money(rest) + '</b></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:2px 0;opacity:.85"><small>' + esc(ui('Доход от сеансов', 'Даромад аз машваратҳо', 'Seanslardan daromad')) + '</small><small>' + money(t.ses) + '</small></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:2px 0;opacity:.85"><small>' + esc(ui('Доход от курсов', 'Даромад аз курсҳо', 'Kurslardan daromad')) + '</small><small>' + money(t.crs) + '</small></div></div>';
+  }
+  function psyRows(ops, type) {
+    var td = today(), list = ops.filter(function (p) { return p.type === type && p.date === td; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
+    if (!list.length) return '<p style="opacity:.7">' + esc(ui('Сегодня записей пока нет.', 'Имрӯз ҳанӯз сабт нест.', 'Bugun hali yozuv yo‘q.')) + '</p>';
+    return '<h3 style="margin:12px 0 4px">' + esc(ui('Сегодня', 'Имрӯз', 'Bugun')) + '</h3>' + list.map(function (p) {
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee"><span style="flex:1;min-width:0;overflow-wrap:anywhere">' + esc(p.note || '') + '</span><b style="flex:none;color:' + (type === 'in' ? '#1f8a4c' : '#c0392b') + '">' + money(cents(p.amount)) + '</b>' +
+        '<button class="btn sec" data-buh="del" data-id="' + esc(p.id) + '" type="button" aria-label="' + esc(TX('Удалить запись')) + '" style="flex:none;height:30px;padding:0 8px">' + (S.delAsk === p.id ? esc(ui('Удалить?', 'Нест кунам?', 'O‘chirilsinmi?')) : '✕') + '</button></div>';
+    }).join('');
+  }
+  function psyRender(el, head) {
+    var ops = allOps(), h = head, tabs = [['in', ui('Приход', 'Даромад', 'Kirim')], ['out', ui('Расход', 'Хароҷот', 'Chiqim')], ['sum', ui('Итог', 'Ҳисоб', 'Natija')]];
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0">' + tabs.map(function (t) {
+      var on = PSY.tab === t[0];
+      return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-psy="tab:' + t[0] + '" style="height:48px;font-size:16px">' + esc(t[1]) + '</button>';
+    }).join('') + '</div>';
+    if (PSY.tab === 'in') {
+      h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">' + PSY_IN.map(function (k) {
+        return '<button type="button" class="btn' + (PSY.kind === k[0] ? '' : ' sec') + '" data-psy="kind:' + esc(k[0]) + '" style="height:40px;padding:0 12px">' + esc(ui(k[1], k[2], k[3])) + '</button>';
+      }).join('') + '</div>' +
+        '<form id="psy-form" style="display:grid;gap:8px;margin:8px 0;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px">' +
+        '<label style="display:grid;gap:4px"><small>' + esc(ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoniy')) + '</small><input class="in2" id="psy-sum" inputmode="decimal" maxlength="12" placeholder="300" autocomplete="off" value="' + esc(PSY.sum) + '"></label>' +
+        '<label style="display:grid;gap:4px"><small>' + esc(ui('Имя клиента', 'Номи муштарӣ', 'Mijoz ismi')) + '</small><input class="in2" id="psy-name" maxlength="60" autocomplete="off" value="' + esc(PSY.name) + '"></label>' +
+        '<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="psy-debt"' + (PSY.debt ? ' checked' : '') + '> ' + esc(ui('Долг (клиент заплатил не полностью)', 'Қарз (муштарӣ пурра напардохт)', 'Qarz (mijoz to‘liq to‘lamadi)')) + '</label>' +
+        '<button class="btn sec" data-buh="mic" type="button" style="height:44px">🎤 ' + esc(TX('Сказать голосом')) + '</button>' +
+        '<button class="btn" data-psy="save:in" type="button" style="height:48px">' + esc(ui('Сохранить', 'Нигоҳ доштан', 'Saqlash')) + '</button></form>' + psyRows(ops, 'in');
+    } else if (PSY.tab === 'out') {
+      h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">' + PSY_OUT.map(function (k) {
+        return '<button type="button" class="btn' + (PSY.okind === k[0] ? '' : ' sec') + '" data-psy="okind:' + esc(k[0]) + '" style="height:36px;padding:0 10px;font-size:14px">' + esc(ui(k[1], k[2], k[3])) + '</button>';
+      }).join('') + '</div>' +
+        '<form id="psy-form" style="display:grid;gap:8px;margin:8px 0;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px">' +
+        '<label style="display:grid;gap:4px"><small>' + esc(ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoniy')) + '</small><input class="in2" id="psy-sum" inputmode="decimal" maxlength="12" placeholder="100" autocomplete="off" value="' + esc(PSY.sum) + '"></label>' +
+        '<button class="btn" data-psy="save:out" type="button" style="height:48px;background:#c0392b;color:#fff;border:0">' + esc(ui('Сохранить', 'Нигоҳ доштан', 'Saqlash')) + '</button></form>' + psyRows(ops, 'out');
+    } else {
+      h += psyBox(ui('За неделю', 'Дар як ҳафта', 'Hafta uchun'), psyTot(ops, psyDay(6))) + psyBox(ui('За месяц', 'Дар як моҳ', 'Oy uchun'), psyTot(ops.filter(function (p) { return monthOf(p.date) === today().slice(0, 7); }), today().slice(0, 7) + '-01'));
+      var debts = ops.filter(function (p) { return p.type === 'in' && / · долг$/.test(p.note || ''); }).length;
+      if (debts) h += '<p style="opacity:.85">' + esc(ui('Записей с долгом: ', 'Сабтҳо бо қарз: ', 'Qarzli yozuvlar: ')) + debts + '</p>';
+    }
+    h += '<p class="err" id="bh-err" hidden></p>';
+    el.innerHTML = h;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-psy]') : null; if (!b || S.view !== 'buh') return;
+    var v = b.getAttribute('data-psy'), i = v.indexOf(':'), a = v.slice(0, i), x = v.slice(i + 1);
+    var sf = $s('psy-sum'), nf = $s('psy-name'), df = $s('psy-debt');
+    if (sf) PSY.sum = sf.value; if (nf) PSY.name = nf.value; if (df) PSY.debt = df.checked;
+    if (a === 'tab') { PSY.tab = x; return render(); }
+    if (a === 'kind') { PSY.kind = x; return render(); }
+    if (a === 'okind') { PSY.okind = x; return render(); }
+    if (a === 'save') {
+      var amount = String(PSY.sum || '').replace(/\s/g, '').replace(',', '.');
+      if (!(parseFloat(amount) > 0)) return err(TX('Введите сумму больше нуля'));
+      var note = x === 'in' ? PSY.kind + (PSY.name.trim() ? ' · ' + PSY.name.trim() : '') + (PSY.debt ? ' · долг' : '') : PSY.okind;
+      PSY.sum = ''; PSY.name = ''; PSY.debt = false;
+      return addOp({ type: x, amount: amount, note: note.slice(0, 120), date: today() });
+    }
+  });
   function renderBuh(el) {
     if (S.onb) return renderOnb(el);
 var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухгалтер')) + '</h2>' + (S.prof ? '<button type="button" class="btn sec" data-onb="change" style="height:30px;padding:0 10px;margin:0 0 6px;font-size:13px">' + esc(TX('Изменить вид деятельности')) + '</button>' : '');
@@ -4919,6 +5001,7 @@ var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухга�
     if (!S.buh) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (S.buh.error) { el.innerHTML = h + '<p class="err">' + esc(S.buh.error) + '</p><button class="btn" data-buh="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
     writeCache();
+    if (S.prof && S.prof.kind === 'health') return psyRender(el, h);
     if (S.buh.offline) h += '<p><small>' + esc(TX('Нет связи: показаны сохранённые записи.')) + '</small></p>'; else if (S.busy && S.buh.cached) h += '<p><small>' + esc(TX('Обновляем…')) + '</small></p>';
     var t = sums(), ops = allOps().filter(function (p) { return monthOf(p.date) === S.month; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.ts < b.ts ? 1 : -1); });
     h += '<p style="margin:2px 0 8px;opacity:.8">' + esc(TX('Записывайте каждый раз, когда деньги пришли или ушли. Прибыль посчитается сама. Суммы в сомони.')) + '</p>';
