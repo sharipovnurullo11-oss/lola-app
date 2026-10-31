@@ -5018,14 +5018,14 @@ function load() {
     }).join('');
   }
   function psyRender(el, head) {
-    var ops = allOps(), h = head, tabs = [['in', ui('Приход', 'Даромад', 'Kirim')], ['out', ui('Расход', 'Хароҷот', 'Chiqim')], ['sum', ui('Итог', 'Ҳисоб', 'Natija')]];
+    var ops = allOps(), h = head.replace(/<h2[\s\S]*?<\/h2>/, '').replace(/<button[^>]*data-onb="change"[\s\S]*?<\/button>/, ''), mt = psyTot(ops.filter(function (p) { return monthOf(p.date) === today().slice(0, 7); }), today().slice(0, 7) + '-01'), amts = { in: mt.i, out: mt.o, sum: mt.i - mt.o }, tabs = [['in', ui('Приход', 'Даромад', 'Kirim')], ['out', ui('Расход', 'Хароҷот', 'Chiqim')], ['sum', ui('Итог', 'Ҳисоб', 'Natija')]];
     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0">' + tabs.map(function (t) {
       var on = PSY.tab === t[0];
-      return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-psy="tab:' + t[0] + '" style="height:48px;font-size:16px">' + esc(t[1]) + '</button>';
+      return '<button type="button" class="btn" data-psy="tab:' + t[0] + '" style="height:60px;font-size:16px;line-height:1.2;' + (on ? 'box-shadow:0 0 0 3px rgba(0,0,0,.3)' : 'opacity:.8') + '">' + esc(t[1]) + '<br><small style="font-size:13px">' + money(amts[t[0]]) + '</small></button>';
     }).join('') + '</div>';
     if (PSY.tab === 'in') {
       h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">' + PSY_IN.map(function (k) {
-        return '<button type="button" class="btn' + (PSY.kind === k[0] ? '' : ' sec') + '" data-psy="kind:' + esc(k[0]) + '" style="height:40px;padding:0 12px">' + esc(ui(k[1], k[2], k[3])) + '</button>';
+        return '<button type="button" class="btn" data-psy="kind:' + esc(k[0]) + '" style="height:40px;padding:0 12px;border:2px solid #1f8a4c;' + (PSY.kind === k[0] ? 'background:#1f8a4c;color:#fff' : 'background:#fff;color:#1f8a4c') + '">' + esc(ui(k[1], k[2], k[3])) + '</button>';
       }).join('') + '</div>' +
         '<form id="psy-form" style="display:grid;gap:8px;margin:8px 0;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px">' +
         '<label style="display:grid;gap:4px"><small>' + esc(ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoniy')) + '</small><input class="in2" id="psy-sum" inputmode="decimal" maxlength="12" placeholder="300" autocomplete="off" value="' + esc(PSY.sum) + '"></label>' +
@@ -5035,7 +5035,7 @@ function load() {
         '<button class="btn" data-psy="save:in" type="button" style="height:48px">' + esc(ui('Сохранить', 'Нигоҳ доштан', 'Saqlash')) + '</button></form>' + psyRows(ops, 'in');
     } else if (PSY.tab === 'out') {
       h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">' + PSY_OUT.map(function (k) {
-        return '<button type="button" class="btn' + (PSY.okind === k[0] ? '' : ' sec') + '" data-psy="okind:' + esc(k[0]) + '" style="height:36px;padding:0 10px;font-size:14px">' + esc(ui(k[1], k[2], k[3])) + '</button>';
+        return '<button type="button" class="btn" data-psy="okind:' + esc(k[0]) + '" style="height:36px;padding:0 10px;font-size:14px;border:2px solid #c0392b;' + (PSY.okind === k[0] ? 'background:#c0392b;color:#fff' : 'background:#fff;color:#c0392b') + '">' + esc(ui(k[1], k[2], k[3])) + '</button>';
       }).join('') + '</div>' +
         '<form id="psy-form" style="display:grid;gap:8px;margin:8px 0;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px">' +
         '<label style="display:grid;gap:4px"><small>' + esc(ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoniy')) + '</small><input class="in2" id="psy-sum" inputmode="decimal" maxlength="12" placeholder="100" autocomplete="off" value="' + esc(PSY.sum) + '"></label>' +
