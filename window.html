@@ -782,7 +782,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/smm-tg','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause']; /* админ помогает клиенту: специалисты и настройки как у клиента; отправка сообщений клиентам, смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -4129,14 +4129,31 @@ if (S.view === 'mkt') return renderMkt(el);
   }
 
   /* ---------- SMM-специалист ---------- */
-  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0 };
+  var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0, tg: null, tgBusy: false, tgErr: '', tgCh: '' };
   function openSmm() {
-    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; anStop(); render();
+    S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; SM.tg = null; SM.tgErr = ''; anStop(); render();
     callTo('/smm', { action: 'status' }).then(function (r) {
       SM.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
       if (S.view === 'smm') render();
     });
-    anLoad();
+    anLoad(); tgLoad();
+  }
+  /* Telegram-канал для публикаций SMM-специалиста: статус и подключение (публикует только после подтверждения психолога) */
+  function tgLoad() {
+    return callTo('/smm-tg', { action: 'status' }).then(function (r) {
+      SM.tg = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
+      if (S.view === 'smm') render();
+    });
+  }
+  function tgConnect() {
+    if (SM.tgBusy) return;
+    var el = document.getElementById('sm-tg-ch'); if (el) SM.tgCh = el.value;
+    SM.tgBusy = true; SM.tgErr = ''; render();
+    callTo('/smm-tg', { action: 'connect', channel: SM.tgCh }).then(function (r) {
+      SM.tgBusy = false;
+      if (r.ok) { SM.tg = r; SM.tgErr = ''; } else SM.tgErr = r.error || TX('Не получилось');
+      if (S.view === 'smm') render();
+    });
   }
   /* Полный анализ Instagram: n8n разбирает видео, комментарии и Директ в фоне, окно раз в несколько секунд спрашивает, как идёт. */
   function anStop() { if (SM.anTimer) { clearTimeout(SM.anTimer); SM.anTimer = 0; } }
@@ -4215,6 +4232,17 @@ if (S.view === 'mkt') return renderMkt(el);
       ? '✅ ' + esc(TX('Instagram подключён')) + (SM.st.username ? ': @' + esc(SM.st.username) : '')
       : '⚠️ ' + esc(TX('Instagram не подключён. Подключите его в меню (каналы), тогда я буду опираться на ваши посты.'))) + '</p>' +
       '<p style="margin:4px 0 10px"><small>' + esc(TX('Запросов сегодня осталось')) + ': <b>' + esc(SM.st.left) + '</b> ' + esc(TX('из')) + ' ' + esc(SM.st.limit || 5) + '</small></p>';
+    var tg = SM.tg, tgh = '<div style="margin:8px 0 12px;padding:10px 12px;border:1px solid var(--line,#ddd);border-radius:12px"><b>✈️ ' + esc(ui('Telegram-канал', 'Канали Telegram', 'Telegram-kanal')) + '</b>';
+    if (!tg) tgh += '<p style="margin:6px 0 0">' + esc(TX('Загрузка…')) + '</p>';
+    else if (tg.error) tgh += '<p class="err" style="margin:6px 0 0">' + esc(tg.error) + '</p>';
+    else if (tg.connected) tgh += '<p style="margin:6px 0 0">✅ ' + esc(ui('Канал подключён', 'Канал пайваст шуд', 'Kanal ulangan')) + ': ' + esc(tg.channel) + (tg.title ? ' · ' + esc(tg.title) : '') + '</p><small style="opacity:.8">' + esc(ui('Я ничего не публикую без вашего подтверждения.', 'Ман бе тасдиқи шумо ҳеҷ чиз нашр намекунам.', 'Men sizning tasdigʻingizsiz hech narsa chop etmayman.')) + '</small>';
+    else if (!tg.has_bot) tgh += '<p style="margin:6px 0 0">⚠️ ' + esc(ui('Сначала подключите Telegram-бота в меню (каналы).', 'Аввал боти Telegram-ро дар меню (каналҳо) пайваст кунед.', 'Avval menyuda (kanallar) Telegram-botni ulang.')) + '</p>';
+    else {
+      tgh += '<p style="margin:6px 0 4px">⚠️ ' + esc(ui('Канал не подключён.', 'Канал пайваст нашудааст.', 'Kanal ulanmagan.')) + '</p><small style="opacity:.8;display:block;margin-bottom:6px">' + esc(ui('Создайте канал, добавьте вашего бота администратором с правом «Публиковать сообщения» и впишите имя канала.', 'Канал созед, ботатонро администратор бо ҳуқуқи «Нашри паёмҳо» илова кунед ва номи каналро нависед.', 'Kanal yarating, botingizni «Xabar chop etish» huquqi bilan administrator qilib qoʻshing va kanal nomini yozing.')) + '</small>' +
+        '<div style="display:grid;gap:8px"><input class="in2" id="sm-tg-ch" maxlength="60" placeholder="@mychannel" value="' + esc(SM.tgCh) + '"><button class="btn" data-smm="tg-connect" type="button"' + (SM.tgBusy ? ' disabled' : '') + '>' + esc(SM.tgBusy ? TX('Проверяю…') : ui('Подключить','Пайваст кардан','Ulash')) + '</button></div>';
+      if (SM.tgErr) tgh += '<p class="err" style="margin:6px 0 0">' + esc(SM.tgErr) + '</p>';
+    }
+    h += tgh + '</div>';
     h += anCard();
     h += '<div style="display:grid;gap:8px;margin-bottom:10px">' +
       '<b>' + esc(TX('План на неделю')) + '</b>' +
@@ -4260,6 +4288,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function smmClick(a) {
     if (a === 'reload') return openSmm();
+    if (a === 'tg-connect') return tgConnect();
     if (a === 'an-reload') { SM.an = null; render(); return anLoad(); }
     if (a === 'an-start') return anStart();
     if (a === 'an-copy') return copyText((SM.an && SM.an.otchet) || '', function () { SM.anCopied = true; if (S.view === 'smm') render(); });
