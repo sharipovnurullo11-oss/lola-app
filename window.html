@@ -946,7 +946,7 @@ function msgs_html(c){
     var t = esc(MODE==='user' ? when_txt(x.v) : x.v), body = esc(x.t); var mh = media_html(x.t); if (mh) body = mh;
     if (x.d === 'in') {
       var r = ans[i];
-      var chk = r === undefined ? T('<span class="chk wait">ждёт ответа</span>') : '<span class="chk' + (r==='ai' ? ' ai' : '') + T('">✓ ответил: ') + esc(whoName(r)) + '</span>';
+      var chk = r === undefined ? T('<span class="chk wait">ждёт ответа</span>') : '<span class="chk' + (r==='ai' ? ' ai' : '') + T('">✓ ответил: ').replace('✓', '✓✓') + esc(whoName(r)) + '</span>';
       return '<div class="bub in" data-i="' + i + '">' + body + '<small>' + t + '</small>' + chk + '</div>';
     }
     var ai = x.a === 'ai';
