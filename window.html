@@ -2975,10 +2975,12 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkMoney(x) { return money(cents(pkNum(x))); }
   function openFinOrProkat() {
     S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    var PKK = 'ew_pk_' + hsh(code().code || '');
+    try { if (localStorage.getItem(PKK) === '0') { PK.busy = false; openBuh(); callTo('/prokat', { action: 'points' }).then(function (q) { if (q && q.ok) { try { localStorage.removeItem(PKK); } catch (e) {} } }); return; } } catch (e) {}
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
       if (S.view !== 'prokat') return;
-      if (!r || !r.ok) return openBuh();
+      if (!r || !r.ok) { try { localStorage.setItem(PKK, '0'); } catch (e) {} return openBuh(); }
       PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; render(); pkRemLoad();
     });
   }
