@@ -4300,20 +4300,21 @@ if (S.view === 'mkt') return renderMkt(el);
     if (SM.err) h += '<p class="err">' + esc(SM.err) + '</p>';
     if (SM.res) h += '<div style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;margin:8px 0;font-size:14px;line-height:1.45" id="sm-res">' + esc(SM.res) + '</div>' +
       '<button class="btn sec" data-smm="copy" type="button">' + esc(TX(SM.copied ? 'Скопировано ✓' : 'Скопировать')) + '</button>' +
+      (SM.lastAct === 'profile' && !SM.lastFull ? '<button class="btn" data-smm="profile-full" type="button"' + dis + '>' + esc(ui('Подробнее','Муфассалтар','Batafsil')) + '</button>' : '') +
       kbBtn('smm', SM.res ? { q: SM.q || '', a: SM.res } : null) +
       '<p><small>' + esc(TX('Я ничего не публикую сам: текст вставляете вы.')) + '</small></p>';
     else KB.last.smm = null;
     h += kbCard('smm');
     el.innerHTML = h;
   }
-  function runSmm(act) {
+  function runSmm(act, full) {
     if (SM.busy) return;
     var text = act === 'plan' ? SM.plan : act === 'caption' ? SM.cap : act === 'ideas' ? SM.ideas : act === 'reply' ? SM.rep : '';
     if (act === 'caption' && String(text).trim().length < 5) { SM.err = TX('Напишите, о чём пост или ролик'); SM.res = ''; return render(); }
     if (act === 'reply' && String(text).trim().length < 5) { SM.err = TX('Вставьте комментарий или сообщение, на которое нужно ответить'); SM.res = ''; return render(); }
-    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; KB.smm.saved = false; render();
+    SM.busy = true; SM.err = ''; SM.res = ''; SM.copied = false; KB.smm.saved = false; SM.lastAct = act; SM.lastFull = !!full; render();
     var qLabel = { plan: 'План на неделю', caption: 'Подпись', ideas: 'Идеи роликов', reply: 'Ответ на сообщение', profile: 'Разбор профиля' }[act] + (String(text).trim() ? ': ' + String(text).trim().slice(0, 200) : '');
-    callTo('/smm', { action: act, text: String(text).trim() }).then(function (r) {
+    callTo('/smm', { action: act, text: String(text).trim(), full: !!full }).then(function (r) {
       SM.busy = false;
       if (r.ok) { SM.res = r.text || ''; SM.q = qLabel; if (SM.st && !SM.st.error) { SM.st.left = r.left; SM.st.connected = !!r.connected; } }
       else SM.err = r.error || TX('Не получилось');
@@ -4322,6 +4323,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function smmClick(a) {
     if (a === 'reload') return openSmm();
+    if (a === 'profile-full') return runSmm('profile', true);
     if (a === 'tg-connect') return tgConnect();
     if (a === 'tips-gen') return tipsGen();
     if (a === 'tips-ok') return tipsApprove();
