@@ -2187,20 +2187,6 @@ $('ar-list').addEventListener('click', function(e){
   if (typeof window === 'undefined' || typeof document === 'undefined' || typeof post !== 'function') return;
   var DATA = null, SEL = null, DAYS = 1, REPORT = null, busy = false, PENDING = {};
   var TIP = { sale: T('Продажа'), receipt: T('Приход'), writeoff: T('Списание'), count: T('Пересчёт') };
-  // Витрина (кабинет Нурулло) видит всех специалистов; у остальных клиентов Юрист, Маркетолог, SMM и Менеджер скрыты (03.11.2026). Решает сервер /vitrina.
-var VIT_ASK = '';
-function vitrinaOn() { try { var c = String(store('ew_cab') || ''); return !!c && lstore('ew_vit_for') === c; } catch (e) { return false; } }
-function vitrinaCheck() {
-  var c = ''; try { c = String(store('ew_cab') || ''); } catch (e) {}
-  if (!c || VIT_ASK === c) return; VIT_ASK = c;
-  callTo('/vitrina', {}).then(function (r) {
-    if (!r || r.error === TX('нет связи')) { VIT_ASK = ''; return; }
-    var on = r.ok === true, was = vitrinaOn();
-    try { lstore('ew_vit_for', on ? c : null); } catch (e) {}
-    if (on !== was) { applyHome(); render(); }
-  });
-}
-
 function $s(id) { return document.getElementById(id); }
   function auth() { var b = {}; try { if (store('ew_sid')) b.sid = store('ew_sid'); else b.code = store('ew_cab') || ''; } catch (e) {} return b; }
   function call(body) { var b = auth(); for (var k in body) b[k] = body[k]; return post('/shop', b).then(function (x) { return (x && x.j) || { ok: false, error: T('нет связи') }; }, function () { return { ok: false, error: T('нет связи') }; }); }
@@ -2493,6 +2479,20 @@ function $s(id) { return document.getElementById(id); }
       if (on !== was) { applyHome(); render(); }
     });
   }
+
+  // Витрина (кабинет Нурулло) видит всех специалистов; у остальных клиентов Юрист, Маркетолог, SMM и Менеджер скрыты (03.11.2026). Решает сервер /vitrina.
+var VIT_ASK = '';
+function vitrinaOn() { try { var c = String(store('ew_cab') || ''); return !!c && lstore('ew_vit_for') === c; } catch (e) { return false; } }
+function vitrinaCheck() {
+  var c = ''; try { c = String(store('ew_cab') || ''); } catch (e) {}
+  if (!c || VIT_ASK === c) return; VIT_ASK = c;
+  callTo('/vitrina', {}).then(function (r) {
+    if (!r || r.error === TX('нет связи')) { VIT_ASK = ''; return; }
+    var on = r.ok === true, was = vitrinaOn();
+    try { lstore('ew_vit_for', on ? c : null); } catch (e) {}
+    if (on !== was) { applyHome(); render(); }
+  });
+}
 
   function $s(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
