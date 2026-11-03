@@ -782,7 +782,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -2187,7 +2187,21 @@ $('ar-list').addEventListener('click', function(e){
   if (typeof window === 'undefined' || typeof document === 'undefined' || typeof post !== 'function') return;
   var DATA = null, SEL = null, DAYS = 1, REPORT = null, busy = false, PENDING = {};
   var TIP = { sale: T('Продажа'), receipt: T('Приход'), writeoff: T('Списание'), count: T('Пересчёт') };
-  function $s(id) { return document.getElementById(id); }
+  // Витрина (кабинет Нурулло) видит всех специалистов; у остальных клиентов Юрист, Маркетолог, SMM и Менеджер скрыты (03.11.2026). Решает сервер /vitrina.
+var VIT_ASK = '';
+function vitrinaOn() { try { var c = String(store('ew_cab') || ''); return !!c && lstore('ew_vit_for') === c; } catch (e) { return false; } }
+function vitrinaCheck() {
+  var c = ''; try { c = String(store('ew_cab') || ''); } catch (e) {}
+  if (!c || VIT_ASK === c) return; VIT_ASK = c;
+  callTo('/vitrina', {}).then(function (r) {
+    if (!r || r.error === TX('нет связи')) { VIT_ASK = ''; return; }
+    var on = r.ok === true, was = vitrinaOn();
+    try { lstore('ew_vit_for', on ? c : null); } catch (e) {}
+    if (on !== was) { applyHome(); render(); }
+  });
+}
+
+function $s(id) { return document.getElementById(id); }
   function auth() { var b = {}; try { if (store('ew_sid')) b.sid = store('ew_sid'); else b.code = store('ew_cab') || ''; } catch (e) {} return b; }
   function call(body) { var b = auth(); for (var k in body) b[k] = body[k]; return post('/shop', b).then(function (x) { return (x && x.j) || { ok: false, error: T('нет связи') }; }, function () { return { ok: false, error: T('нет связи') }; }); }
   function oid() { return 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -2459,10 +2473,10 @@ $('ar-list').addEventListener('click', function(e){
     { id: 'buh', name: 'Бухгалтер', about: 'Приход, расход и остатки товара. Показывает прибыль за месяц', ready: true, ico: '📒', hide: true },
     { id: 'shop', name: 'Учёт магазина', about: 'Касса, товары с кодом и маржой, склад, долги и отчёт', ready: true, ico: '🛒', hide: true },
     { id: 'fin', name: 'Финансист', about: 'Бухгалтерия, касса и учёт магазина: деньги, товар и долги', ready: true, ico: '💼' },
-    { id: 'smm', name: 'SMM-специалист', about: 'План недели, подписи к постам и разбор профиля по вашему Instagram', ready: true, ico: '📣' },
-    { id: 'mkt', name: 'Маркетолог', about: 'Контент-план, где теряются клиенты, ваши цифры и тексты для возврата', ready: true, ico: '🎯' },
-    { id: 'manager', name: 'Менеджер по клиентам', about: 'Следит, чтобы клиенты не терялись: возвращает замолчавших, напоминает о повторных покупках', ready: true, ico: '🤝' },
-    { id: 'lawyer', name: 'Юрист', about: 'Составляет договоры на русском, таджикском и узбекском', ready: true, ico: '⚖️' }
+    { id: 'smm', name: 'SMM-специалист', about: 'План недели, подписи к постам и разбор профиля по вашему Instagram', ready: true, ico: '📣', cl: true },
+    { id: 'mkt', name: 'Маркетолог', about: 'Контент-план, где теряются клиенты, ваши цифры и тексты для возврата', ready: true, ico: '🎯', cl: true },
+    { id: 'manager', name: 'Менеджер по клиентам', about: 'Следит, чтобы клиенты не терялись: возвращает замолчавших, напоминает о повторных покупках', ready: true, ico: '🤝', cl: true },
+    { id: 'lawyer', name: 'Юрист', about: 'Составляет договоры на русском, таджикском и узбекском', ready: true, ico: '⚖️', cl: true }
   ];
   var S = { view: 'list', buh: null, month: '', busy: false };
   // «Учёт магазина» включён только для кабинета Шамсуло. Решает сервер /magazin: чужому кабинету он отвечает «нет доступа».
@@ -2767,7 +2781,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '#sp-home .sp-hero{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin:0 0 16px;padding:22px 18px;border:0;border-radius:20px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font:inherit;cursor:pointer;box-shadow:0 6px 18px rgba(79,70,229,.35)}' +
       '#sp-home .sp-hero .ic{font-size:40px;line-height:1;flex:none}#sp-home .sp-hero b{display:block;font-size:19px}#sp-home .sp-hero small{display:block;opacity:.9;font-size:13px;margin-top:2px}' +
       '#sp-home .sp-hero:focus-visible{outline:3px solid #fff;outline-offset:2px}#sp-home .sp-hero.wait small{opacity:1;font-weight:700}' +
-      '#sp-home .sp-grid{gap:8px!important}#sp-home .sp-tile{padding:10px 8px!important}#sp-home .sp-tile .ic{font-size:28px!important}#sp-home .sp-tile small{display:none}' +
+      '#sp-home .sp-hero.pa,#sp-home #sp-lockmsg{display:none!important}#sp-home .sp-grid{gap:8px!important}#sp-home .sp-tile{padding:10px 8px!important}#sp-home .sp-tile .ic{font-size:28px!important}#sp-home .sp-tile small{display:none}' +
       '#sp-home .sp-hero.pa{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 18px rgba(15,118,110,.35)}#sp-home.pa-lock .sp-hero:not(.pa),#sp-home.pa-lock .sp-grid{opacity:.45}#sp-home .sp-lockmsg{margin:-6px 0 14px;font-size:13px;opacity:.85}' +
       '#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
     document.head.appendChild(st);
@@ -2776,7 +2790,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '<button type="button" class="sp-hero pa" data-home="pa"><span class="ic" aria-hidden="true">🤝</span><span><b>' + esc(ui('Профиль деятельности', 'Профили фаъолият', 'Faoliyat profili')) + '</b><small id="sp-pa-sub">' + esc(ui('Расскажите о себе, и я настрою кабинет', 'Дар бораи худ нақл кунед, кабинетро танзим мекунам', 'Oʻzingiz haqingizda ayting, kabinetni sozlayman')) + '</small></span></button><p class="sp-lockmsg" id="sp-lockmsg" hidden>' + esc(ui('Сначала познакомьтесь с личным ассистентом, остальное откроется после этого.', 'Аввал бо ёвари шахсӣ шинос шавед, боқӣ баъд кушода мешавад.', 'Avval shaxsiy yordamchi bilan tanishing, qolgani shundan keyin ochiladi.')) + '</p>' +
       '<button type="button" class="sp-hero" data-home="assistant"><span class="ic" aria-hidden="true">✨</span><span><b>' + esc(TX('Мой ассистент: сводка дня')) + '</b><small id="sp-hero-sub">' + esc(TX('Что происходит у всех ваших специалистов, в одном окне')) + '</small></span></button>' +
       '<div class="sp-grid">' +
-      LIST.filter(function (x) { return !x.hide; }).map(function (x) {
+      LIST.filter(function (x) { return !x.hide && (!x.cl || vitrinaOn()); }).map(function (x) {
         return '<button type="button" class="sp-tile' + (x.ready ? '' : ' soon') + '" data-home="' + x.id + '"><span class="ic" aria-hidden="true">' + x.ico + '</span><b>' + esc(TX(x.name)) + '</b><small>' + esc(TX(x.ready ? x.about : 'Скоро')) + '</small></button>';
       }).join('') + '</div>';
     app.insertBefore(home, ref);
@@ -2803,7 +2817,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var app = document.querySelector('.app'); if (app) app.classList.toggle('sp-on', show);
     $s('sp-home').hidden = !show;
     staffBtn();
-    if (user) shopCheck();
+    if (user) { shopCheck(); vitrinaCheck(); }
     var shopTile = document.querySelector('#sp-home [data-home="shop"]'); if (shopTile) shopTile.hidden = !shopOn();
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
@@ -2827,7 +2841,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
 if (S.view === 'mkt') return renderMkt(el);
     if (S.view !== 'list') return renderSoon(el, S.view);
     el.innerHTML = '<h2 style="padding-right:36px">' + esc(TX('Специалисты')) + '</h2><p>' + esc(TX('Выберите специалиста. Каждый работает в своём окне.')) + '</p><div class="sp-list" style="display:grid;gap:10px">' +
-      LIST.filter(function (s) { return !s.hide; }).map(function (s) {
+      LIST.filter(function (s) { return !s.hide && (!s.cl || vitrinaOn()); }).map(function (s) {
         return '<button type="button" class="btn sec sp-card" data-sp="' + s.id + '" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:12px">' +
           '<span style="font-size:26px;flex:none" aria-hidden="true">' + s.ico + '</span>' +
           '<span style="flex:1;min-width:0"><b style="display:block">' + esc(TX(s.name)) + '</b><small style="opacity:.75">' + esc(TX(s.about)) + '</small></span>' +
