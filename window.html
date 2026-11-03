@@ -2982,7 +2982,7 @@ if (S.view === 'mkt') return renderMkt(el);
 
   /* ---------- Финансист проката строительных инструментов ---------- */
   // Данные хранит n8n по адресу /prokat. Кому показывать прокат, решает сервер: чужому кабинету он отвечает «нет доступа», и тогда открывается обычная бухгалтерия.
-  var PK = { mv: null, pt: null, points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, phG: '', big: null, cmp: null, tour: null, rem: null, ol: null, sh: null, buy: null, pb: null, add: null , more: false };
+  var PK = { mv: null, pt: null, points: [], total: null, filter: 'all', cur: null, busy: false, err: '', msg: '', form: null, ride: false, folder: false, sk: null, all: null, ph: null, phG: '', big: null, cmp: null, tour: null, rem: null, ol: null, sh: null, buy: null, pb: null, add: null, more: false, mt: null };
   var PK_ST = { minus: 'В минусе', plus: 'В плюсе', idle: 'Нет движения' };
   var PK_PAY = { cash: 'Наличные', ds: 'Душанбе Сити', alif: 'Алиф' };
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
@@ -3007,13 +3007,13 @@ if (S.view === 'mkt') return renderMkt(el);
     if (PK.form) { PK.form = null; PK.err = ''; render(); return true; }
     if (PK.pt) { PK.pt = null; PK.mv = null; PK.big = null; render(); return true; }
     if (PK.cur) { PK.add = null; PK.cur = null; PK.ol = null; PK.sh = null; PK.pb = null; PK.ph = null; PK.pt = null; PK.big = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; render(); return true; }
-    if (PK.buy || PK.sk || PK.all || PK.cmp) { PK.buy = null; PK.mv = null; PK.sk = null; PK.all = null; PK.cmp = null; PK.ride = false; render(); return true; }
+    if (PK.buy || PK.sk || PK.all || PK.cmp || PK.mt) { PK.buy = null; PK.mv = null; PK.sk = null; PK.all = null; PK.cmp = null; PK.mt = null; PK.ride = false; render(); return true; }
     if (PK.folder) { PK.folder = false; render(); return true; }
     return false;
   }
-  function pkIdle() { return !(PK.cur || PK.pt || PK.form || PK.mv || PK.tour || PK.sk || PK.all || PK.cmp || PK.buy); }
+  function pkIdle() { return !(PK.cur || PK.pt || PK.form || PK.mv || PK.tour || PK.sk || PK.all || PK.cmp || PK.buy || PK.mt); }
   function openFinOrProkat() {
-    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.mt = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     var PKK = 'ew_pk_' + hsh(code().code || '');
     try { if (localStorage.getItem(PKK) === '0') { PK.busy = false; openBuh(); callTo('/prokat', { action: 'points' }).then(function (q) { if (q && q.ok) { try { localStorage.removeItem(PKK); } catch (e) {} } }); return; } } catch (e) {}
     var warm = !!pkCache().points; if (warm) { PK.points = PKC.points; PK.total = PKC.total; PK.busy = false; render(); }
@@ -3053,6 +3053,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (PK.all) return renderPkAll(el);
     if (PK.cmp) return renderPkCmp(el);
     if (PK.buy) return renderPkBuy(el);
+    if (PK.mt) return renderPkMonths(el);
     if (!PK.folder) return renderPkHome(el);
     var pts = PK.points.slice().sort(function (a, b) { return pkNum(a.profit) - pkNum(b.profit); });
     var plus = 0, minus = 0, idle = 0, sum = 0;
@@ -3084,6 +3085,7 @@ if (S.view === 'mkt') return renderMkt(el);
       '<button type="button" class="btn sec" data-pk="sklad" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🏠</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Склад')) + '</b><small style="opacity:.75">' + esc(TX('Новые (ждут пункт), сломанные, в ремонте, на запчасти: фото и количество')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="all" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🧰</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Все инструменты')) + '</b><small style="opacity:.75">' + esc(TX('Перфораторы, болгарки, дрели и другие: где какой стоит')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="cmp" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📊</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Сравнение пунктов')) + '</b><small style="opacity:.75">' + esc(TX('Какой пункт лучше и что где простаивает')) + '</small></span></button>' +
+      '<button type="button" class="btn sec" data-pk="mt" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📅</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Доходы по месяцам')) + '</b><small style="opacity:.75">' + esc(TX('Пункты × месяцы: доход и дни, когда забирали деньги')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="buy" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">💵</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Закупка и окупаемость')) + '</b><small style="opacity:.75">' + esc(TX('Цена покупки каждого вида и сколько уже вернулось по пунктам')) + '</small></span></button></div>' +
       // Утренние напоминания приходят уведомлением на телефоны, где их включили (каждый день в 8:00, если есть что напомнить).
       (owner() ? '<p style="margin-top:12px"><button type="button" class="btn sec" data-pk="push" style="height:auto;min-height:36px;font-size:14px">🔔 ' + esc(TX('Присылать напоминания на этот телефон')) + '</button><small style="display:block;opacity:.75;margin-top:4px">' + esc(TX('Каждое утро в 8:00: где давно не было объезда, кто должен деньги, что долго сломано.')) + '</small></p>' : '') +
@@ -3956,6 +3958,40 @@ if (S.view === 'mkt') return renderMkt(el);
       '<img src="' + esc(u) + '" alt="' + esc(p.name || '') + '" style="max-width:100%;max-height:calc(100dvh - 90px);object-fit:contain">' +
       '<p style="color:#fff;margin:8px 0 0;text-align:center">' + esc(p.name || '') + (p.date ? ' · ' + esc(p.date) : '') + '</p></div>';
   }
+  /* ---------- Доходы по месяцам: пункты × месяцы, в клетке доход и дни сбора денег (поручение Нурулло 04.11.2026) ---------- */
+  var PK_MN = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  function pkMtOpen() {
+    var mt = PK.mt = { loading: true, error: '', rows: [], col: [], total: 0, year: 2026 }; PK.ride = false; render();
+    callTo('/prokat', { action: 'months_table' }).then(function (r) {
+      if (PK.mt !== mt) return;
+      mt.loading = false;
+      if (!r || !r.ok) mt.error = (r && r.error) || TX('не удалось загрузить');
+      else { mt.rows = Array.isArray(r.rows) ? r.rows : []; mt.col = Array.isArray(r.col_totals) ? r.col_totals : []; mt.total = pkNum(r.total); mt.year = r.year || 2026; }
+      if (S.view === 'prokat') render();
+    });
+  }
+  function pkMtCell(c) {
+    if (!c) return '';
+    var ds = (c.dates || []).map(function (d) { return '<span style="white-space:nowrap' + (d.app ? ';color:#1f8a4c;font-weight:600' : '') + '">' + esc(d.d) + (d.ds ? ' ДС' : '') + (d.app ? ' ✓' : '') + '</span>'; }).join(', ');
+    return (c.sum ? '<b>' + esc(pkNum(c.sum)) + '</b>' : '') + (ds ? '<small style="display:block;opacity:.85;line-height:1.2">' + ds + '</small>' : '');
+  }
+  function renderPkMonths(el) {
+    var mt = PK.mt, h = pkBtn('home', '← ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px;margin-bottom:4px">📅 ' + esc(TX('Доходы по месяцам')) + ' ' + esc(mt.year) + '</h2>';
+    if (mt.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
+    if (mt.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(mt.error) + '</p>' + pkBtn('mt-retry', esc(TX('Ещё раз')), true));
+    var rows = mt.rows.filter(function (r) { return pkNum(r.total) > 0 || (r.cells || []).some(function (c) { return c && c.dates && c.dates.length; }); });
+    h += '<p style="margin:0 0 8px;opacity:.8"><small>' + esc(TX('В клетке: доход за месяц и дни, когда забрали деньги. ✓ — записано в приложении, ДС — через Душанбе Сити. Таблицу можно двигать пальцем влево-вправо.')) + '</small></p>';
+    var th = 'padding:6px 8px;border-bottom:2px solid rgba(127,127,127,.35);white-space:nowrap;text-align:right;font-size:13px', td = 'padding:6px 8px;border-bottom:1px solid rgba(127,127,127,.2);text-align:right;vertical-align:top;font-size:13px;min-width:72px';
+    var st = 'position:sticky;left:0;background:var(--card,#fff);text-align:left;z-index:1;max-width:150px;overflow:hidden;text-overflow:ellipsis';
+    h += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px"><table style="border-collapse:collapse;min-width:100%"><thead><tr><th style="' + th + ';' + st + '">' + esc(TX('Пункт')) + '</th>' +
+      PK_MN.map(function (m) { return '<th style="' + th + '">' + esc(TX(m)) + '</th>'; }).join('') + '<th style="' + th + '">' + esc(TX('Итого')) + '</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        return '<tr><td style="' + td + ';' + st + ';font-weight:600">' + esc(r.name) + '</td>' + (r.cells || []).map(function (c) { return '<td style="' + td + '">' + pkMtCell(c) + '</td>'; }).join('') + '<td style="' + td + ';font-weight:700">' + esc(pkNum(r.total)) + '</td></tr>';
+      }).join('') +
+      '<tr><td style="' + td + ';' + st + ';font-weight:700">' + esc(TX('Итого')) + '</td>' + PK_MN.map(function (m, i) { return '<td style="' + td + ';font-weight:700">' + (pkNum(mt.col[i]) ? esc(pkNum(mt.col[i])) : '') + '</td>'; }).join('') + '<td style="' + td + ';font-weight:700;color:#1f8a4c">' + esc(pkNum(mt.total)) + '</td></tr></tbody></table></div>';
+    if (!rows.length) h += '<p style="opacity:.75">' + esc(TX('Пока нет данных')) + '</p>';
+    el.innerHTML = h;
+  }
   function pkAllOpen() {
     var all = PK.all = { loading: true, total: 0, groups: [], error: '', open: {} }; PK.ride = false; render();
     callTo('/prokat-foto', { action: 'all' }).then(function (r) {
@@ -4200,7 +4236,9 @@ function pkTake(p) { if (!p || !p.last_take) return TX('деньги не заб
     if (k.indexOf('p:') === 0) { var p = PK.points[+k.slice(2)]; if (p) pkOpenPoint(p.name); return; }
     if (k.indexOf('m:') === 0) { if (PK.form && PK_PAY[k.slice(2)]) { pkKeep(); PK.form.method = k.slice(2); render(); } return; }
     if (k === 'folder') { PK.folder = true; PK.ride = false; return render(); }
-    if (k === 'home') { PK.buy = null; PK.mv = null; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.ride = false; return render(); }
+    if (k === 'home') { PK.buy = null; PK.mv = null; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.mt = null; PK.ride = false; return render(); }
+    if (k === 'mt') return pkMtOpen();
+    if (k === 'mt-retry') return pkMtOpen();
     if (k === 'sklad') return pkSkOpen();
     if (pkBuyClick(k)) return;
     if (k === 'push') return pushEnable();
