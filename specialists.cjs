@@ -3326,6 +3326,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       '<datalist id="sh-posts">' + shPostNames().map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>' +
       '<label for="sh-r-pay" style="font-size:15px;font-weight:600">' + esc(ui('Как заплатили поставщику', 'Ба таъминкунанда чӣ тавр пардохтанд', 'Taʼminotchiga qanday toʻlandi')) + '</label><select id="sh-r-pay" class="in2" style="height:48px;font-size:16px"><option value="">' + esc(ui('— не отмечать —', '— қайд накардан —', '— belgilamaslik —')) + '</option><option value="nal">' + esc(ui('Наличными', 'Нақд', 'Naqd')) + '</option><option value="perevod">' + esc(ui('Переводом', 'Интиқол', 'Oʻtkazma')) + '</option><option value="dolg">' + esc(ui('В долг (заплатим потом)', 'Қарз (баъд пардохт мекунем)', 'Qarzga (keyin toʻlaymiz)')) + '</option></select>';
   }
+  // Подсказки названий при добавлении товара: список товаров, которые уже продаются (из прайса). Выбор подставляет название в строку.
+  function shNamesList() { var P = (SH.d && SH.d.products) || [], seen = {}, o = ''; P.forEach(function (p) { if (p && p.name && !seen[p.name]) { seen[p.name] = 1; o += '<option value="' + esc(p.name) + '">'; } }); return '<datalist id="sh-names">' + o + '</datalist>'; }
   function shPrihod() {
     if (SH.cnt && SH.cnt.open) return shCnt();
     var D = SH.d, h = '', f = SH.form;
@@ -3333,7 +3335,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (f) {
       h += '<form data-shopform="save" style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(ui('Новый товар', 'Моли нав', 'Yangi tovar')) + '</b>' +
         shIn('sh-f-kod', ui('Код товара (буквы и цифры)', 'Рамзи мол (ҳарф ва рақам)', 'Tovar kodi (harf va raqam)'), f.kod, 'maxlength="20"') +
-        shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60"') +
+        shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60" list="sh-names"') + shNamesList() +
         shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') + shSellFields(f) + shUnitFields(f) +
         shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + (SH.fotoNew ? '<img alt="" src="' + SH.fotoNew + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px">' : '') + shBtn('foto', '📷 ' + (SH.fotoNew ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'new') + '</div>') +
         '<div id="sh-f-price" style="font-size:15px;opacity:.8">' + esc(shSellNote(f.fsm)) + '</div><div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('save', ui('Сохранить', 'Захира', 'Saqlash')) + shBtn('fcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></form>';
@@ -3359,7 +3361,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (f) {
       h += '<form data-shopform="save" style="display:grid;gap:8px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><b>' + esc(f.edit ? ui('Изменить товар', 'Тағйири мол', 'Tovarni oʻzgartirish') : ui('Новый товар', 'Моли нав', 'Yangi tovar')) + '</b>' +
         shIn('sh-f-kod', ui('Код товара (буквы и цифры)', 'Рамзи мол (ҳарф ва рақам)', 'Tovar kodi (harf va raqam)'), f.kod, (f.edit ? 'readonly ' : '') + 'maxlength="20"') +
-        shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60"') +
+        shIn('sh-f-name', ui('Название', 'Ном', 'Nomi'), f.name, 'maxlength="60" list="sh-names"') + shNamesList() +
         shIn('sh-f-zakup', ui('Закупочная цена', 'Нархи харид', 'Xarid narxi'), f.zakup, 'inputmode="decimal"') + shSellFields(f) + shUnitFields(f) +
         shFotoBox('<div style="display:flex;gap:8px;align-items:center">' + (SH.fotoNew ? '<img alt="" src="' + SH.fotoNew + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px">' : '') + shBtn('foto', '📷 ' + (SH.fotoNew ? ui('Переснять', 'Аз нав гирифтан', 'Qayta olish') : ui('Фото товара', 'Акси мол', 'Tovar surati')), { sec: true, st: 'min-height:44px' }, 'new') + '</div>') +
         '<div id="sh-f-price" style="font-size:15px;opacity:.8">' + esc(shSellNote(f.fsm)) + '</div><div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">' + shBtn('save', ui('Сохранить', 'Захира', 'Saqlash')) + shBtn('fcancel', ui('Отмена', 'Бекор', 'Bekor'), { sec: true }) + '</div></form>';
