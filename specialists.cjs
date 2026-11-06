@@ -3041,7 +3041,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shIn(id, ph, val, attrs) { return '<input class="in2" id="' + id + '" placeholder="' + esc(ph) + '" value="' + esc(val == null ? '' : val) + '" autocomplete="off" ' + (attrs || '') + ' style="height:48px;font-size:16px">'; }
   function renderShop(el) {
     var st = sellerView(); if (st) SH.tab = KEEPER ? 'prihod' : 'kassa';
-    var kl = !!SH.kl && !SELLER && !staffNow(); if (kl && SH.tab !== 'tovar') SH.tab = 'prihod';
+    var kl = !!SH.kl && !SELLER && !staffNow(); if (kl) SH.tab = 'prihod';
     var simple = SH.tab === 'kassa', h = st ? '<div style="height:28px"></div>' : backBtn() + (simple ? '' : '<h2 style="padding-right:36px">' + (kl ? '📦 ' + esc(ui('Кладовщик', 'Анбордор', 'Omborchi')) : '🛒 ' + esc(ui('Учёт магазина', 'Ҳисоби мағоза', 'Doʻkon hisobi'))) + '</h2>');
     if (SELLER) {
       var who = ''; try { who = PREVIEW ? ui('Так видит продавец', 'Фурӯшанда чунин мебинад', 'Sotuvchi shunday koʻradi') : (store('ew_sname') || ''); } catch (e) {}
@@ -3050,8 +3050,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (!SELLER && !staffNow() && kl) h += '<div style="margin:0 0 8px"><div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('addst', '👥 ' + ui('Добавить сотрудника', 'Илова кардани корманд', 'Xodim qoʻshish'), { sec: true, st: 'min-height:40px;font-size:14px' }, 'kladovshchik') + shBtn('previewk', '👁 ' + ui('Как видит кладовщик', 'Анбордор чӣ тавр мебинад', 'Omborchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
     if (!SELLER && !staffNow() && !kl) h += '<div style="margin:0 0 8px">' + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + shBtn('addst', '👥 ' + ui('Добавить сотрудника', 'Илова кардани корманд', 'Xodim qoʻshish'), { sec: true, st: 'min-height:40px;font-size:14px' }, 'prodavec') + shBtn('preview', '👁 ' + ui('Как видит продавец', 'Фурӯшанда чӣ тавр мебинад', 'Sotuvchi qanday koʻradi'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div></div>';
     var tabs = [['kassa', 'Продажа', 'Фурӯш', 'Sotuv'], ['prihod', 'Приём', 'Қабул', 'Qabul'], ['tovar', 'Товары', 'Молҳо', 'Tovarlar'], ['dolg', 'Долги', 'Қарзҳо', 'Qarzlar'], ['zp', 'Зарплата', 'Маош', 'Maosh'], ['anal', 'Анализ', 'Таҳлил', 'Tahlil'], ['otchet', 'Отчёт', 'Ҳисобот', 'Hisobot']];
-    if (kl) tabs = tabs.filter(function (t) { return t[0] === 'prihod' || t[0] === 'tovar'; });
-    if (!SELLER && !staffNow()) h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px;margin:8px 0">' + tabs.map(function (t) { return shBtn('tab', ui(t[1], t[2], t[3]), { sec: SH.tab !== t[0] }, t[0]); }).join('') + '</div>';
+    if (kl) tabs = [];
+    if (!SELLER && !staffNow() && !kl) h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px;margin:8px 0">' + tabs.map(function (t) { return shBtn('tab', ui(t[1], t[2], t[3]), { sec: SH.tab !== t[0] }, t[0]); }).join('') + '</div>';
     if (SH.low && SH.tab === 'kassa') h += '<p role="status" id="sh-low" style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#fff4d6;color:#7a5200">' + esc(SH.low) + '</p>';
     if (SH.err) h += '<p class="err" role="alert" id="sh-err">' + esc(SH.err) + '</p>';
     if (SH.ok) h += '<p id="sh-ok" style="background:#e3f6ea;color:#1f6b3d;padding:8px 10px;border-radius:8px">' + esc(SH.ok) + '</p>';
