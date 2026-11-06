@@ -3324,10 +3324,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // Поставщик и оплата при приёме (№223, №224): наличными / переводом / в долг. В долг — поставщик попадает в «Кому должен магазин».
   function shPostPayName(p) { return p === 'nal' ? ui('оплачено наличными', 'нақд пардохт шуд', 'naqd toʻlandi') : p === 'perevod' ? ui('оплачено переводом', 'бо интиқол пардохт шуд', 'oʻtkazma bilan toʻlandi') : p === 'dolg' ? ui('в долг у поставщика', 'қарз аз таъминкунанда', 'taʼminotchidan qarzga') : ''; }
+  // Список поставщиков, который открывается по нажатию на строку «Поставщик» при приёме. Основной список заполняет хозяин (впишите сюда имена),
+  // дальше идут поставщики, которых уже вводили раньше.
+  var SH_SUPPLIERS = [];
+  document.addEventListener('click', function (e) { var t = e.target; if (t && t.id === 'sh-r-post' && typeof t.showPicker === 'function') { try { t.showPicker(); } catch (x) {} } });
+  document.addEventListener('focusin', function (e) { var t = e.target; if (t && t.id === 'sh-r-post' && typeof t.showPicker === 'function') { try { t.showPicker(); } catch (x) {} } });
   function shPostNames() {
     var n = [], add = function (x) { x = String(x || '').trim(); if (x && n.indexOf(x) < 0) n.push(x); };
+    SH_SUPPLIERS.forEach(add);
     try { ((SH.d && SH.d.report && SH.d.report.postDebts) || []).forEach(function (c) { add(c.name); }); ((SH.d && SH.d.receipts) || []).forEach(function (r) { add(r.post); }); } catch (e) {}
-    return n.slice(0, 30);
+    return n.slice(0, 60);
   }
   function shPostFields() {
     return '<label for="sh-r-post" style="font-size:15px;font-weight:600">' + esc(ui('Поставщик (необязательно)', 'Таъминкунанда (ихтиёрӣ)', 'Taʼminotchi (ixtiyoriy)')) + '</label>' + shIn('sh-r-post', ui('Имя или магазин поставщика', 'Ном ё мағозаи таъминкунанда', 'Taʼminotchi nomi'), '', 'maxlength="40" list="sh-posts"') +
