@@ -360,6 +360,10 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     // Стройка: плитка «Финансист по объектам» только там, где сервер /objekty её разрешил; тогда обычный «Финансист» подписываем «Финансист аптеки».
     if (user) objCheck();
     var objTile = document.querySelector('#sp-home [data-home="obj"]'); if (objTile) objTile.hidden = !objOn();
+    // Кабинет со стройкой (Асрор Холов): оставляем только продавца-ассистента и двух финансистов; SMM, маркетолог, менеджер, юрист и «Личный ассистент» скрыты.
+    var onlyFin = objOn();
+    ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
+    var paHero = document.querySelector('#sp-home [data-home="pa"]'); if (paHero) paHero.hidden = onlyFin;
     var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = objOn() ? ui('Финансист аптеки', 'Молиячии дорухона', 'Dorixona moliyachisi') : TX('Финансист');
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
