@@ -2820,7 +2820,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // per — сколько единиц в одной штуке (труба 4 м, рулон 25 м): такой товар можно принять и продать и штуками, и метрами.
   var SH_U = { sht: ['шт', 'дона', 'dona'], m: ['м', 'м', 'm'], kg: ['кг', 'кг', 'kg'], g: ['г', 'г', 'g'], rulon: ['рулон', 'рулон', 'rulon'] };
   var SH_UN = [['sht', 'Штуки', 'Дона', 'Dona'], ['m', 'Метры — для рулона (продаю по метрам)', 'Метр — барои рулон (бо метр мефурӯшам)', 'Metr — rulon uchun (metrlab sotaman)'], ['kg', 'Килограммы — для мешка (продаю на вес, до грамма)', 'Килограмм — барои халта (бо вазн, то грамм)', 'Kilogramm — qop uchun (vazn boʻyicha, grammgacha)'], ['g', 'Граммы', 'Грамм', 'Gramm'], ['rulon', 'Рулоны', 'Рулон', 'Rulon']];
-  function shU(p) { return p && SH_U[p.unit] ? p.unit : 'sht'; }
+  function shU(p) { if (objOn()) return 'sht'; return p && SH_U[p.unit] ? p.unit : 'sht'; } // аптека (кабинет со стройкой): всё считается только в штуках
   function shUL(u) { var x = SH_U[u] || SH_U.sht; return ui(x[0], x[1], x[2]); }
   function shQR(u, x) { var f = u === 'm' ? 100 : u === 'kg' ? 1000 : 1; return Math.round(Number(x) * f) / f; }
   function shNumTxt(n) { return String(n).replace('.', ','); }
@@ -3250,6 +3250,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // Поля единицы измерения в форме товара: единица и «сколько в одной штуке» (для труб и рулонов, необязательно).
   function shUnitFields(f) {
     var u = SH_U[f.unit] ? f.unit : 'sht';
+    if (objOn()) return '';
     return '<label for="sh-f-unit" style="font-size:15px;font-weight:600">' + esc(ui('Как продаётся (единица)', 'Чӣ тавр фурӯхта мешавад (воҳид)', 'Qanday sotiladi (birlik)')) + '</label><select class="in2" id="sh-f-unit" style="height:48px;font-size:16px">' + SH_UN.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === u ? ' selected' : '') + '>' + esc(ui(x[1], x[2], x[3])) + '</option>'; }).join('') + '</select><small style="opacity:.8">' + esc(ui('Рулон продаёте по метрам — выберите «Метры». Мешок продаёте на вес — выберите «Килограммы». Впишите, сколько метров (кг) в рулоне (мешке), и цену рулона (мешка). Программа сама посчитает цену за метр, за кг и за 100 г, а продавец в кассе пишет метры или кг.', 'Рулон, ки бо метр мефурӯшед: «Метр»-ро интихоб кунед, дар як рулон чанд метр ва нархи рулонро нависед. Барнома нархи як метрро худ ҳисоб мекунад.', 'Metrlab sotiladigan rulon: «Metr»ni tanlang, bir rulonda necha metr va rulon narxini yozing. Dastur bir metr narxini oʻzi hisoblaydi.')) + '</small>' +
       '<div id="sh-f-perbox"' + (u === 'sht' ? ' hidden' : '') + ' style="display:grid;gap:4px"><label for="sh-f-per" style="font-size:15px;font-weight:600" id="sh-f-perl">' + esc(shPerLabel(u)) + '</label>' + shIn('sh-f-per', ui('Например 4', 'Масалан 4', 'Masalan 4'), f.per || '', 'inputmode="decimal"') +
       '<div id="sh-f-rollbox"' + (u === 'm' || u === 'kg' ? '' : ' hidden') + ' style="display:grid;gap:4px"><label for="sh-f-zroll" style="font-size:15px;font-weight:600">' + esc(ui('Закупка за 1 рулон или мешок (необязательно)', 'Харид барои 1 рулон ё халта (ихтиёрӣ)', '1 rulon yoki qop xaridi (ixtiyoriy)')) + '</label>' + shIn('sh-f-zroll', ui('Цена за рулон или мешок', 'Нарх барои рулон ё халта', 'Rulon yoki qop narxi'), f.zroll || '', 'inputmode="decimal"') +
