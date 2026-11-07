@@ -5529,7 +5529,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return '<label for="sh-f-shelf" style="font-size:15px;font-weight:600">' + esc(ui('Полка (1, 2, 3…)', 'Раф (1, 2, 3…)', 'Javon (1, 2, 3…)')) + '</label>' + shIn('sh-f-shelf', ui('На какой полке лежит', 'Дар кадом раф меистад', 'Qaysi javonda turadi'), f && f.shelf != null ? f.shelf : cur, 'maxlength="20"');
   }
   function shPolkiList() {
-    var t = String(SH.pq || '').trim().toLowerCase(), g = {}, n = 0;
+    var t = String(SH.pq || '').trim().toLowerCase(), g = {}, n = 0, add = !KEEPER && !SH.kl && (SELLER || SH.tab === 'kassa'); // в кассе нажатие на препарат кладёт его в чек
     ((SH.d && SH.d.products) || []).forEach(function (p) {
       var sh = String(p.shelf || '').trim();
       if (t && p.name.toLowerCase().indexOf(t) < 0 && p.kod.toLowerCase().indexOf(t) < 0 && sh.toLowerCase().indexOf(t) < 0) return;
@@ -5541,7 +5541,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return keys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.name.localeCompare(b.name, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
       return '<div style="margin:10px 0 4px;font-weight:700;font-size:17px">' + esc(k ? ui('Полка ', 'Раф ', 'Javon ') + k : ui('Без полки', 'Бе раф', 'Javonsiz')) + ' <small style="font-weight:400;opacity:.7">· ' + arr.length + '</small></div>' +
-        shown.map(function (p) { return '<div style="padding:6px 0;border-bottom:1px solid #e6e6e6"><b>' + esc(p.name) + '</b> <small style="opacity:.75">' + esc(p.kod) + ' · ' + esc(ui('ост. ', 'бок. ', 'qol. ')) + esc(shQ(p, p.qty)) + '</small></div>'; }).join('') +
+        shown.map(function (p) {
+          var inner = '<b>' + esc(p.name) + '</b> <small style="opacity:.75">' + esc(p.kod) + ' · ' + esc(ui('ост. ', 'бок. ', 'qol. ')) + esc(shQ(p, p.qty)) + (add ? ' · ' + esc(shMoney(p.price)) : '') + '</small>';
+          return add ? '<button type="button" class="btn sec" data-shop="polki-put" data-k="' + esc(p.kod) + '" style="display:block;width:100%;height:auto;text-align:left;padding:10px 12px;margin:4px 0;font-size:16px">' + inner + '</button>' : '<div style="padding:6px 0;border-bottom:1px solid #e6e6e6">' + inner + '</div>';
+        }).join('') +
         (arr.length > shown.length ? '<small style="opacity:.7">' + esc(ui('Ещё ' + (arr.length - shown.length) + ' — уточните поиск', 'Боз ' + (arr.length - shown.length) + ' — ҷустуҷӯро дақиқ кунед', 'Yana ' + (arr.length - shown.length) + ' — qidiruvni aniqlang')) + '</small>' : '');
     }).join('');
   }
@@ -6167,6 +6170,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return shAct({ action: 'expense', id: oid(), amount: ea, note: en ? en.value : '', who: ew ? ew.value : '', date: today() }, ui('Расход записан', 'Хароҷот сабт шуд', 'Xarajat yozildi'), function () { SH.expOpen = false; });
     }
     if (a === 'polki') { SH.polki = true; SH.pq = ''; return render(); }
+    if (a === 'polki-put') { SH.polki = false; SH.pq = ''; SH.err = ''; SH.found = null; SH.ff = null; shPut(k); SH.code = ''; return render(); }
     if (a === 'polki-x') { SH.polki = false; SH.pq = ''; return render(); }
     if (a === 'fnew') { SH.fotoNew = ''; SH.form = { kod: '', name: '', zakup: '', marzha: '', sell: '', fsm: false }; SH.rcv = null; return render(); }
     if (a === 'addst') { if (window.open_team) window.open_team(k); return; }
