@@ -6318,7 +6318,7 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
         o.addEventListener('click', onClick);
       }
       o.hidden = false;
-      if (!SELLER) { SELLER = true; S.view = 'shop'; SH.tab = KEEPER ? 'prihod' : 'kassa'; SH.cart = []; SH.pay = ''; SH.who = ''; SH.cid = oid(); SH.err = ''; SH.ok = ''; SH.found = null; SH.d = null; SH.month = today().slice(0, 7); var kb = $s('sp-kassa-btn'); if (kb) kb.hidden = true; render(); shLoad(); }
+      if (!SELLER) { var spb = $s('sp-body'); if (spb) spb.innerHTML = ''; /* скрытая копия окна «Учёт магазина» дублировала id полей, и подсказки писались в неё, а не в видимое окно кладовщика */ SELLER = true; S.view = 'shop'; SH.tab = KEEPER ? 'prihod' : 'kassa'; SH.cart = []; SH.pay = ''; SH.who = ''; SH.cid = oid(); SH.err = ''; SH.ok = ''; SH.found = null; SH.d = null; SH.month = today().slice(0, 7); var kb = $s('sp-kassa-btn'); if (kb) kb.hidden = true; render(); shLoad(); }
     } else {
       SELLER = false; KEEPER = false; if (o) o.hidden = true;
     }
