@@ -26,6 +26,7 @@
     if (!c || SHOP_ASK === c) return; SHOP_ASK = c;
     callTo('/magazin', { action: 'ping' }).then(function (r) {
       if (!r || r.error === TX('нет связи')) { SHOP_ASK = ''; return; }
+      if (r.error === 'as') return;
       var on = r.error !== 'нет доступа', was = shopOn();
       try { lstore('ew_shop_for', on ? c : null); } catch (e) {}
       if (on !== was) { applyHome(); render(); }
@@ -437,6 +438,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (!c || OB_ASK === c) return; OB_ASK = c;
     callTo('/objekty', { action: 'ping' }).then(function (r) {
       if (!r || r.error === TX('нет связи')) { OB_ASK = ''; return; }
+      if (r.error === 'as') return; // админ в чужом кабинете: ответа сервера нет, плитку не включаем
       var on = r.error !== 'нет доступа', was = objOn();
       try { lstore('ew_obj_for', on ? c : null); } catch (e) {}
       if (on !== was) applyHome();
