@@ -792,6 +792,9 @@ function list_when(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); va
 var TAB = 'msg', MODE = 'guest', CHATS = DEMO, CUR = null, INFO = { channels:{}, bot:'', paidUntil:'', tarif:'' };
 
 function isStaff(){ return !!store('ew_sid'); }
+/* 07.11.2026, только кабинет Асрора Холова: в строках ввода виден текстовый курсор и оранжевая рамка при нажатии (раньше курсор был прозрачным из-за общего правила caret-color) */
+function asrorCaret(){ try { if (document.getElementById('asr-css') || String(AS_KOD || store('ew_cab') || '') !== 'kd6es8ycn5fa6gj43v7vlmw3nc0z5') return; var st = document.createElement('style'); st.id = 'asr-css'; st.textContent = 'input,textarea{caret-color:#111!important}input:focus,textarea:focus{outline:3px solid #f5a623!important;outline-offset:1px!important;border-color:#f5a623!important}'; document.head.appendChild(st); } catch (e) {} }
+asrorCaret(); setInterval(asrorCaret, 2000);
 function devId(){ var v = lstore('ew_did'); if (!v) { var a = new Uint8Array(12); try { crypto.getRandomValues(a); } catch(e) { for (var i=0;i<12;i++) a[i] = Math.floor(Math.random()*256); } v = Array.prototype.map.call(a, function(x){ return ('0'+x.toString(16)).slice(-2); }).join(''); lstore('ew_did', v); } return v; }
 function deviceName(model){ var u = navigator.userAgent, mob = /Mobi|Android|iPhone|iPad/.test(u);
   var os = /Android/.test(u) ? 'Android' : /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Windows/.test(u) ? 'Windows' : /Mac/.test(u) ? 'macOS' : /Linux/.test(u) ? 'Linux' : T('ОС');
