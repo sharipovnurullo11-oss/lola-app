@@ -5522,6 +5522,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // Подсказки по первым цифрам кода; когда код набран целиком, остаётся одна крупная карточка (нажатие добавляет ещё одну штуку).
   // Полка: номер полки пишет кладовщик при приёме; показываем рядом с названием товара.
   // «Полки» (07.11.2026, только Асрор Холов): сервер присылает d.polki = true только его кабинету. Полка у препарата — своя строка: 1, 2, 3 или любое название.
+  // Полка кассиру (только Асрор): яркая метка под названием в подсказках поиска.
+  function shShelfTag(p) {
+    if (!shPolkiOn()) return '';
+    var sh = String(p.shelf || '').trim();
+    return '<span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:8px;font-size:15px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>';
+  }
   function shPolkiOn() { return !!(SH.d && SH.d.polki); }
   function shShelfField(f) {
     if (!shPolkiOn()) return '';
@@ -5559,7 +5565,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (exact) {
       var line = null; SH.cart.forEach(function (it) { if (it.kod === exact.kod) line = it; });
       return '<button type="button" class="btn sec" data-shop="put" data-k="' + esc(exact.kod) + '" style="display:block;width:100%;height:auto;text-align:left;padding:14px;margin:8px 0">' +
-        '<small style="opacity:.75">' + esc(ui('Код ', 'Рамз ', 'Kod ')) + esc(exact.kod) + '</small><br><b style="font-size:20px">' + esc(shNm(exact)) + '</b><br>' +
+        '<small style="opacity:.75">' + esc(ui('Код ', 'Рамз ', 'Kod ')) + esc(exact.kod) + '</small><br><b style="font-size:20px">' + esc(shPolkiOn() ? exact.name : shNm(exact)) + '</b><br>' + (shPolkiOn() ? shShelfTag(exact) + '<br>' : '') +
         '<span style="font-size:18px">' + esc(shMoney(exact.price)) + ' ' + esc(ui('сомони', 'сомонӣ', 'somoniy')) + esc(shZa(exact)) + '</span><br>' + (shPer(exact) ? '<small>' + esc(shBoxW(shU(exact), true).replace(/^./, function (c) { return c.toUpperCase(); }) + ' (' + shNumTxt(shPer(exact)) + ' ' + shUL(shU(exact)) + '): ' + shMoney(shR2(exact.price * shPer(exact)))) + '</small><br>' : '') + (shGramLine(exact) ? '<small>' + esc(shGramLine(exact)) + '</small><br>' : '') +
         '<small style="opacity:.75">' + esc(ui('Осталось ', 'Боқимонда ', 'Qoldi ')) + esc(shQ(exact, exact.qty)) + ' · ' + esc(line ? ui('В корзине: ', 'Дар сабад: ', 'Savatda: ') + shQ(exact, line.qty) + '. ' + ui('Нажмите ещё раз, чтобы добавить.', 'Боз пахш кунед, то илова шавад.', 'Yana bossangiz, qoʻshiladi.') : ui('Нажмите на карточку, чтобы добавить.', 'Барои илова кардан ба корт пахш кунед.', 'Qoʻshish uchun kartani bosing.')) + '</small></button>';
     }
@@ -5567,7 +5573,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (!r.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Такого кода нет. Проверьте цифры.', 'Чунин рамз нест. Рақамҳоро санҷед.', 'Bunday kod yoʻq. Raqamlarni tekshiring.')) + '</p>';
     return '<div style="display:grid;gap:10px;margin:8px 0">' + r.map(function (p) {
       return '<button type="button" class="btn sec" data-shop="put" data-k="' + esc(p.kod) + '" style="display:flex;align-items:center;gap:12px;width:100%;height:auto;min-height:84px;text-align:left;padding:12px 14px">' + shThumb(p, 60) +
-        '<span style="flex:1;min-width:0"><b style="display:block;font-size:19px;line-height:1.25;white-space:normal">' + esc(shNm(p)) + '</b><small style="opacity:.75">' + esc(p.kod) + ' · ' + esc(ui('ост. ', 'бок. ', 'qol. ')) + esc(shQ(p, p.qty)) + '</small></span>' +
+        '<span style="flex:1;min-width:0"><b style="display:block;font-size:19px;line-height:1.25;white-space:normal">' + esc(shPolkiOn() ? p.name : shNm(p)) + '</b>' + shShelfTag(p) + '<small style="opacity:.75">' + esc(p.kod) + ' · ' + esc(ui('ост. ', 'бок. ', 'qol. ')) + esc(shQ(p, p.qty)) + '</small></span>' +
         '<b style="font-size:20px;white-space:nowrap">' + esc(shMoney(p.price)) + '<small style="font-weight:400;font-size:13px">' + esc(shZa(p)) + '</small></b></button>';
     }).join('') + '</div>';
   }
