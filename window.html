@@ -5659,8 +5659,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function aptNames(t) {
     t = String(t || '').trim().toLowerCase(); if (!t) return [];
     var seen = {}, out = [];
-    function add(n, sh, tx) { var l = String(n || '').trim().toLowerCase(); if (!l || l.indexOf(t) < 0 || seen[l]) return; seen[l] = 1; out.push({ n: String(n).trim(), sh: String(sh || '').trim(), tx: String(tx || '') }); }
-    ((SH.d && SH.d.products) || []).forEach(function (p) { var k = aptKb(p.name); add(p.name, p.shelf || (k && k.polka), k && k.text); });
+    function add(n, sh, tx, qt) { var l = String(n || '').trim().toLowerCase(); if (!l || l.indexOf(t) < 0 || seen[l]) return; seen[l] = 1; out.push({ n: String(n).trim(), sh: String(sh || '').trim(), tx: String(tx || ''), qt: qt || '' }); }
+    ((SH.d && SH.d.products) || []).forEach(function (p) { var k = aptKb(p.name); var qs = ''; try { qs = shQ(p, p.qty); } catch (e) { qs = String(p.qty); } add(p.name, p.shelf || (k && k.polka), k && k.text, qs); });
     (AP.kb || []).forEach(function (k) { add(k.name, k.polka, k.text); });
     out.sort(function (a, b) { var x = a.n.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.n.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.n.localeCompare(b.n, 'ru'); });
     return out.slice(0, 8);
@@ -5668,7 +5668,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function aptSugHtml(t) {
     var a = aptNames(t); AP.sug = a; if (!a.length) return '';
     return '<small style="display:block;margin:8px 0 4px;opacity:.7">' + esc(ui('Уже есть в базе. Нажмите, чтобы выбрать:', 'Дар база ҳаст. Барои интихоб пахш кунед:', 'Bazada bor. Tanlash uchun bosing:')) + '</small><div style="display:grid;gap:6px">' + a.map(function (x, i) {
-      return '<button type="button" class="btn sec" data-apt="pick" data-i="' + i + '" style="text-align:left;height:auto;min-height:44px;padding:8px 12px;white-space:normal;font-size:16px">' + esc(x.n) + (x.sh ? ' <small style="opacity:.75">· ' + esc(ui('полка ', 'раф ', 'javon ') + x.sh) + '</small>' : '') + '</button>';
+      return '<button type="button" class="btn sec" data-apt="pick" data-i="' + i + '" style="text-align:left;height:auto;min-height:44px;padding:8px 12px;white-space:normal;font-size:16px">' + esc(x.n) + (x.sh ? ' <small style="opacity:.75">· ' + esc(ui('полка ', 'раф ', 'javon ') + x.sh) + '</small>' : '') + (x.qt !== '' ? ' <b style="float:right;margin-left:8px;white-space:nowrap">' + esc(ui('ост. ', 'бок. ', 'qol. ') + x.qt) + '</b>' : '') + '</button>';
     }).join('') + '</div>';
   }
   // Форма «Добавить новый препарат»: название, полка, описание. Работает на телефоне, планшете и компьютере.
