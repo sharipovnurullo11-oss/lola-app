@@ -5572,10 +5572,13 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
   var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
   function openApt() { AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
+  var aptRetry = false;
   function aptLoad() {
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
-      if (!r.ok) AP.err = r.error || TX('не удалось загрузить'); else { SH.d = r; AP.err = ''; }
+      if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry) { aptRetry = true; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2500); } } else { SH.d = r; AP.err = ''; }
       if (S.view !== 'apt') return;
+      /* Кнопка «Полки» рисуется только когда данные загружены — если окно открылось раньше, перерисовываем */
+      if (!AP.err && shPolkiOn() && !AP.form && !AP.polki && !AP.multi && !document.querySelector('[data-apt="polki"]')) { render(); return; }
       var l = $s('apt-list'); if (l && !AP.err) l.innerHTML = aptList(); else render();
     });
     callTo('/polki-imena', { action: 'list' }).then(function (r) { if (r && r.ok && r.names) { AP.pn = r.names; if (S.view === 'apt' && !AP.polki && !AP.form) { var l2 = $s('apt-list'); if (l2 && SH.d) l2.innerHTML = aptList(); } if (S.view === 'apt' && AP.polki && !AP.form && !AP.pedit) { var pl = $s('apt-polki-list'); if (pl) pl.innerHTML = aptPolkiList(); } } });
