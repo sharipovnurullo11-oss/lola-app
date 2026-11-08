@@ -1653,7 +1653,7 @@ function team_scope_ui(){
   var fin = !!TEAM_SCOPE;
   $('s-title').textContent = TEAM_SCOPE === 'prodavec' ? T('Продавцы') : TEAM_SCOPE === 'kladovshchik' ? T('Кладовщики') : TEAM_SCOPE === 'apteka' ? T('Сотрудники аптеки') : T('Команда');
   var sel = $('s-rol'); var aptOk = false; try { aptOk = !!store('ew_cab') && lstore('ew_obj_for') === store('ew_cab'); } catch (e) {}
-  Array.prototype.forEach.call(sel.options, function(o){ var hide = (fin && o.value !== TEAM_SCOPE) || (o.value === 'apteka' && !aptOk) || (aptOk && (o.value === 'prodavec' || o.value === 'kladovshchik')); /* аптека: окно кладовщика и кассира объединено, один тип сотрудника «Аптека» (08.11.2026) */ o.hidden = hide; o.disabled = hide; });
+  Array.prototype.forEach.call(sel.options, function(o){ var hide = (fin && o.value !== TEAM_SCOPE) || (o.value === 'apteka' && !aptOk) || (aptOk && o.value !== 'apteka'); if (aptOk && o.value === 'apteka') o.textContent = T('Продавец: видит только поиск препарата и добавление нового'); /* аптека: окно кладовщика и кассира объединено, один тип сотрудника «Аптека» (08.11.2026) */ o.hidden = hide; o.disabled = hide; });
   if (fin) sel.value = TEAM_SCOPE; else if (aptOk) sel.value = 'apteka';
   ['s-dlgh','s-dlgs','s-pres'].forEach(function(id){ var e = $(id); if (e) e.hidden = fin; });
 }
@@ -2575,10 +2575,10 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   function staffBtn() {
     var on = false; try { on = mode() === 'user' && staffNow(); } catch (e) {}
     // Кнопка нужна только сотрудникам кабинета, где включён учёт магазина: спрашиваем сервер один раз.
-    if (on && STK === null && !STKbusy) { STKbusy = true; callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && r.role === 'pharmacist') { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); }
+    if (on && STK === null && !STKbusy) { STKbusy = true; callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && (r.role === 'pharmacist' || ((r.role === 'seller' || r.role === 'storekeeper') && r.polki))) { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); }
     on = on && STK === true;
     // Кнопка нужна только сотрудникам кабинета, где включён учёт магазина (Шамсуло): спрашиваем сервер один раз.
-    if (on && STK === null && !STKbusy) { STKbusy = true; callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && r.role === 'pharmacist') { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); }
+    if (on && STK === null && !STKbusy) { STKbusy = true; callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && (r.role === 'pharmacist' || ((r.role === 'seller' || r.role === 'storekeeper') && r.polki))) { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); }
     on = on && STK === true && !SELLER;
     var b = $s('sp-kassa-btn');
     if (!b && on) {
@@ -6254,7 +6254,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shNum(id) { var e = $s(id); return e ? String(e.value).replace(',', '.').trim() : ''; }
   function shopClick(b) {
     var a = b.dataset.shop, k = b.dataset.k;
-    if (a === 'preview' || a === 'previewk') { KEEPER = a === 'previewk'; PREVIEW = true; PREV_TAB = SH.tab; var md = $s('m-spec'); if (md && md.open) md.close(); setSeller(true); return; }
+    if (a === 'preview' || a === 'previewk') { KEEPER = a === 'previewk'; PREVIEW = true; PREV_TAB = SH.tab; var md = $s('m-spec'); if (md && md.open) md.close(); if (shPolkiOn()) { KEEPER = false; setPharm(); return; } /* аптека Асрора: продавец видит только поиск и добавление препарата */ setSeller(true); return; }
     if (a === 'selout') { if (PREVIEW) { PREVIEW = false; setSeller(false); S.view = PREV_FIN ? 'fin' : 'shop'; PREV_FIN = false; SH.tab = PREV_TAB || 'kassa'; SH.cart = []; SH.pay = ''; SH.d = null; render(); open_dlg('m-spec'); shLoad(); return; } if (typeof window.logout === 'function') window.logout(); return; }
     if (SELLER && !KEEPER && ['tab', 'fnew', 'fedit', 'rcv', 'rok', 'pdel', 'pay-open', 'pok', 'void', 'mprev', 'mnext', 'fcancel', 'save', 'rcancel'].indexOf(a) >= 0) return;
     if (KEEPER && ['tab', 'fedit', 'pdel', 'pay-open', 'pok', 'void', 'mprev', 'mnext', 'sell', 'add', 'put', 'plus', 'minus', 'rm', 'pay', 'dolgopen', 'paynow', 'who', 'preview', 'previewk'].indexOf(a) >= 0) return;
