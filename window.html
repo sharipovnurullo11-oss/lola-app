@@ -5584,9 +5584,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var sh = String(p.shelf || '').trim();
       return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
         '<b style="display:block;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b>' +
-        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' +
-        '<div style="font-size:17px">' + esc(ui('Осталось ', 'Боқимонда ', 'Qoldi ')) + '<b>' + esc(shQ(p, p.qty)) + '</b> · <b>' + esc(shMoney(p.price)) + '</b> ' + esc(ui('сомони', 'сомонӣ', 'somoniy')) + esc(shZa(p)) + '</div>' +
-        '<small style="opacity:.7">' + esc(ui('Код ', 'Рамз ', 'Kod ')) + esc(p.kod) + '</small></div>';
+        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span></span></div>';
     }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
   }
   function renderApt(el) {
