@@ -6501,8 +6501,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         if (keep.old) return done('', '');
         shFotoBig(fl, function (big) {
           if (!big) return done('', '');
-          callTo('/preparat-foto', { foto: big }).then(function (r) {
-            if (r && r.ok && r.name) return done(r.name, '');
+          callTo('/preparat-foto', { foto: big, thumb: img }).then(function (r) {
+            var nm = r && r.ok ? (r.full || r.name || '') : '';
+            if (nm && !r.doza) return done(nm, ui('Доза не прочиталась — выберите из списка ниже или допишите сами. Фото сохранится.', 'Миқдор хонда нашуд — аз рӯйхати поён интихоб кунед ё дастӣ нависед. Акс захира мешавад.', 'Doza oʻqilmadi — pastdagi roʻyxatdan tanlang yoki yozing. Rasm saqlanadi.'));
+            if (nm) return done(nm, '');
             done('', ui('Название не прочиталось — впишите его вручную. Фото сохранится.', 'Ном хонда нашуд — дастӣ нависед. Акс захира мешавад.', 'Nom oʻqilmadi — qoʻlda yozing. Rasm saqlanadi.'));
           });
         });
@@ -6571,7 +6573,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.apt === 'pick') {
       var px = (AP.sug || [])[Number(b.dataset.i)]; if (!px || !AP.form) return;
       var gv = function (id) { var e1 = $s(id); return e1 ? (e1.value || '').trim() : ''; };
-      AP.form = { name: px.n, polka: px.sh || gv('apt-f-polka'), opisanie: px.tx || gv('apt-f-text'), kolvo: px.kq || gv('apt-f-kolvo') }; AP.err = ''; render(); return;
+      var pf = AP.form; AP.form = { name: px.n, polka: px.sh || gv('apt-f-polka'), opisanie: px.tx || gv('apt-f-text'), kolvo: px.kq || gv('apt-f-kolvo'), foto: pf.foto || '', old: pf.old, shop: pf.shop }; AP.err = ''; render(); return;
     }
     if (b.dataset.apt === 'team') { if (window.open_team && objOn()) window.open_team('apteka'); return; }
     if (b.dataset.apt === 'edit') {
