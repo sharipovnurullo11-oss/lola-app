@@ -5569,7 +5569,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
-  var AP = { q: '', err: '', kb: null, form: null, msg: '' };
+  var AP = { q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
   function openApt() { S.view = 'apt'; S.fromFin = false; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
   function aptLoad() {
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
@@ -5585,10 +5585,28 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
   function aptFind(t) {
-    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || '' }; });
-    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || '' }); });
+    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '' }; });
+    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '' }); });
     r.sort(function (a, b) { var x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.name.localeCompare(b.name, 'ru'); });
     return r;
+  }
+  // Справка из интернета (через свой сервер, ответ запоминается): спрашиваем у первых трёх найденных препаратов без описания, не чаще раза на название.
+  function aptAsk(r) {
+    if (AP.timer) clearTimeout(AP.timer);
+    var todo = r.slice(0, 3).filter(function (x) { var k = String(x.name).trim().toLowerCase(); return !x.text && !AP.tried[k]; });
+    if (!todo.length) return;
+    AP.timer = setTimeout(function () {
+      todo.forEach(function (x, i) {
+        var k = String(x.name).trim().toLowerCase(); if (AP.tried[k]) return; AP.tried[k] = 1;
+        setTimeout(function () {
+          callTo('/spravochnik', { action: 'info', name: x.name }).then(function (j) {
+            if (!j || !j.ok) { delete AP.tried[k]; return; }
+            AP.info[k] = String(j.text || '');
+            if (S.view === 'apt' && !AP.form && AP.info[k]) { var l = $s('apt-list'); if (l) l.innerHTML = aptList(); }
+          });
+        }, i * 1200);
+      });
+    }, 700);
   }
   function aptList() {
     if (!SH.d) return '<p style="opacity:.7">' + esc(TX('Загрузка…')) + '</p>';
@@ -5598,11 +5616,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     // Не нашли точно (опечатка или голос услышал чуть иначе): ищем по началу слова, отбрасывая 1–2 последние буквы.
     for (var cut = 1; !r.length && cut <= 2 && t.length - cut >= 4; cut++) { r = aptFind(t.slice(0, t.length - cut)); like = r.length > 0; }
     if (!r.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Такого препарата нет. Проверьте название.', 'Чунин дору нест. Номро санҷед.', 'Bunday dori yoʻq. Nomini tekshiring.')) + '</p>';
+    aptAsk(r);
     return (like ? '<p style="margin:8px 0;opacity:.8">' + esc(ui('Точно такого нет. Похожие:', 'Айнан чунин нест. Монанд:', 'Aynan shunday yoʻq. Oʻxshashlari:')) + '</p>' : '') + r.slice(0, 30).map(function (p) {
       var sh = String(p.shelf || '').trim();
       return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
         '<b style="display:block;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b>' +
-        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p>' : '') + '</div>';
+        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p><small style="opacity:.6">' + esc(ui('Справочно, не замена совету врача', 'Маълумот барои огоҳӣ, на ивази маслиҳати духтур', 'Maʼlumot uchun, shifokor maslahatini oʻrnini bosmaydi')) + '</small>' : '') + '</div>';
     }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
   }
   // Голосовой ввод названия препарата (распознавание речи самого браузера; на телефоне, планшете и компьютере, где оно есть)
