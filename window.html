@@ -5585,8 +5585,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
   function aptFind(t) {
-    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '', foto: (k && k.foto) || '' }; });
-    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '' }); });
+    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '', foto: (k && k.foto) || '', shop: true, kolvo: (k && k.kolvo) || '' }; });
+    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '', kolvo: k.kolvo || '' }); });
     r.sort(function (a, b) { var x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.name.localeCompare(b.name, 'ru'); });
     return r;
   }
@@ -5621,7 +5621,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var sh = String(p.shelf || '').trim();
       return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
         '<div style="display:flex;gap:12px;align-items:flex-start">' + (p.foto ? '<img alt="" src="' + p.foto + '" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<b style="flex:1;min-width:0;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b></div>' +
-        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p><small style="opacity:.6">' + esc(ui('Справочно, не замена совету врача', 'Маълумот барои огоҳӣ, на ивази маслиҳати духтур', 'Maʼlumot uchun, shifokor maslahatini oʻrnini bosmaydi')) + '</small>' : '') + '<div style="margin-top:8px"><button type="button" class="btn sec" data-apt="cfoto" data-n="' + esc(p.name) + '" style="min-height:40px;font-size:15px;padding:0 12px">📷 ' + esc(p.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Добавить фото', 'Акс илова кардан', 'Rasm qoʻshish')) + '</button></div></div>';
+        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p><small style="opacity:.6">' + esc(ui('Справочно, не замена совету врача', 'Маълумот барои огоҳӣ, на ивази маслиҳати духтур', 'Maʼlumot uchun, shifokor maslahatini oʻrnini bosmaydi')) + '</small>' : '') + '<div style="margin-top:8px"><button type="button" class="btn sec" data-apt="edit" data-n="' + esc(p.name) + '" style="min-height:36px;font-size:14px;padding:0 12px">✏️ ' + esc(ui('Изменить', 'Тағйир додан', 'Oʻzgartirish')) + '</button></div></div>';
     }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
   }
   // Голосовой ввод названия препарата (распознавание речи самого браузера; на телефоне, планшете и компьютере, где оно есть)
@@ -5704,8 +5704,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // Форма «Добавить новый препарат»: название, полка, описание. Работает на телефоне, планшете и компьютере.
   function renderAptForm(el) {
     var f = AP.form || {};
-    el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">➕ ' + esc(ui('Новый препарат', 'Доруи нав', 'Yangi dori')) + '</h2>' +
-      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + aptSugHtml(f.name) + '</div>' +
+    el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">➕ ' + esc(f.old ? ui('Изменить препарат', 'Тағйир додани дору', 'Dorini oʻzgartirish') : ui('Новый препарат', 'Доруи нав', 'Yangi dori')) + '</h2>' +
+      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"' + (f.old && f.shop ? ' readonly' : '')) + (f.old && f.shop ? '<small style="opacity:.7">' + esc(ui('Название берётся из учёта магазина — здесь его не меняют', 'Ном аз ҳисоби мағоза гирифта мешавад — дар ин ҷо тағйир намеёбад', 'Nom doʻkon hisobidan olinadi — bu yerda oʻzgartirilmaydi')) + '</small>' : '') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + (f.old ? '' : aptSugHtml(f.name)) + '</div>' +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Полка', 'Раф', 'Javon')) + '</label>' + shIn('apt-f-polka', ui('Номер или название полки', 'Рақам ё номи раф', 'Javon raqami yoki nomi'), f.polka, 'inputmode="text" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Сколько штук добавить', 'Чанд дона илова кунед', 'Necha dona qoʻshiladi')) + '</label>' + shIn('apt-f-kolvo', ui('Например: 20', 'Масалан: 20', 'Masalan: 20'), f.kolvo, 'inputmode="decimal" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Описание: для чего препарат', 'Тавсиф: дору барои чӣ', 'Tavsif: dori nima uchun')) + '</label>' +
@@ -6418,7 +6418,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && t.dataset && t.dataset.cq) { var cp0 = shProd(t.dataset.cq), cv = shParse(t.value); if (cp0 && cv >= 0) { SH.cart.forEach(function (it) { if (it.kod === t.dataset.cq) { it.qty = shQR(shU(cp0), cv); var ls = $s('sh-ls-' + it.kod); if (ls) ls.innerHTML = shLineTxt(cp0, SH.pay === 'vladelec' ? cp0.zakup : cp0.price, it.qty); } }); var tt = $s('sh-total'); if (tt) { var tb = tt.querySelector('b'); if (tb) tb.textContent = money(shCartSum()) + ' ' + ui('сом.', 'сом.', 'som'); } } return; }
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); var rb2 = $s('sh-f-rollbox'); if (rb2) rb2.hidden = !(t.value === 'm' || t.value === 'kg'); }
     if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
-    if (t.id === 'apt-f-name' && e.type === 'input') { var sg0 = $s('apt-f-sug'); if (sg0) sg0.innerHTML = aptSugHtml(t.value); return; }
+    if (t.id === 'apt-f-name' && e.type === 'input') { var sg0 = $s('apt-f-sug'); if (sg0) sg0.innerHTML = (AP.form && AP.form.old) ? '' : aptSugHtml(t.value); return; }
     if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
     if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; AP.msg = ''; var apl = $s('apt-list'); if (apl) apl.innerHTML = aptList(); return; }
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
@@ -6475,7 +6475,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }
     if (t && t.id === 'apt-foto-in' && t.files && t.files[0]) {
       var gv2 = function (id) { var e2 = $s(id); return e2 ? (e2.value || '').trim() : ''; };
-      var keep = { name: gv2('apt-f-name'), polka: gv2('apt-f-polka'), kolvo: gv2('apt-f-kolvo'), opisanie: gv2('apt-f-text'), foto: (AP.form && AP.form.foto) || '' };
+      var keep = { name: gv2('apt-f-name'), polka: gv2('apt-f-polka'), kolvo: gv2('apt-f-kolvo'), opisanie: gv2('apt-f-text'), foto: (AP.form && AP.form.foto) || '', old: AP.form && AP.form.old, shop: AP.form && AP.form.shop };
       var fl = t.files[0];
       shFotoMake(fl, function (img) {
         if (!AP.form) return;
@@ -6488,6 +6488,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
           if (AP.form) { if (nm) AP.form.name = nm; AP.err = er || ''; }
           if (S.view === 'apt' && AP.form) render();
         };
+        if (keep.old) return done('', '');
         shFotoBig(fl, function (big) {
           if (!big) return done('', '');
           callTo('/preparat-foto', { foto: big }).then(function (r) {
@@ -6521,20 +6522,26 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       AP.form = { name: px.n, polka: px.sh || gv('apt-f-polka'), opisanie: px.tx || gv('apt-f-text'), kolvo: px.kq || gv('apt-f-kolvo') }; AP.err = ''; render(); return;
     }
     if (b.dataset.apt === 'team') { if (window.open_team && objOn()) window.open_team('apteka'); return; }
+    if (b.dataset.apt === 'edit') {
+      var en = String(b.dataset.n || ''), ec = aptFind(en.toLowerCase()).filter(function (x) { return x.name === en; })[0];
+      if (!ec) return; var ek = aptKb(en) || {};
+      AP.form = { name: ec.name, polka: ec.shelf || '', kolvo: ek.kolvo || ec.kolvo || '', opisanie: ec.text || '', foto: ec.foto || '', old: ec.name, shop: !!ec.shop }; AP.err = ''; AP.msg = ''; render(); return;
+    }
     if (b.dataset.apt === 'cfoto') { var cfi = $s('apt-cfoto-in'); if (cfi) { cfi.dataset.n = b.dataset.n || ''; cfi.value = ''; cfi.click(); } return; }
     if (b.dataset.apt === 'foto') { var afi = $s('apt-foto-in'); if (afi && !AP.fbusy) { afi.value = ''; afi.click(); } return; }
     if (b.dataset.apt === 'new') { AP.form = { name: AP.q || '' }; AP.err = ''; AP.msg = ''; render(); return; }
     if (b.dataset.apt === 'fcancel') { AP.form = null; AP.err = ''; render(); return; }
     if (b.dataset.apt === 'fsave') {
       var an = ($s('apt-f-name').value || '').trim(), ap = ($s('apt-f-polka').value || '').trim(), at = ($s('apt-f-text').value || '').trim(), ak = ($s('apt-f-kolvo').value || '').trim();
-      var af = (AP.form && AP.form.foto) || '';
-      AP.form = { name: an, polka: ap, opisanie: at, kolvo: ak, foto: af };
+      var af = (AP.form && AP.form.foto) || '', ao = (AP.form && AP.form.old) || '', ash = AP.form && AP.form.shop;
+      AP.form = { name: an, polka: ap, opisanie: at, kolvo: ak, foto: af, old: ao, shop: ash };
       if (an.length < 2) { AP.err = ui('Впишите название препарата', 'Номи доруро нависед', 'Dori nomini yozing'); render(); return; }
       b.disabled = true;
-      callTo('/spravochnik', { action: 'add', name: an, polka: ap, opisanie: at, kolvo: ak, foto: af }).then(function (r) {
+      callTo('/spravochnik', { action: 'add', name: an, polka: ap, opisanie: at, kolvo: ak, foto: af, old: ao }).then(function (r) {
         if (!r || !r.ok) { AP.err = (r && r.error) || TX('Не удалось записать'); b.disabled = false; if (S.view === 'apt') render(); return; }
+        if (ao && ao.toLowerCase() !== an.toLowerCase()) AP.kb = (AP.kb || []).filter(function (x) { return String(x.name || '').toLowerCase() !== ao.toLowerCase(); });
         var k = aptKb(an); if (k) { k.polka = ap; k.text = at; k.kolvo = ak; k.foto = af; } else (AP.kb = AP.kb || []).push({ name: an, polka: ap, text: at, kolvo: ak, foto: af });
-        AP.form = null; AP.err = ''; AP.q = an; AP.msg = ui('Препарат добавлен', 'Дору илова шуд', 'Dori qoʻshildi'); if (S.view === 'apt') render();
+        AP.form = null; AP.err = ''; AP.q = an; AP.msg = ao ? ui('Изменения сохранены', 'Тағйирот захира шуд', 'Oʻzgarishlar saqlandi') : ui('Препарат добавлен', 'Дору илова шуд', 'Dori qoʻshildi'); if (S.view === 'apt') render();
       });
       return;
     }
