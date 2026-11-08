@@ -179,6 +179,7 @@ dialog::backdrop{background:rgba(16,26,51,.55)}
 .dbody h2{margin:0;font-family:'Unbounded',sans-serif;font-weight:500;font-size:19px;letter-spacing:-.02em}
 .dbody p{margin:0;font-size:14px;line-height:1.5;color:var(--muted)}
 .x{position:absolute;right:10px;top:10px;width:30px;height:30px;line-height:1;padding:0;border:0;border-radius:8px;background:var(--soft);cursor:pointer;font-size:17px;z-index:6}
+.nox .x,.nox .dbody>.x{display:none!important}
 .dbody>.x{position:sticky;top:6px;align-self:flex-end;flex:none;width:36px;height:36px;font-size:20px;margin:-10px -10px -40px 0}
 .f{display:flex;flex-direction:column;gap:6px}
 label{font-weight:500;font-size:14px}
@@ -782,7 +783,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/spravochnik','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/spravochnik','/polki-imena','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -5569,7 +5570,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
-  var AP = { fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
+  var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
   function openApt() { AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
   function aptLoad() {
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
@@ -5577,6 +5578,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (S.view !== 'apt') return;
       var l = $s('apt-list'); if (l && !AP.err) l.innerHTML = aptList(); else render();
     });
+    callTo('/polki-imena', { action: 'list' }).then(function (r) { if (r && r.ok && r.names) { AP.pn = r.names; if (S.view === 'apt' && AP.polki && !AP.form && !AP.pedit) { var pl = $s('apt-polki-list'); if (pl) pl.innerHTML = aptPolkiList(); } } });
     // Свой справочник препаратов (полка и описание, которые добавили вручную)
     callTo('/spravochnik', { action: 'list' }).then(function (r) {
       if (r && r.ok) AP.kb = r.items || []; if (S.view !== 'apt' || AP.form) return;
@@ -5659,20 +5661,26 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return keys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
       if (!shown.length) return '';
-      return '<div style="margin:14px 0 4px;font-weight:700;font-size:20px">📍 ' + esc(k ? ui('Полка ', 'Раф ', 'Javon ') + k : ui('Без полки', 'Бе раф', 'Javonsiz')) + ' <small style="font-weight:400;opacity:.7">· ' + arr.length + '</small></div>' +
+      var pnm = k && AP.pn ? AP.pn[k] : '', head;
+      if (k && AP.pedit === k) head = '<div style="margin:14px 0 4px;display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><input class="in2" id="apt-pn-in" maxlength="80" value="' + esc(pnm || '') + '" placeholder="' + esc(ui('Название полки, например: для пищеварения', 'Номи раф, масалан: барои ҳазм', 'Javon nomi, masalan: hazm uchun')) + '" style="width:100%;height:48px;font-size:17px;box-sizing:border-box"></div><button type="button" class="btn" data-apt="pn-ok" data-k="' + esc(k) + '" style="flex:none;min-height:48px;padding:0 14px">✓</button><button type="button" class="btn sec" data-apt="pn-x" style="flex:none;min-height:48px;padding:0 14px">×</button></div>';
+      else head = '<div data-pn="' + esc(k) + '" style="margin:14px 0 4px;font-weight:700;font-size:20px;' + (k ? 'cursor:pointer;user-select:none' : '') + '">📍 ' + esc(k ? ui('Полка ', 'Раф ', 'Javon ') + k : ui('Без полки', 'Бе раф', 'Javonsiz')) + (pnm ? ' — <span style="color:#7a5200">' + esc(pnm) + '</span>' : '') + ' <small style="font-weight:400;opacity:.7">· ' + arr.length + '</small></div>';
+      return head +
         shown.map(function (n) { return '<div style="padding:8px 2px;border-bottom:1px solid #e6e6e6;font-size:18px;line-height:1.3;white-space:normal">' + esc(n) + '</div>'; }).join('') +
         (arr.length > shown.length ? '<small style="opacity:.7">' + esc(ui('Ещё ' + (arr.length - shown.length) + ' — уточните поиск', 'Боз ' + (arr.length - shown.length) + ' — ҷустуҷӯро дақиқ кунед', 'Yana ' + (arr.length - shown.length) + ' — qidiruvni aniqlang')) + '</small>' : '');
     }).join('');
   }
   function renderAptPolki(el) {
+    try { var dd = el.closest('dialog'); if (dd) dd.classList.add('nox'); } catch (e) {}
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 44px) 4px 24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:36px"><h2 style="margin:0;font-size:26px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</h2>' +
-      '<button type="button" class="btn sec" data-apt="polki-x" style="flex:none;min-height:48px;font-size:17px;padding:0 16px">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button></div>' +
+      '</div>' +
+      '<small style="display:block;margin-top:4px;opacity:.7">' + esc(ui('Тапните два раза по полке, чтобы дать ей название', 'Барои ном додан ба раф ду бор зананд', 'Nom berish uchun javonni ikki marta bosing')) + '</small>' +
       '<div style="margin-top:8px">' + shIn('apt-polki-q', ui('Номер полки или название препарата', 'Рақами раф ё номи дору', 'Javon raqami yoki dori nomi'), AP.pq, 'inputmode="text" enterkeyhint="search"') + '</div>' +
       '<div id="apt-polki-list" style="margin-top:6px">' + aptPolkiList() + '</div>' +
       '<div style="position:sticky;bottom:0;padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 10px);background:var(--bg,#fff)"><button type="button" class="btn" data-apt="polki-x" style="width:100%;min-height:56px;font-size:19px">← ' + esc(ui('Назад к поиску', 'Бозгашт ба ҷустуҷӯ', 'Qidiruvga qaytish')) + '</button></div></div>';
     setTimeout(function () { var i = $s('apt-polki-q'); if (i && S.view === 'apt' && AP.polki && !AP.form) i.focus(); }, 60);
   }
   function renderApt(el) {
+    try { var dd2 = el.closest('dialog'); if (dd2) dd2.classList.remove('nox'); } catch (e) {}
     if (AP.form) return renderAptForm(el);
     if (AP.polki) return renderAptPolki(el);
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px;' + (PHARM ? 'display:flex;flex-direction:column;min-height:calc(100dvh - 110px)' : '') + '"><h2 style="padding-right:36px;font-size:26px">🔍 ' + esc(ui('Поиск препарата', 'Ҷустуҷӯи дору', 'Dori qidirish')) + '</h2>' +
@@ -5704,6 +5712,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // Форма «Добавить новый препарат»: название, полка, описание. Работает на телефоне, планшете и компьютере.
   function renderAptForm(el) {
+    try { var dd3 = el.closest('dialog'); if (dd3) dd3.classList.remove('nox'); } catch (e) {}
     var f = AP.form || {};
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">➕ ' + esc(f.old ? ui('Изменить препарат', 'Тағйир додани дору', 'Dorini oʻzgartirish') : ui('Новый препарат', 'Доруи нав', 'Yangi dori')) + '</h2>' +
       '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"' + (f.old && f.shop ? ' readonly' : '')) + (f.old && f.shop ? '<small style="opacity:.7">' + esc(ui('Название берётся из учёта магазина — здесь его не меняют', 'Ном аз ҳисоби мағоза гирифта мешавад — дар ин ҷо тағйир намеёбад', 'Nom doʻkon hisobidan olinadi — bu yerda oʻzgartirilmaydi')) + '</small>' : '') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" data-zoom="1" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + (f.old ? '' : aptSugHtml(f.name)) + '</div>' +
@@ -6511,6 +6520,17 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (mode === 'rcv' && SH.rcv) { var kd = SH.rcv.kod; return shAct({ action: 'foto', kod: kd, foto: img }, ui('Фото сохранено', 'Акс захира шуд', 'Rasm saqlandi'), function () { SH_F[kd] = img; }); }
     });
   });
+  /* Двойной тап по названию полки — можно дать ей имя */
+  (function () {
+    var lastP = 0, lastK = '';
+    function startEdit(k) { if (!k || !AP.polki) return; AP.pedit = k; render(); setTimeout(function () { var i = $s('apt-pn-in'); if (i) { i.focus(); i.select(); } }, 60); }
+    document.addEventListener('touchend', function (e) {
+      var h = e.target && e.target.closest ? e.target.closest('[data-pn]') : null; if (!h) return;
+      var k = h.getAttribute('data-pn'), t = Date.now();
+      if (k === lastK && t - lastP < 350) { lastP = 0; e.preventDefault(); startEdit(k); } else { lastP = t; lastK = k; }
+    }, { passive: false });
+    document.addEventListener('dblclick', function (e) { var h = e.target && e.target.closest ? e.target.closest('[data-pn]') : null; if (h) startEdit(h.getAttribute('data-pn')); });
+  })();
   /* Двойной тап по маленькому фото препарата — открывается крупно; тап по тёмному фону закрывает */
   (function () {
     var last = 0;
@@ -6535,6 +6555,18 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
     if (b.dataset.apt === 'mic') { aptMic(); return; }
     if (b.dataset.apt === 'polki') { if (shPolkiOn()) { AP.polki = true; AP.pq = ''; render(); } return; }
+    if (b.dataset.apt === 'pn-x') { AP.pedit = null; render(); return; }
+    if (b.dataset.apt === 'pn-ok') {
+      var pk = b.dataset.k, pv = ($s('apt-pn-in') && $s('apt-pn-in').value || '').trim();
+      b.disabled = true;
+      callTo('/polki-imena', { action: 'set', polka: pk, imya: pv }).then(function (r) {
+        b.disabled = false;
+        if (!r || !r.ok) { AP.err = (r && r.error) || TX('Не удалось записать'); render(); return; }
+        AP.pn = AP.pn || {}; if (pv) AP.pn[pk] = pv; else delete AP.pn[pk];
+        AP.pedit = null; AP.err = ''; render();
+      });
+      return;
+    }
     if (b.dataset.apt === 'polki-x') { AP.polki = false; AP.pq = ''; render(); return; }
     if (b.dataset.apt === 'pick') {
       var px = (AP.sug || [])[Number(b.dataset.i)]; if (!px || !AP.form) return;
