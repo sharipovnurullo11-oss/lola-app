@@ -365,6 +365,8 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var onlyFin = objOn();
     ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
     var paHero = document.querySelector('#sp-home [data-home="pa"]'); if (paHero) paHero.hidden = onlyFin;
+    // По просьбе Нурулло (08.11.2026) в кабинете Асрора Холова убраны «Мой ассистент: сводка дня» и «Продавец-ассистент». Остальным кабинетам они видны как раньше.
+    ['assistant', 'seller'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
     var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = objOn() ? ui('Финансист аптеки', 'Молиячии дорухона', 'Dorixona moliyachisi') : TX('Финансист');
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
