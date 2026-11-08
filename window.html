@@ -6468,7 +6468,11 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         callTo('/preparat-foto', { foto: img }).then(function (r) {
           if (!r || !r.ok) return fail((r && r.error) || TX('Не удалось'));
           if (!r.name) return fail(ui('Название на упаковке не прочиталось. Сфотографируйте крупнее, чтобы название было видно.', 'Номи рӯи бастабандӣ хонда нашуд. Калонтар акс гиред.', 'Qadoqdagi nom oʻqilmadi. Kattaroq suratga oling.'));
-          AP.fbusy = false; AP.form = { name: r.name }; AP.err = ''; AP.msg = ''; if (S.view === 'apt') render();
+          AP.fbusy = false; AP.err = ''; AP.msg = '';
+          var nl = String(r.name).trim().toLowerCase(), w1 = (nl.match(/[\p{L}-]{3,}/u) || [''])[0], hit = aptFind(nl).length ? nl : (w1 && aptFind(w1).length ? w1 : '');
+          if (hit) { AP.q = hit === nl ? r.name : hit; AP.form = null; AP.msg = ui('На фото: ', 'Дар акс: ', 'Rasmda: ') + r.name + ' — ' + ui('нашёл в базе', 'дар база ёфт шуд', 'bazadan topildi'); }
+          else { AP.form = { name: r.name }; }
+          if (S.view === 'apt') render();
         });
       });
       return;
