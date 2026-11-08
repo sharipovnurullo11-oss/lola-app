@@ -5620,7 +5620,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return (like ? '<p style="margin:8px 0;opacity:.8">' + esc(ui('Точно такого нет. Похожие:', 'Айнан чунин нест. Монанд:', 'Aynan shunday yoʻq. Oʻxshashlari:')) + '</p>' : '') + r.slice(0, 30).map(function (p) {
       var sh = String(p.shelf || '').trim();
       return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
-        '<div style="display:flex;gap:12px;align-items:flex-start">' + (p.foto ? '<img alt="" src="' + p.foto + '" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<b style="flex:1;min-width:0;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b></div>' +
+        '<div style="display:flex;gap:12px;align-items:flex-start">' + (p.foto ? '<img alt="" data-zoom="1" src="' + p.foto + '" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<b style="flex:1;min-width:0;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b></div>' +
         '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p><small style="opacity:.6">' + esc(ui('Справочно, не замена совету врача', 'Маълумот барои огоҳӣ, на ивази маслиҳати духтур', 'Maʼlumot uchun, shifokor maslahatini oʻrnini bosmaydi')) + '</small>' : '') + '<div style="margin-top:8px"><button type="button" class="btn sec" data-apt="edit" data-n="' + esc(p.name) + '" style="min-height:36px;font-size:14px;padding:0 12px">✏️ ' + esc(ui('Изменить', 'Тағйир додан', 'Oʻzgartirish')) + '</button></div></div>';
     }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
   }
@@ -5706,7 +5706,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function renderAptForm(el) {
     var f = AP.form || {};
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">➕ ' + esc(f.old ? ui('Изменить препарат', 'Тағйир додани дору', 'Dorini oʻzgartirish') : ui('Новый препарат', 'Доруи нав', 'Yangi dori')) + '</h2>' +
-      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"' + (f.old && f.shop ? ' readonly' : '')) + (f.old && f.shop ? '<small style="opacity:.7">' + esc(ui('Название берётся из учёта магазина — здесь его не меняют', 'Ном аз ҳисоби мағоза гирифта мешавад — дар ин ҷо тағйир намеёбад', 'Nom doʻkon hisobidan olinadi — bu yerda oʻzgartirilmaydi')) + '</small>' : '') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + (f.old ? '' : aptSugHtml(f.name)) + '</div>' +
+      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"' + (f.old && f.shop ? ' readonly' : '')) + (f.old && f.shop ? '<small style="opacity:.7">' + esc(ui('Название берётся из учёта магазина — здесь его не меняют', 'Ном аз ҳисоби мағоза гирифта мешавад — дар ин ҷо тағйир намеёбад', 'Nom doʻkon hisobidan olinadi — bu yerda oʻzgartirilmaydi')) + '</small>' : '') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" data-zoom="1" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + (f.old ? '' : aptSugHtml(f.name)) + '</div>' +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Полка', 'Раф', 'Javon')) + '</label>' + shIn('apt-f-polka', ui('Номер или название полки', 'Рақам ё номи раф', 'Javon raqami yoki nomi'), f.polka, 'inputmode="text" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Сколько штук добавить', 'Чанд дона илова кунед', 'Necha dona qoʻshiladi')) + '</label>' + shIn('apt-f-kolvo', ui('Например: 20', 'Масалан: 20', 'Masalan: 20'), f.kolvo, 'inputmode="decimal" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Описание: для чего препарат', 'Тавсиф: дору барои чӣ', 'Tavsif: dori nima uchun')) + '</label>' +
@@ -6511,6 +6511,25 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (mode === 'rcv' && SH.rcv) { var kd = SH.rcv.kod; return shAct({ action: 'foto', kod: kd, foto: img }, ui('Фото сохранено', 'Акс захира шуд', 'Rasm saqlandi'), function () { SH_F[kd] = img; }); }
     });
   });
+  /* Двойной тап по маленькому фото препарата — открывается крупно; тап по тёмному фону закрывает */
+  (function () {
+    var last = 0;
+    function zoomFoto(src) {
+      var d = $s('m-spec'); if (!d || !src || $s('apt-zoom')) return;
+      var o = document.createElement('div'); o.id = 'apt-zoom';
+      o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out';
+      o.innerHTML = '<img alt="" src="' + src + '" style="width:min(92vw,520px);max-height:90vh;object-fit:contain;border-radius:12px;background:#fff"><span style="position:absolute;top:12px;right:18px;color:#fff;font-size:34px;line-height:1">×</span>';
+      o.addEventListener('click', function () { o.remove(); });
+      d.appendChild(o);
+    }
+    document.addEventListener('touchend', function (e) {
+      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (!im) return;
+      var t = Date.now(); if (t - last < 350) { last = 0; e.preventDefault(); zoomFoto(im.src); } else last = t;
+    }, { passive: false });
+    document.addEventListener('dblclick', function (e) {
+      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (im) zoomFoto(im.src);
+    });
+  })();
   function onClick(e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
