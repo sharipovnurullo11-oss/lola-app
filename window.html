@@ -6706,6 +6706,13 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     document.addEventListener('dblclick', function (e) {
       var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (im) zoomFoto(im.src, im);
     });
+    /* iPhone (Safari): двойное касание часто превращается в масштаб страницы или не даёт touchend — ловим ещё и по click и отключаем масштаб страницы на фото */
+    try { var zs = document.createElement('style'); zs.textContent = 'img[data-zoom]{touch-action:manipulation;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}'; document.head.appendChild(zs); } catch (er) {}
+    var lastC = 0;
+    document.addEventListener('click', function (e) {
+      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (!im) return;
+      var t = Date.now(); if (t - lastC < 450) { lastC = 0; zoomFoto(im.src, im); } else lastC = t;
+    });
   })();
   function onClick(e) {
     var b = e.target.closest('button'); if (!b) return;
