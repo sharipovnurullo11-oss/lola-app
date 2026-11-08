@@ -2560,7 +2560,7 @@ function $s(id) { return document.getElementById(id); }
       d.style.cssText = 'width:min(620px,calc(100vw - 16px))';
       d.innerHTML = '<div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto"><button class="x" data-close type="button" aria-label="' + esc(TX('Закрыть')) + '">×</button><div id="sp-body"></div></div>';
       document.body.appendChild(d);
-      d.querySelector('[data-close]').addEventListener('click', function () { d.close(); });
+      d.querySelector('[data-close]').addEventListener('click', function () { if (S.view === 'apt' && AP.form) { AP.form = null; AP.err = ''; render(); return; } d.close(); }); /* крестик в форме «Новый препарат» возвращает в окно поиска, а не на главный экран (08.11.2026, кабинет Асрора) */
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
       d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; else if (t && t.id === 'as-in') AS.draft = t.value; else if (t && t.id === 'bh-text') S.bhDraft = t.value; });
