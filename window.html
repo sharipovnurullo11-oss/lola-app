@@ -5596,16 +5596,36 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p>' : '') + '</div>';
     }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
   }
+  // Голосовой ввод названия препарата (распознавание речи самого браузера; на телефоне, планшете и компьютере, где оно есть)
+  var APM = null;
+  function aptMicOk() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+  function aptMic() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (APM) { try { APM.stop(); } catch (e) {} return; }
+    var rc = new SR(); APM = rc; AP.err = ''; AP.msg = '';
+    rc.lang = 'ru-RU'; rc.interimResults = true; rc.continuous = false; rc.maxAlternatives = 1;
+    rc.onresult = function (e) {
+      var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      t = t.replace(/[.,!?]+$/, '').trim(); AP.q = t;
+      var inp = $s('apt-q'); if (inp) inp.value = t; var l = $s('apt-list'); if (l) l.innerHTML = aptList();
+    };
+    rc.onerror = function (e) { AP.err = e && (e.error === 'not-allowed' || e.error === 'service-not-allowed') ? ui('Разрешите микрофон для этого сайта в настройках браузера', 'Микрофонро дар танзимоти браузер иҷозат диҳед', 'Brauzer sozlamalarida mikrofonga ruxsat bering') : ui('Не расслышал. Нажмите на микрофон и скажите ещё раз', 'Нашунидам. Микрофонро пахш кунед ва боз бигӯед', 'Eshitmadim. Mikrofonni bosib, yana ayting'); };
+    rc.onend = function () { APM = null; if (S.view === 'apt' && !AP.form) render(); };
+    try { rc.start(); } catch (e) { APM = null; }
+    render();
+  }
   function renderApt(el) {
     if (AP.form) return renderAptForm(el);
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">🔍 ' + esc(ui('Поиск препарата', 'Ҷустуҷӯи дору', 'Dori qidirish')) + '</h2>' +
-      shIn('apt-q', ui('Название препарата', 'Номи дору', 'Dori nomi'), AP.q, 'inputmode="text" enterkeyhint="search"') +
+      '<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">' + shIn('apt-q', ui('Название препарата', 'Номи дору', 'Dori nomi'), AP.q, 'inputmode="text" enterkeyhint="search"') + '</div>' +
+      (aptMicOk() ? '<button type="button" class="btn ' + (APM ? '' : 'sec') + '" data-apt="mic" aria-label="' + esc(ui('Голосовой ввод', 'Воридкунии овозӣ', 'Ovozli kiritish')) + '" style="flex:none;width:56px;height:48px;min-height:48px;font-size:24px;padding:0">' + (APM ? '⏹' : '🎤') + '</button>' : '') + '</div>' +
       (AP.msg ? '<p role="status" style="color:#1f8a4c;margin:8px 0 0">' + esc(AP.msg) + '</p>' : '') +
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
       '<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>' +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
       '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Управление: бухгалтерия, касса, кладовщик', 'Идора: ҳисобдорӣ, касса, анбордор', 'Boshqaruv: buxgalteriya, kassa, omborchi')) + '</button></p></div>';
-    setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form) i.focus(); }, 60);
+    setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form && !APM) i.focus(); }, 60);
   }
   // Форма «Добавить новый препарат»: название, полка, описание. Работает на телефоне, планшете и компьютере.
   function renderAptForm(el) {
@@ -6362,6 +6382,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function onClick(e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
+    if (b.dataset.apt === 'mic') { aptMic(); return; }
     if (b.dataset.apt === 'new') { AP.form = { name: AP.q || '' }; AP.err = ''; AP.msg = ''; render(); return; }
     if (b.dataset.apt === 'fcancel') { AP.form = null; AP.err = ''; render(); return; }
     if (b.dataset.apt === 'fsave') {
