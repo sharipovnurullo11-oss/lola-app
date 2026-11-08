@@ -5709,6 +5709,23 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     } catch (e) {}
     return '';
   }
+  function aptIou(a, b) {
+    var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]), x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+    var i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1), u = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i;
+    return u > 0 ? i / u : 0;
+  }
+  function aptCropSz(canvas, box, maxSide, pad) {
+    try {
+      var W = canvas.width, H = canvas.height, pw = (box[2] - box[0]) * pad, ph = (box[3] - box[1]) * pad;
+      var x1 = Math.max(0, (box[0] - pw) / 1000 * W), y1 = Math.max(0, (box[1] - ph) / 1000 * H), x2 = Math.min(W, (box[2] + pw) / 1000 * W), y2 = Math.min(H, (box[3] + ph) / 1000 * H);
+      var cw = x2 - x1, ch = y2 - y1; if (cw < 30 || ch < 30) return '';
+      var k = Math.min(1, maxSide / Math.max(cw, ch)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(cw * k)); c.height = Math.max(1, Math.round(ch * k));
+      var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(canvas, x1, y1, cw, ch, 0, 0, c.width, c.height);
+      var qs = [0.8, 0.6, 0.45];
+      for (var i = 0; i < qs.length; i++) { var o = c.toDataURL('image/jpeg', qs[i]); if (o.length <= 600000) return o; }
+    } catch (e) {}
+    return '';
+  }
   function aptTiles(canvas) {
     var W = canvas.width, H = canvas.height, cols = W >= H ? 3 : 2, rows = W >= H ? 2 : 3, ov = 0.12, out = [];
     var tw = W / cols, th = H / rows;
@@ -6557,6 +6574,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         if (!AP.multi) return;
         if (!rd) { AP.multi = { busy: false, items: [], err: ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'), polka: '' }; if (S.view === 'apt') render(); return; }
         /* Снимок режем на части с перекрытием и читаем каждую отдельно — так находятся все упаковки, а не одна-две */
+        var tileFlow = function () {
         var tiles = aptTiles(rd.canvas), all = [], seenK = {}, okAny = false, errMsg = '', ti = 0, run = 0, fin = 0;
         var finish = function () {
           if (!AP.multi) return;
@@ -6583,6 +6601,38 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
           });
         };
         next(); next();
+        };
+        /* Сначала находим рамку каждой упаковки, вырезаем её целиком и читаем отдельно — у каждого препарата своё фото */
+        callTo('/preparat-spisok', { foto: rd.big, mode: 'boxes' }).then(function (r) {
+          if (!AP.multi) return;
+          var bs = (r && r.ok && r.items) ? r.items.map(function (x) { return x.box; }).filter(Boolean) : [], keep = [];
+          bs.forEach(function (b) { if (!keep.some(function (k) { return aptIou(k, b) > 0.5; })) keep.push(b); });
+          if (keep.length < 2) return tileFlow();
+          keep = keep.slice(0, 20);
+          var res = [], idx = 0, running = 0, doneN = 0, unread = 0;
+          var fin2 = function () {
+            if (!AP.multi) return;
+            var all = res.filter(Boolean);
+            all.forEach(function (x) { x.dup = aptExact(x.full); x.sel = !x.dup; });
+            AP.multi = { busy: false, prog: '', items: all, err: unread ? ui('Не прочиталось упаковок: ', 'Қуттиҳои хонда нашуда: ', 'Oʻqilmagan qadoqlar: ') + unread + ui('. Снимите их ближе.', '. Наздиктар аксбардорӣ кунед.', '. Yaqinroqdan suratga oling.') : '', polka: '' };
+            if (S.view === 'apt') render();
+          };
+          var go = function () {
+            if (!AP.multi) return;
+            if (idx >= keep.length) { if (running === 0) fin2(); return; }
+            var i = idx++, bx = keep[i]; running++;
+            var big = aptCropSz(rd.canvas, bx, 900, 0.06), th = aptCrop(rd.canvas, bx);
+            var after = function (rr) {
+              running--; doneN++;
+              if (rr && rr.ok && (rr.full || rr.name)) res[i] = { full: rr.full || rr.name, doza: rr.doza || '', foto: th, dup: false, sel: true }; else unread++;
+              if (AP.multi) { AP.multi.prog = doneN + '/' + keep.length; var pe = $s('apt-m-prog'); if (pe) pe.textContent = AP.multi.prog; }
+              go();
+            };
+            if (!big) return after(null);
+            callTo('/preparat-foto', { foto: big, thumb: th }).then(after);
+          };
+          go(); go();
+        });
       });
       return;
     }
