@@ -5916,8 +5916,20 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shPerLabel(u) { if (u === 'rulon') return ui('Сколько метров в одном рулоне — необязательно (если не нужно, оставьте пустым)', 'Дар як рулон чанд метр — ихтиёрӣ (лозим набошад, холӣ монед)', 'Bir rulonda necha metr — ixtiyoriy (kerak boʻlmasa, boʻsh qoldiring)'); if (u === 'kg') return ui('Сколько кг в одном мешке — необязательно', 'Дар як халта чанд кг — ихтиёрӣ', 'Bir qopda necha kg — ixtiyoriy'); return ui('Сколько ' + shUL(u) + ' в одном рулоне или одной штуке (труба, рулон) — необязательно', 'Дар як рулон ё як дона чанд ' + shUL(u) + ' (қубур, рулон) — ихтиёрӣ', 'Bir rulon yoki bir donada necha ' + shUL(u) + ' (quvur, rulon) — ixtiyoriy'); }
   function shZa1(p) { return ui('за 1 ', 'барои 1 ', '1 ') + shUL(shU(p)) + ui('', '', ' uchun'); }
   // Количество при приёме: в единице товара (метры до сантиметра, килограммы до грамма); если задано «в одной штуке» — можно ввести штуками.
+  // Приём в упаковках и штуках (08.11.2026, поручение Нурулло, только Асрор Холов): упаковок × штук в упаковке + отдельные штуки = итого штук. Склад ведётся в штуках. Размер упаковки запоминается на этом устройстве для препарата.
+  function shPackOn(p) { return shPolkiOn() && shU(p) === 'sht'; }
+  function shPackSum() { var pk = Math.round(shParse(shNum('sh-r-pk')) || 0), ps = Math.round(shParse(shNum('sh-r-pks')) || 0), pc = Math.round(shParse(shNum('sh-r-qty')) || 0); return { pk: pk, ps: ps, pc: pc, total: (pk > 0 && ps > 0 ? pk * ps : 0) + (pc > 0 ? pc : 0) }; }
+  function shPackTxt() { var x = shPackSum(); if (!(x.total > 0)) return ''; return ui('Итого: ', 'Ҳамагӣ: ', 'Jami: ') + x.total + ' ' + ui('шт', 'дона', 'dona') + (x.pk > 0 && x.ps > 0 ? ' (' + x.pk + ' ' + ui('уп.', 'бастабандӣ', 'qadoq') + ' × ' + x.ps + (x.pc > 0 ? ' + ' + x.pc : '') + ')' : ''); }
   function shRcvQty(p) {
     var u = shU(p), per = shPer(p), dec = u === 'm' || u === 'kg';
+    if (shPackOn(p)) {
+      var rem = ''; try { rem = p ? (lstore('ap_pack_' + p.kod) || '') : ''; } catch (e) {}
+      return '<label for="sh-r-pk" style="font-size:15px;font-weight:600">' + esc(ui('Сколько упаковок приняли', 'Чанд бастабандӣ қабул кардед', 'Necha qadoq qabul qildingiz')) + '</label>' + shIn('sh-r-pk', ui('Например 3', 'Масалан 3', 'Masalan 3'), '', 'inputmode="numeric"') +
+        '<label for="sh-r-pks" style="font-size:15px;font-weight:600">' + esc(ui('Сколько штук в одной упаковке', 'Дар як бастабандӣ чанд дона', 'Bitta qadoqda necha dona')) + '</label>' + shIn('sh-r-pks', ui('Например 10', 'Масалан 10', 'Masalan 10'), rem, 'inputmode="numeric"') +
+        '<label for="sh-r-qty" style="font-size:15px;font-weight:600">' + esc(ui('Отдельных штук (без упаковки)', 'Донаҳои ҷудо (бе бастабандӣ)', 'Alohida donalar (qadoqsiz)')) + '</label>' + shIn('sh-r-qty', ui('Например 4', 'Масалан 4', 'Masalan 4'), '', 'inputmode="numeric"') +
+        '<div id="sh-r-pktot" style="font-size:17px;font-weight:700;min-height:22px"></div>' +
+        '<label for="sh-r-shelf" style="font-size:15px;font-weight:600">' + esc(ui('Номер полки', 'Рақами раф', 'Javon raqami')) + '</label>' + shIn('sh-r-shelf', ui('На какую полку положили', 'Ба кадом раф гузоштед', 'Qaysi javonga qoʻydingiz'), p && p.shelf ? p.shelf : '', 'maxlength="20"');
+    }
     var h = '<label for="sh-r-qty" style="font-size:15px;font-weight:600">' + esc(u === 'sht' ? ui('Сколько штук приняли', 'Чанд дона қабул кардед', 'Necha dona qabul qildingiz') : ui('Сколько приняли, ', 'Чанд қабул кардед, ', 'Qancha qabul qildingiz, ') + shUL(u)) + '</label>' + shIn('sh-r-qty', u === 'm' ? ui('Например 12,5', 'Масалан 12,5', 'Masalan 12,5') : u === 'kg' ? ui('Например 2,350', 'Масалан 2,350', 'Masalan 2,350') : ui('Сколько пришло', 'Чанд омад', 'Qancha keldi'), '', 'inputmode="' + (dec ? 'decimal' : 'numeric') + '"');
     if (per) h += '<label for="sh-r-pcs" style="font-size:15px;font-weight:600">' + esc(ui('или штуками (1 шт = ', 'ё бо дона (1 дона = ', 'yoki dona bilan (1 dona = ') + shNumTxt(per) + ' ' + shUL(u) + ')') + '</label>' + shIn('sh-r-pcs', ui('Сколько штук', 'Чанд дона', 'Necha dona'), '', 'inputmode="numeric"');
     // Рулоны: кроме метров/килограммов кладовщик может записать, сколько рулонов и сколько весят (или длина) — необязательно.
@@ -6353,6 +6365,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (a === 'rcancel') { SH.rcv = null; return render(); }
     if (a === 'rok') {
       var rp = shProd(SH.rcv.kod), ru = shU(rp), rq = shNum('sh-r-qty'), rpc = shNum('sh-r-pcs'), q = rq !== '' ? shQR(ru, shParse(rq)) : (rpc !== '' && shPer(rp) ? shQR(ru, Math.round(shParse(rpc)) * shPer(rp)) : NaN);
+      if (shPackOn(rp)) { var pks = shPackSum(); if (pks.pk > 0 && !(pks.ps > 0)) { SH.err = ui('Укажите, сколько штук в одной упаковке', 'Нависед, дар як бастабандӣ чанд дона', 'Bitta qadoqda necha dona ekanini yozing'); return render(); } q = pks.total > 0 ? pks.total : NaN; if (pks.pk > 0 && pks.ps > 0) { try { lstore('ap_pack_' + rp.kod, String(pks.ps)); } catch (e) {} } }
       if (!(q > 0)) { SH.err = ru === 'sht' ? ui('Укажите, сколько штук пришло', 'Нависед, чанд дона омад', 'Necha dona kelganini yozing') : ui('Укажите, сколько пришло (', 'Нависед, чанд омад (', 'Qancha kelganini yozing (') + shUL(ru) + (shPer(rp) ? ui(' или штук)', ' ё дона)', ' yoki dona)') : ')'); return render(); }
       var zk = shNum('sh-r-zakup'), zrl = shNum('sh-r-zroll'), kd = SH.rcv.kod, body = { action: 'receive', kod: kd, qty: q, id: oid() }; if ($s('sh-r-shelf')) body.shelf = ($s('sh-r-shelf').value || '').trim(); if (zrl !== '' && shPer(rp) > 0) { if (!(shParse(zrl) > 0)) { SH.err = ui('Цена рулона должна быть больше нуля', 'Нархи рулон аз сифр зиёд бошад', 'Rulon narxi noldan katta boʻlsin'); return render(); } zk = String(Math.round(shParse(zrl) / shPer(rp) * 10000) / 10000); }
       if (zk) body.zakup = Number(zk);
@@ -6410,6 +6423,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
     if (t.id === 'shx-who' && e.type === 'input') { SH.who = t.value; var wb = $s('sh-whohint'); if (wb) wb.innerHTML = shWhoHtml(); return; }
+    if (e.type === 'input' && (t.id === 'sh-r-pk' || t.id === 'sh-r-pks' || t.id === 'sh-r-qty')) { var pkt = $s('sh-r-pktot'); if (pkt) pkt.textContent = shPackTxt(); }
     if (e.type === 'input' && (t.id === 'sh-r-zroll' || t.id === 'sh-r-zakup')) {
       var rpv = shProd(SH.rcv && SH.rcv.kod), rvo = $s('sh-r-prev');
       if (rpv && rvo) {
