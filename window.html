@@ -2819,6 +2819,8 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     // По просьбе Нурулло (08.11.2026) в кабинете Асрора Холова убраны «Мой ассистент: сводка дня» и «Продавец-ассистент». Остальным кабинетам они видны как раньше.
     ['assistant', 'seller'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
     var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = objOn() ? ui('Аптека', 'Дорухона', 'Dorixona') : TX('Финансист');
+    // Кабинет Асрора: плитка «Аптека» с картинкой лекарств вместо портфеля и подписью про поиск препарата.
+    var finT = document.querySelector('#sp-home [data-home="fin"]'); if (finT) { var fi = finT.querySelector('.ic'), fs = finT.querySelector('small'); if (fi) fi.textContent = objOn() ? '💊' : '💼'; if (fs && objOn()) fs.textContent = ui('Название препарата: полка и описание', 'Номи дору: раф ва тавсиф', 'Dori nomi: javon va tavsif'); }
     // По просьбе Нурулло (08.11.2026), только кабинет Асрора: плитка называется «Аптека», и при входе в приложение сразу открывается окно поиска препарата (один раз за загрузку).
     if (show && objOn() && shopOn() && !window.__aptAuto) { window.__aptAuto = 1; setTimeout(function () { try { openOne('fin'); } catch (e) {} }, 350); }
     $s('sp-back').hidden = !(user && !HOME);
@@ -5581,15 +5583,21 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     });
   }
   function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
+  function aptFind(t) {
+    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || '' }; });
+    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || '' }); });
+    r.sort(function (a, b) { var x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.name.localeCompare(b.name, 'ru'); });
+    return r;
+  }
   function aptList() {
     if (!SH.d) return '<p style="opacity:.7">' + esc(TX('Загрузка…')) + '</p>';
     var t = String(AP.q || '').trim().toLowerCase();
     if (!t) return '<p style="opacity:.7">' + esc(ui('Начните вводить название препарата', 'Номи доруро навишта сар кунед', 'Dori nomini yozishni boshlang')) + '</p>';
-    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || '' }; });
-    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || '' }); });
-    r.sort(function (a, b) { var x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.name.localeCompare(b.name, 'ru'); });
+    var r = aptFind(t), like = false;
+    // Не нашли точно (опечатка или голос услышал чуть иначе): ищем по началу слова, отбрасывая 1–2 последние буквы.
+    for (var cut = 1; !r.length && cut <= 2 && t.length - cut >= 4; cut++) { r = aptFind(t.slice(0, t.length - cut)); like = r.length > 0; }
     if (!r.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Такого препарата нет. Проверьте название.', 'Чунин дору нест. Номро санҷед.', 'Bunday dori yoʻq. Nomini tekshiring.')) + '</p>';
-    return r.slice(0, 30).map(function (p) {
+    return (like ? '<p style="margin:8px 0;opacity:.8">' + esc(ui('Точно такого нет. Похожие:', 'Айнан чунин нест. Монанд:', 'Aynan shunday yoʻq. Oʻxshashlari:')) + '</p>' : '') + r.slice(0, 30).map(function (p) {
       var sh = String(p.shelf || '').trim();
       return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
         '<b style="display:block;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b>' +
