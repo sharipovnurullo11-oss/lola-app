@@ -5538,7 +5538,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var sh = String(p.shelf || '').trim();
     return '<span style="display:inline-block;margin:3px 0;padding:2px 8px;border-radius:8px;font-size:15px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh + ((AP.pn && AP.pn[sh]) ? ' — ' + AP.pn[sh] : '') : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>';
   }
-  function shPolkiOn() { return !!(SH.d && SH.d.polki); }
+  /* Кнопка «Полки»: пока список не загрузился, берём запомненный ответ этого кабинета — так кнопка видна сразу, а не после нескольких обновлений */
+  function shPolkiKey() { var c = ''; try { c = String(AS_KOD || ''); if (!c) c = (typeof SELLER !== 'undefined' && SELLER) ? 'staff' : String(store('ew_cab') || ''); } catch (e) {} return 'ew_polki_' + c; }
+  function shPolkiOn() {
+    var k = shPolkiKey();
+    try { if (SH.d) { var on = !!SH.d.polki; localStorage.setItem(k, on ? '1' : '0'); return on; } return localStorage.getItem(k) === '1'; } catch (e) { return !!(SH.d && SH.d.polki); }
+  }
   function shShelfField(f) {
     if (!shPolkiOn()) return '';
     var cur = f && f.kod ? (shProd(f.kod) || {}).shelf || '' : '';
@@ -5571,11 +5576,11 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
   var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
-  function openApt() { AP.card = false; AP.delAsk = ''; AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
-  var aptRetry = false;
+  function openApt() { AP.card = false; AP.delAsk = ''; AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; aptN = 0; render(); aptLoad(); }
+  var aptRetry = false, aptN = 0;
   function aptLoad() {
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
-      if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry) { aptRetry = true; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2500); } } else { SH.d = r; AP.err = ''; }
+      if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.err = ''; aptN = 0; }
       if (S.view !== 'apt') return;
       /* Кнопка «Полки» рисуется только когда данные загружены — если окно открылось раньше, перерисовываем */
       if (!AP.err && shPolkiOn() && !AP.form && !AP.polki && !AP.multi && !document.querySelector('[data-apt="polki"]')) { render(); return; }
