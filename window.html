@@ -2560,7 +2560,7 @@ function $s(id) { return document.getElementById(id); }
       d.style.cssText = 'width:min(620px,calc(100vw - 16px))';
       d.innerHTML = '<div class="dbody" style="position:relative;max-height:calc(100dvh - 24px);overflow:auto"><button class="x" data-close type="button" aria-label="' + esc(TX('Закрыть')) + '">×</button><div id="sp-body"></div></div>';
       document.body.appendChild(d);
-      d.querySelector('[data-close]').addEventListener('click', function () { if (S.view === 'apt' && AP.form) { AP.form = null; AP.err = ''; render(); return; } d.close(); }); /* крестик в форме «Новый препарат» возвращает в окно поиска, а не на главный экран (08.11.2026, кабинет Асрора) */
+      d.querySelector('[data-close]').addEventListener('click', function () { if (S.view === 'apt' && AP.form) { AP.form = null; AP.err = ''; render(); return; } if (S.view === 'apt' && AP.polki) { AP.polki = false; AP.pq = ''; render(); return; } d.close(); }); /* крестик в форме «Новый препарат» возвращает в окно поиска, а не на главный экран (08.11.2026, кабинет Асрора) */
       d.addEventListener('click', onClick);
       d.addEventListener('submit', function (e) { e.preventDefault(); });
       d.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.dataset.lawF) { LW.f[t.dataset.lawF] = t.value; return; } if (t && t.id === 'law-text') { LW.text = t.value; return; } if (t && t.id === 'sm-plan') SM.plan = t.value; else if (t && t.id === 'sm-cap') SM.cap = t.value; else if (t && t.id === 'sm-ideas') SM.ideas = t.value; else if (t && t.id === 'sm-rep') SM.rep = t.value; else if (t && t.id === 'mk-in') MK.draft = t.value; else if (t && t.id === 'as-in') AS.draft = t.value; else if (t && t.id === 'bh-text') S.bhDraft = t.value; });
@@ -5569,8 +5569,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
-  var AP = { q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
-  function openApt() { S.view = 'apt'; S.fromFin = false; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
+  var AP = { polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
+  function openApt() { S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
   function aptLoad() {
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
       if (!r.ok) AP.err = r.error || TX('не удалось загрузить'); else { SH.d = r; AP.err = ''; }
@@ -5643,11 +5643,40 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     try { rc.start(); } catch (e) { APM = null; }
     render();
   }
+  // «Полки» в окне «Поиск препарата» (08.11.2026, поручение №658, только Асрор Холов): по номеру полки видно, какие препараты на ней лежат. Цену и остаток не показываем.
+  function aptPolkiList() {
+    var t = String(AP.pq || '').trim().toLowerCase(), g = {}, seen = {};
+    function put(name, shelf) {
+      var n = String(name || '').trim(), l = n.toLowerCase(), sh = String(shelf || '').trim(); if (!n || seen[l]) return;
+      if (t && l.indexOf(t) < 0 && sh.toLowerCase().indexOf(t) < 0) return;
+      seen[l] = 1; (g[sh] = g[sh] || []).push(n);
+    }
+    ((SH.d && SH.d.products) || []).forEach(function (p) { var k = aptKb(p.name); put(p.name, String(p.shelf || '').trim() || (k && k.polka)); });
+    (AP.kb || []).forEach(function (k) { put(k.name, k.polka); });
+    var keys = Object.keys(g).sort(function (a, b) { if (!a) return 1; if (!b) return -1; var x = parseFloat(a), y = parseFloat(b); if (!isNaN(x) && !isNaN(y) && x !== y) return x - y; return a.localeCompare(b, 'ru'); });
+    if (!keys.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Ничего не найдено', 'Чизе ёфт нашуд', 'Hech narsa topilmadi')) + '</p>';
+    var left = 300;
+    return keys.map(function (k) {
+      var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
+      if (!shown.length) return '';
+      return '<div style="margin:14px 0 4px;font-weight:700;font-size:20px">📍 ' + esc(k ? ui('Полка ', 'Раф ', 'Javon ') + k : ui('Без полки', 'Бе раф', 'Javonsiz')) + ' <small style="font-weight:400;opacity:.7">· ' + arr.length + '</small></div>' +
+        shown.map(function (n) { return '<div style="padding:8px 2px;border-bottom:1px solid #e6e6e6;font-size:18px;line-height:1.3;white-space:normal">' + esc(n) + '</div>'; }).join('') +
+        (arr.length > shown.length ? '<small style="opacity:.7">' + esc(ui('Ещё ' + (arr.length - shown.length) + ' — уточните поиск', 'Боз ' + (arr.length - shown.length) + ' — ҷустуҷӯро дақиқ кунед', 'Yana ' + (arr.length - shown.length) + ' — qidiruvni aniqlang')) + '</small>' : '');
+    }).join('');
+  }
+  function renderAptPolki(el) {
+    el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:36px"><h2 style="margin:0;font-size:26px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</h2>' +
+      '<button type="button" class="btn sec" data-apt="polki-x" style="flex:none;min-height:44px;font-size:16px">' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button></div>' +
+      '<div style="margin-top:8px">' + shIn('apt-polki-q', ui('Номер полки или название препарата', 'Рақами раф ё номи дору', 'Javon raqami yoki dori nomi'), AP.pq, 'inputmode="text" enterkeyhint="search"') + '</div>' +
+      '<div id="apt-polki-list" style="margin-top:6px">' + aptPolkiList() + '</div></div>';
+    setTimeout(function () { var i = $s('apt-polki-q'); if (i && S.view === 'apt' && AP.polki && !AP.form) i.focus(); }, 60);
+  }
   function renderApt(el) {
     if (AP.form) return renderAptForm(el);
+    if (AP.polki) return renderAptPolki(el);
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">🔍 ' + esc(ui('Поиск препарата', 'Ҷустуҷӯи дору', 'Dori qidirish')) + '</h2>' +
       '<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">' + shIn('apt-q', ui('Название препарата', 'Номи дору', 'Dori nomi'), AP.q, 'inputmode="text" enterkeyhint="search"') + '</div>' +
-      (aptMicOk() ? '<button type="button" class="btn ' + (APM ? '' : 'sec') + '" data-apt="mic" aria-label="' + esc(ui('Голосовой ввод', 'Воридкунии овозӣ', 'Ovozli kiritish')) + '" style="flex:none;width:56px;height:48px;min-height:48px;font-size:24px;padding:0">' + (APM ? '⏹' : '🎤') + '</button>' : '') + '</div>' +
+      (aptMicOk() ? '<button type="button" class="btn ' + (APM ? '' : 'sec') + '" data-apt="mic" aria-label="' + esc(ui('Голосовой ввод', 'Воридкунии овозӣ', 'Ovozli kiritish')) + '" style="flex:none;width:56px;height:48px;min-height:48px;font-size:24px;padding:0">' + (APM ? '⏹' : '🎤') + '</button>' : '') + (shPolkiOn() ? '<button type="button" class="btn sec" data-apt="polki" style="flex:none;height:48px;min-height:48px;font-size:17px;padding:0 12px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</button>' : '') + '</div>' +
       (AP.msg ? '<p role="status" style="color:#1f8a4c;margin:8px 0 0">' + esc(AP.msg) + '</p>' : '') +
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
       (PHARM ? '' : '<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
@@ -6376,6 +6405,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); var rb2 = $s('sh-f-rollbox'); if (rb2) rb2.hidden = !(t.value === 'm' || t.value === 'kg'); }
     if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
     if (t.id === 'apt-f-name' && e.type === 'input') { var sg0 = $s('apt-f-sug'); if (sg0) sg0.innerHTML = aptSugHtml(t.value); return; }
+    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
     if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; AP.msg = ''; var apl = $s('apt-list'); if (apl) apl.innerHTML = aptList(); return; }
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
@@ -6429,6 +6459,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var b = e.target.closest('button'); if (!b) return;
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
     if (b.dataset.apt === 'mic') { aptMic(); return; }
+    if (b.dataset.apt === 'polki') { if (shPolkiOn()) { AP.polki = true; AP.pq = ''; render(); } return; }
+    if (b.dataset.apt === 'polki-x') { AP.polki = false; AP.pq = ''; render(); return; }
     if (b.dataset.apt === 'pick') {
       var px = (AP.sug || [])[Number(b.dataset.i)]; if (!px || !AP.form) return;
       var gv = function (id) { var e1 = $s(id); return e1 ? (e1.value || '').trim() : ''; };
