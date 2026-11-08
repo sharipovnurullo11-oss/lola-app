@@ -5665,10 +5665,11 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }).join('');
   }
   function renderAptPolki(el) {
-    el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:36px"><h2 style="margin:0;font-size:26px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</h2>' +
-      '<button type="button" class="btn sec" data-apt="polki-x" style="flex:none;min-height:44px;font-size:16px">' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button></div>' +
+    el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 44px) 4px 24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:36px"><h2 style="margin:0;font-size:26px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</h2>' +
+      '<button type="button" class="btn sec" data-apt="polki-x" style="flex:none;min-height:48px;font-size:17px;padding:0 16px">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button></div>' +
       '<div style="margin-top:8px">' + shIn('apt-polki-q', ui('Номер полки или название препарата', 'Рақами раф ё номи дору', 'Javon raqami yoki dori nomi'), AP.pq, 'inputmode="text" enterkeyhint="search"') + '</div>' +
-      '<div id="apt-polki-list" style="margin-top:6px">' + aptPolkiList() + '</div></div>';
+      '<div id="apt-polki-list" style="margin-top:6px">' + aptPolkiList() + '</div>' +
+      '<div style="position:sticky;bottom:0;padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 10px);background:var(--bg,#fff)"><button type="button" class="btn" data-apt="polki-x" style="width:100%;min-height:56px;font-size:19px">← ' + esc(ui('Назад к поиску', 'Бозгашт ба ҷустуҷӯ', 'Qidiruvga qaytish')) + '</button></div></div>';
     setTimeout(function () { var i = $s('apt-polki-q'); if (i && S.view === 'apt' && AP.polki && !AP.form) i.focus(); }, 60);
   }
   function renderApt(el) {
