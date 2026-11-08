@@ -2591,7 +2591,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if ((id === 'shop' && !shopOn()) || (id === 'obj' && !objOn())) return; S.fromFin = false; if (id === 'obj') openObj(); else if (id === 'fin') { if (shopOn()) { S.view = 'fin'; render(); } else openFinOrProkat(); } else if (id === 'buh') openBuh(); else if (id === 'shop') openShop(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
+    if ((id === 'shop' && !shopOn()) || (id === 'obj' && !objOn())) return; S.fromFin = false; if (id === 'obj') openObj(); else if (id === 'fin') { if (objOn() && shopOn()) openApt(); else if (shopOn()) { S.view = 'fin'; render(); } else openFinOrProkat(); } else if (id === 'buh') openBuh(); else if (id === 'shop') openShop(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
 
@@ -2831,6 +2831,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     if (SELLER) return renderShop(el);
     if (S.view === 'pa') return renderPa(el);
     if (S.view === 'asst') return renderAsst(el);
+    if (S.view === 'apt') return renderApt(el);
     if (S.view === 'fin') return renderFin(el);
     if (S.view === 'prokat') return renderProkat(el);
     if (S.view === 'obj') return renderObj(el);
@@ -2857,6 +2858,7 @@ if (S.view === 'mkt') return renderMkt(el);
       return '<button type="button" class="btn sec" data-fin="' + k + '" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">' + ico + '</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(name) + '</b><small style="opacity:.75">' + esc(about) + '</small></span></button>';
     }
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(objOn() ? ui('Финансист аптеки', 'Молиячии дорухона', 'Dorixona moliyachisi') : ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(ui('Деньги и товар в одном месте. Выберите раздел.', 'Пул ва мол дар як ҷо. Бахшро интихоб кунед.', 'Pul va tovar bir joyda. Boʻlimni tanlang.')) + '</p><div style="display:grid;gap:10px">' +
+      (objOn() && shopOn() ? card('apt', '🔍', ui('Поиск препарата', 'Ҷустуҷӯи дору', 'Dori qidirish'), ui('Набрать название: полка, остаток и цена', 'Номро нависед: раф, боқимонда ва нарх', 'Nomini yozing: javon, qoldiq va narx')) : '') +
       card('buh', '📒', ui('Бухгалтерия', 'Ҳисобдорӣ', 'Buxgalteriya'), ui('Приход, расход, остатки и прибыль за месяц', 'Даромад, хароҷот, боқимонда ва фоидаи моҳ', 'Kirim, chiqim, qoldiq va oylik foyda')) +
       card('shop', '🛒', ui('Учёт магазина', 'Ҳисоби мағоза', 'Doʻkon hisobi'), ui('Продажа, приём товара, долги и итоги', 'Фурӯш, қабули мол, қарзҳо ва натиҷаҳо', 'Sotuv, tovar qabuli, qarzlar va natijalar')) +
       (shopOn() ? card('kl', '📦', ui('Кладовщик', 'Анбордор', 'Omborchi'), ui('Приём товара, товары и закупочные цены; здесь же добавить кладовщика', 'Қабули мол, молҳо ва нархи харид; дар ҳамин ҷо анбордор илова кунед', 'Tovar qabuli, tovarlar va xarid narxlari; omborchini shu yerda qoʻshing')) : '') +
@@ -5560,6 +5562,39 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     return '<div style="margin:6px 0 10px;display:grid;gap:8px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h3 style="margin:0">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</h3>' + shBtn('polki-x', ui('Назад', 'Бозгашт', 'Orqaga'), { sec: true, st: 'min-height:40px;font-size:14px' }) + '</div>' +
       shIn('sh-polki-q', ui('Название препарата или номер полки', 'Номи дору ё рақами раф', 'Dori nomi yoki javon raqami'), SH.pq || '', 'inputmode="text" enterkeyhint="done"') + '<div id="sh-polki-list">' + shPolkiList() + '</div></div>';
   }
+  // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
+  // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
+  var AP = { q: '', err: '' };
+  function openApt() { S.view = 'apt'; S.fromFin = false; AP.q = ''; AP.err = ''; render(); aptLoad(); }
+  function aptLoad() {
+    callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
+      if (!r.ok) AP.err = r.error || TX('не удалось загрузить'); else { SH.d = r; AP.err = ''; }
+      if (S.view !== 'apt') return;
+      var l = $s('apt-list'); if (l && !AP.err) l.innerHTML = aptList(); else render();
+    });
+  }
+  function aptList() {
+    if (!SH.d) return '<p style="opacity:.7">' + esc(TX('Загрузка…')) + '</p>';
+    var t = String(AP.q || '').trim().toLowerCase();
+    if (!t) return '<p style="opacity:.7">' + esc(ui('Начните вводить название препарата', 'Номи доруро навишта сар кунед', 'Dori nomini yozishni boshlang')) + '</p>';
+    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); });
+    r.sort(function (a, b) { var x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.name.localeCompare(b.name, 'ru'); });
+    if (!r.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Такого препарата нет. Проверьте название.', 'Чунин дору нест. Номро санҷед.', 'Bunday dori yoʻq. Nomini tekshiring.')) + '</p>';
+    return r.slice(0, 30).map(function (p) {
+      var sh = String(p.shelf || '').trim();
+      return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
+        '<b style="display:block;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b>' +
+        '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span></span></div>';
+    }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
+  }
+  function renderApt(el) {
+    el.innerHTML = '<h2 style="padding-right:36px">🔍 ' + esc(ui('Поиск препарата', 'Ҷустуҷӯи дору', 'Dori qidirish')) + '</h2>' +
+      shIn('apt-q', ui('Название препарата', 'Номи дору', 'Dori nomi'), AP.q, 'inputmode="text" enterkeyhint="search"') +
+      (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
+      '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
+      '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Управление: бухгалтерия, касса, кладовщик', 'Идора: ҳисобдорӣ, касса, анбордор', 'Boshqaruv: buxgalteriya, kassa, omborchi')) + '</button></p>';
+    setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt') i.focus(); }, 60);
+  }
   function shNm(p) { return String(p.name) + (p.shelf ? ' · ' + ui('полка ', 'раф ', 'javon ') + p.shelf : ''); }
   function shHintsHtml() {
     var D = SH.d, t = String(SH.code || '').trim().toLowerCase(); if (D && !t) return '<span style="opacity:.65">' + esc(ui('Подходящие товары появятся здесь', 'Молҳои мувофиқ дар ин ҷо пайдо мешаванд', 'Mos tovarlar shu yerda chiqadi')) + '</span>'; if (!D || !t) return '';
@@ -6250,6 +6285,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && t.dataset && t.dataset.cq) { var cp0 = shProd(t.dataset.cq), cv = shParse(t.value); if (cp0 && cv >= 0) { SH.cart.forEach(function (it) { if (it.kod === t.dataset.cq) { it.qty = shQR(shU(cp0), cv); var ls = $s('sh-ls-' + it.kod); if (ls) ls.innerHTML = shLineTxt(cp0, SH.pay === 'vladelec' ? cp0.zakup : cp0.price, it.qty); } }); var tt = $s('sh-total'); if (tt) { var tb = tt.querySelector('b'); if (tb) tb.textContent = money(shCartSum()) + ' ' + ui('сом.', 'сом.', 'som'); } } return; }
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); var rb2 = $s('sh-f-rollbox'); if (rb2) rb2.hidden = !(t.value === 'm' || t.value === 'kg'); }
     if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
+    if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; var apl = $s('apt-list'); if (apl) apl.innerHTML = aptList(); return; }
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
     if (t.id === 'shx-who' && e.type === 'input') { SH.who = t.value; var wb = $s('sh-whohint'); if (wb) wb.innerHTML = shWhoHtml(); return; }
@@ -6301,12 +6337,13 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function onClick(e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.dataset.chip) { var nf = $s('bh-note'); if (nf) { nf.value = b.dataset.chip === 'Другое' ? '' : b.dataset.chip; nf.focus(); } return; }
+    if (b.dataset.apt === 'manage') { if (objOn() && shopOn()) { S.view = 'fin'; render(); } return; }
     if (b.hasAttribute('data-sp-back')) { if (b.getAttribute('data-sp-back') === 'fin' && shopOn()) { S.fromFin = false; S.view = 'fin'; render(); return; } S.fromFin = false; $s('m-spec').close(); return; }
     if (false) { if (b.dataset.sp === 'seller') { $s('m-spec').close(); return; } if (b.dataset.sp === 'buh') return openBuh(); S.view = b.dataset.sp; return render(); }
     if (b.dataset.pa) return paClick(b);
     if (b.dataset.asst) return asstClick(b);
     if (b.dataset.onb) return onbClick(b);
-if (b.dataset.fin) { if (b.dataset.fin === 'shop') { if (shopOn()) { S.fromFin = true; openShop(); } return; } if (b.dataset.fin === 'push') { pushEnable(); return; } if (b.dataset.fin === 'team') { if (shopOn() && owner() && window.open_team) { var mst = $s('m-spec'); window.open_team('fin'); } return; }
+if (b.dataset.fin) { if (b.dataset.fin === 'apt') { if (objOn() && shopOn()) openApt(); return; } if (b.dataset.fin === 'shop') { if (shopOn()) { S.fromFin = true; openShop(); } return; } if (b.dataset.fin === 'push') { pushEnable(); return; } if (b.dataset.fin === 'team') { if (shopOn() && owner() && window.open_team) { var mst = $s('m-spec'); window.open_team('fin'); } return; }
 if (b.dataset.fin === 'kl') { if (shopOn()) { S.fromFin = true; openShop(); SH.kl = true; SH.tab = 'prihod'; render(); } return; } S.fromFin = true; return openBuh(); }
 if (b.dataset.obj) return objClick(b.dataset.obj);
 if (b.dataset.pk) return pkClick(b.dataset.pk);
