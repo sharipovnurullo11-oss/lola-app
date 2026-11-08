@@ -782,7 +782,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/spravochnik','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/spravochnik','/preparat-foto','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -5569,8 +5569,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
-  var AP = { polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
-  function openApt() { S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
+  var AP = { fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
+  function openApt() { AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; render(); aptLoad(); }
   function aptLoad() {
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
       if (!r.ok) AP.err = r.error || TX('не удалось загрузить'); else { SH.d = r; AP.err = ''; }
@@ -5679,7 +5679,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       (aptMicOk() ? '<button type="button" class="btn ' + (APM ? '' : 'sec') + '" data-apt="mic" aria-label="' + esc(ui('Голосовой ввод', 'Воридкунии овозӣ', 'Ovozli kiritish')) + '" style="flex:none;width:56px;height:48px;min-height:48px;font-size:24px;padding:0">' + (APM ? '⏹' : '🎤') + '</button>' : '') + (shPolkiOn() ? '<button type="button" class="btn sec" data-apt="polki" style="flex:none;height:48px;min-height:48px;font-size:17px;padding:0 12px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</button>' : '') + '</div>' +
       (AP.msg ? '<p role="status" style="color:#1f8a4c;margin:8px 0 0">' + esc(AP.msg) + '</p>' : '') +
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
-      ('<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
+      ('<div style="display:flex;gap:8px;margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="flex:1;min-width:0;min-height:48px;font-size:17px">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button>' +
+        '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:none;min-height:48px;font-size:17px;padding:0 14px">📷 ' + esc(AP.fbusy ? ui('Читаю…', 'Хонда истодаам…', 'Oʻqiyapman…') : ui('Сфотографировать', 'Акс гирифтан', 'Suratga olish')) + '</button></div>' +
+        '<input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden>') +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
       (PHARM ? '<p style="margin-top:16px"><button type="button" class="btn sec" data-shop="selout" style="min-height:48px;font-size:16px;width:100%">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' : '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
     setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form && !APM) i.focus(); }, 60);
@@ -6458,6 +6460,19 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   document.addEventListener('keydown', shLive); document.addEventListener('input', shLive);
   document.addEventListener('change', function (e) {
     var t = e.target;
+    if (t && t.id === 'apt-foto-in' && t.files && t.files[0]) {
+      AP.fbusy = true; AP.err = ''; AP.msg = ''; render();
+      shFotoBig(t.files[0], function (img) {
+        var fail = function (m) { AP.fbusy = false; AP.err = m; if (S.view === 'apt' && !AP.form) render(); };
+        if (!img) return fail(ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'));
+        callTo('/preparat-foto', { foto: img }).then(function (r) {
+          if (!r || !r.ok) return fail((r && r.error) || TX('Не удалось'));
+          if (!r.name) return fail(ui('Название на упаковке не прочиталось. Сфотографируйте крупнее, чтобы название было видно.', 'Номи рӯи бастабандӣ хонда нашуд. Калонтар акс гиред.', 'Qadoqdagi nom oʻqilmadi. Kattaroq suratga oling.'));
+          AP.fbusy = false; AP.form = { name: r.name }; AP.err = ''; AP.msg = ''; if (S.view === 'apt') render();
+        });
+      });
+      return;
+    }
     if (t && t.id === 'sh-ff-in' && t.files && t.files[0]) { SH.ff = { busy: true, list: [], note: '', err: '', img: '' }; render(); shFotoBig(t.files[0], function (img) { if (!img) { SH.ff = { busy: false, list: [], note: '', err: ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'), img: '' }; return render(); } shFfSend(img); }); return; }
     if (!t || t.id !== 'sh-foto-in' || !t.files || !t.files[0]) return; var mode = t.dataset.k, file = t.files[0];
     shFotoMake(file, function (img) {
@@ -6481,6 +6496,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       AP.form = { name: px.n, polka: px.sh || gv('apt-f-polka'), opisanie: px.tx || gv('apt-f-text'), kolvo: px.kq || gv('apt-f-kolvo') }; AP.err = ''; render(); return;
     }
     if (b.dataset.apt === 'team') { if (window.open_team && objOn()) window.open_team('apteka'); return; }
+    if (b.dataset.apt === 'foto') { var afi = $s('apt-foto-in'); if (afi && !AP.fbusy) { afi.value = ''; afi.click(); } return; }
     if (b.dataset.apt === 'new') { AP.form = { name: AP.q || '' }; AP.err = ''; AP.msg = ''; render(); return; }
     if (b.dataset.apt === 'fcancel') { AP.form = null; AP.err = ''; render(); return; }
     if (b.dataset.apt === 'fsave') {
