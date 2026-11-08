@@ -1653,8 +1653,8 @@ function team_scope_ui(){
   var fin = !!TEAM_SCOPE;
   $('s-title').textContent = TEAM_SCOPE === 'prodavec' ? T('Продавцы') : TEAM_SCOPE === 'kladovshchik' ? T('Кладовщики') : TEAM_SCOPE === 'apteka' ? T('Сотрудники аптеки') : T('Команда');
   var sel = $('s-rol'); var aptOk = false; try { aptOk = !!store('ew_cab') && lstore('ew_obj_for') === store('ew_cab'); } catch (e) {}
-  Array.prototype.forEach.call(sel.options, function(o){ var hide = (fin && o.value !== TEAM_SCOPE) || (o.value === 'apteka' && !aptOk); o.hidden = hide; o.disabled = hide; });
-  if (fin) sel.value = TEAM_SCOPE;
+  Array.prototype.forEach.call(sel.options, function(o){ var hide = (fin && o.value !== TEAM_SCOPE) || (o.value === 'apteka' && !aptOk) || (aptOk && (o.value === 'prodavec' || o.value === 'kladovshchik')); /* аптека: окно кладовщика и кассира объединено, один тип сотрудника «Аптека» (08.11.2026) */ o.hidden = hide; o.disabled = hide; });
+  if (fin) sel.value = TEAM_SCOPE; else if (aptOk) sel.value = 'apteka';
   ['s-dlgh','s-dlgs','s-pres'].forEach(function(id){ var e = $(id); if (e) e.hidden = fin; });
 }
 function open_team(sc){ TEAM_SCOPE = (sc === 'prodavec' || sc === 'kladovshchik' || sc === 'apteka') ? sc : ''; team_scope_ui(); var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff();}
@@ -5679,7 +5679,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       (aptMicOk() ? '<button type="button" class="btn ' + (APM ? '' : 'sec') + '" data-apt="mic" aria-label="' + esc(ui('Голосовой ввод', 'Воридкунии овозӣ', 'Ovozli kiritish')) + '" style="flex:none;width:56px;height:48px;min-height:48px;font-size:24px;padding:0">' + (APM ? '⏹' : '🎤') + '</button>' : '') + (shPolkiOn() ? '<button type="button" class="btn sec" data-apt="polki" style="flex:none;height:48px;min-height:48px;font-size:17px;padding:0 12px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</button>' : '') + '</div>' +
       (AP.msg ? '<p role="status" style="color:#1f8a4c;margin:8px 0 0">' + esc(AP.msg) + '</p>' : '') +
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
-      (PHARM ? '' : '<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
+      ('<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
       (PHARM ? '<p style="margin-top:16px"><button type="button" class="btn sec" data-shop="selout" style="min-height:48px;font-size:16px;width:100%">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' : '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
     setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form && !APM) i.focus(); }, 60);
