@@ -5679,9 +5679,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       (aptMicOk() ? '<button type="button" class="btn ' + (APM ? '' : 'sec') + '" data-apt="mic" aria-label="' + esc(ui('Голосовой ввод', 'Воридкунии овозӣ', 'Ovozli kiritish')) + '" style="flex:none;width:56px;height:48px;min-height:48px;font-size:24px;padding:0">' + (APM ? '⏹' : '🎤') + '</button>' : '') + (shPolkiOn() ? '<button type="button" class="btn sec" data-apt="polki" style="flex:none;height:48px;min-height:48px;font-size:17px;padding:0 12px">🗄 ' + esc(ui('Полки', 'Рафҳо', 'Javonlar')) + '</button>' : '') + '</div>' +
       (AP.msg ? '<p role="status" style="color:#1f8a4c;margin:8px 0 0">' + esc(AP.msg) + '</p>' : '') +
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
-      ('<div style="display:flex;gap:8px;margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="flex:1;min-width:0;min-height:48px;font-size:17px">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button>' +
-        '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:none;min-height:48px;font-size:17px;padding:0 14px">📷 ' + esc(AP.fbusy ? ui('Читаю…', 'Хонда истодаам…', 'Oʻqiyapman…') : ui('Сфотографировать', 'Акс гирифтан', 'Suratga olish')) + '</button></div>' +
-        '<input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden>') +
+      ('<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
       (PHARM ? '<p style="margin-top:16px"><button type="button" class="btn sec" data-shop="selout" style="min-height:48px;font-size:16px;width:100%">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' : '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
     setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form && !APM) i.focus(); }, 60);
@@ -5706,7 +5704,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function renderAptForm(el) {
     var f = AP.form || {};
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">➕ ' + esc(ui('Новый препарат', 'Доруи нав', 'Yangi dori')) + '</h2>' +
-      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"') + '<div id="apt-f-sug">' + aptSugHtml(f.name) + '</div>' +
+      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="width:100%;min-height:48px;font-size:17px;margin-top:8px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish')) + '</button><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + aptSugHtml(f.name) + '</div>' +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Полка', 'Раф', 'Javon')) + '</label>' + shIn('apt-f-polka', ui('Номер или название полки', 'Рақам ё номи раф', 'Javon raqami yoki nomi'), f.polka, 'inputmode="text" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Сколько штук добавить', 'Чанд дона илова кунед', 'Necha dona qoʻshiladi')) + '</label>' + shIn('apt-f-kolvo', ui('Например: 20', 'Масалан: 20', 'Masalan: 20'), f.kolvo, 'inputmode="decimal" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Описание: для чего препарат', 'Тавсиф: дору барои чӣ', 'Tavsif: dori nima uchun')) + '</label>' +
@@ -6461,18 +6459,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (t && t.id === 'apt-foto-in' && t.files && t.files[0]) {
-      AP.fbusy = true; AP.err = ''; AP.msg = ''; render();
+      var gv2 = function (id) { var e2 = $s(id); return e2 ? (e2.value || '').trim() : ''; };
+      AP.form = { name: gv2('apt-f-name'), polka: gv2('apt-f-polka'), kolvo: gv2('apt-f-kolvo'), opisanie: gv2('apt-f-text') };
+      AP.fbusy = true; AP.err = ''; render();
       shFotoBig(t.files[0], function (img) {
-        var fail = function (m) { AP.fbusy = false; AP.err = m; if (S.view === 'apt' && !AP.form) render(); };
+        var fail = function (m) { AP.fbusy = false; AP.err = m; if (S.view === 'apt' && AP.form) render(); };
         if (!img) return fail(ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'));
         callTo('/preparat-foto', { foto: img }).then(function (r) {
           if (!r || !r.ok) return fail((r && r.error) || TX('Не удалось'));
           if (!r.name) return fail(ui('Название на упаковке не прочиталось. Сфотографируйте крупнее, чтобы название было видно.', 'Номи рӯи бастабандӣ хонда нашуд. Калонтар акс гиред.', 'Qadoqdagi nom oʻqilmadi. Kattaroq suratga oling.'));
-          AP.fbusy = false; AP.err = ''; AP.msg = '';
-          var nl = String(r.name).trim().toLowerCase(), w1 = (nl.match(/[\p{L}-]{3,}/u) || [''])[0], hit = aptFind(nl).length ? nl : (w1 && aptFind(w1).length ? w1 : '');
-          if (hit) { AP.q = hit === nl ? r.name : hit; AP.form = null; AP.msg = ui('На фото: ', 'Дар акс: ', 'Rasmda: ') + r.name + ' — ' + ui('нашёл в базе', 'дар база ёфт шуд', 'bazadan topildi'); }
-          else { AP.form = { name: r.name }; }
-          if (S.view === 'apt') render();
+          AP.fbusy = false; AP.err = ''; if (AP.form) AP.form.name = r.name; if (S.view === 'apt' && AP.form) render();
         });
       });
       return;
