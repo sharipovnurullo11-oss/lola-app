@@ -5665,7 +5665,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (k && AP.pedit === k) head = '<div style="margin:14px 0 4px;display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><input class="in2" id="apt-pn-in" maxlength="80" value="' + esc(pnm || '') + '" placeholder="' + esc(ui('Название полки, например: для пищеварения', 'Номи раф, масалан: барои ҳазм', 'Javon nomi, masalan: hazm uchun')) + '" style="width:100%;height:48px;font-size:17px;box-sizing:border-box"></div><button type="button" class="btn" data-apt="pn-ok" data-k="' + esc(k) + '" style="flex:none;min-height:48px;padding:0 14px">✓</button><button type="button" class="btn sec" data-apt="pn-x" style="flex:none;min-height:48px;padding:0 14px">×</button></div>';
       else head = '<div data-pn="' + esc(k) + '" style="margin:14px 0 4px;font-weight:700;font-size:20px;' + (k ? 'cursor:pointer;user-select:none' : '') + '">📍 ' + esc(k ? ui('Полка ', 'Раф ', 'Javon ') + k : ui('Без полки', 'Бе раф', 'Javonsiz')) + (pnm ? ' — <span style="color:#7a5200">' + esc(pnm) + '</span>' : '') + ' <small style="font-weight:400;opacity:.7">· ' + arr.length + '</small></div>';
       return head +
-        shown.map(function (n) { return '<div style="padding:8px 2px;border-bottom:1px solid #e6e6e6;font-size:18px;line-height:1.3;white-space:normal">' + esc(n) + '</div>'; }).join('') +
+        shown.map(function (n) { var kf = aptKb(n), ft = kf && kf.foto; return '<div style="display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #e6e6e6">' + (ft ? '<img alt="" data-zoom="1" src="' + ft + '" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none">' : '<span style="width:56px;height:56px;border-radius:10px;background:#eee;flex:none;display:flex;align-items:center;justify-content:center;font-size:22px">💊</span>') + '<button type="button" data-apt="popen" data-n="' + esc(n) + '" style="flex:1;min-width:0;font:inherit;font-size:18px;line-height:1.3;white-space:normal;text-align:left;background:none;border:0;color:inherit;cursor:pointer;padding:8px 0">' + esc(n) + '</button></div>'; }).join('') +
         (arr.length > shown.length ? '<small style="opacity:.7">' + esc(ui('Ещё ' + (arr.length - shown.length) + ' — уточните поиск', 'Боз ' + (arr.length - shown.length) + ' — ҷустуҷӯро дақиқ кунед', 'Yana ' + (arr.length - shown.length) + ' — qidiruvni aniqlang')) + '</small>' : '');
     }).join('');
   }
@@ -6722,6 +6722,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       });
       return;
     }
+    if (b.dataset.apt === 'popen') { AP.polki = false; AP.pq = ''; AP.q = String(b.dataset.n || ''); AP.msg = ''; AP.err = ''; render(); return; }
     if (b.dataset.apt === 'polki-x') { AP.polki = false; AP.pq = ''; render(); return; }
     if (b.dataset.apt === 'multi') { var mi = $s('apt-multi-in'); if (mi && !(AP.multi && AP.multi.busy)) { mi.value = ''; mi.click(); } return; }
     if (b.dataset.apt === 'mcancel') { AP.multi = null; render(); return; }
