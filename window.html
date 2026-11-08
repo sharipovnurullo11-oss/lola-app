@@ -2592,7 +2592,6 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function openOne(id) {
     if (!owner()) return; ensure();
-    if (id === 'finm') { if (objOn() && shopOn()) { S.fromFin = false; S.view = 'fin'; render(); open_dlg('m-spec'); } return; }
     if ((id === 'shop' && !shopOn()) || (id === 'obj' && !objOn())) return; S.fromFin = false; if (id === 'obj') openObj(); else if (id === 'fin') { if (objOn() && shopOn()) openApt(); else if (shopOn()) { S.view = 'fin'; render(); } else openFinOrProkat(); } else if (id === 'buh') openBuh(); else if (id === 'shop') openShop(); else if (id === 'smm') openSmm(); else if (id === 'mkt') openMkt(); else if (id === 'lawyer') openLaw(); else if (id === 'manager') openMgr(); else { S.view = id; render(); }
     open_dlg('m-spec');
   }
@@ -2784,7 +2783,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '<div class="sp-grid">' +
       LIST.filter(function (x) { return !x.hide; }).map(function (x) {
         return '<button type="button" class="sp-tile' + (x.ready ? '' : ' soon') + '" data-home="' + x.id + '"><span class="ic" aria-hidden="true">' + x.ico + '</span><b>' + esc(TX(x.name)) + '</b><small>' + esc(TX(x.ready ? x.about : 'Скоро')) + '</small></button>';
-      }).join('') + '<button type="button" class="sp-tile" data-home="obj" hidden><span class="ic" aria-hidden="true">🏗️</span><b>' + esc(ui('Финансист по объектам', 'Молиячӣ аз рӯи объектҳо', 'Obyektlar boʻyicha moliyachi')) + '</b><small>' + esc(ui('Точки, заказчики, мастера', 'Нуқтаҳо, фармоишгарон, устоҳо', 'Nuqtalar, buyurtmachilar, ustalar')) + '</small></button><button type="button" class="sp-tile" data-home="finm" hidden><span class="ic" aria-hidden="true">💼</span><b>' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</b><small>' + esc(ui('Бухгалтерия, касса, кладовщик: деньги и товар', 'Ҳисобдорӣ, касса, анбордор: пул ва мол', 'Buxgalteriya, kassa, omborchi: pul va tovar')) + '</small></button></div>';
+      }).join('') + '<button type="button" class="sp-tile" data-home="obj" hidden><span class="ic" aria-hidden="true">🏗️</span><b>' + esc(ui('Финансист по объектам', 'Молиячӣ аз рӯи объектҳо', 'Obyektlar boʻyicha moliyachi')) + '</b><small>' + esc(ui('Точки, заказчики, мастера', 'Нуқтаҳо, фармоишгарон, устоҳо', 'Nuqtalar, buyurtmachilar, ustalar')) + '</small></button></div>';
     app.insertBefore(home, ref);
     var back = document.createElement('div'); back.id = 'sp-back'; back.hidden = true;
     back.innerHTML = '<button type="button">← ' + esc(TX('Специалисты')) + '</button>';
@@ -2814,7 +2813,6 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     // Стройка: плитка «Финансист по объектам» только там, где сервер /objekty её разрешил; тогда обычный «Финансист» подписываем «Финансист аптеки».
     if (user) objCheck();
     var objTile = document.querySelector('#sp-home [data-home="obj"]'); if (objTile) objTile.hidden = !objOn();
-    var finmTile = document.querySelector('#sp-home [data-home="finm"]'); if (finmTile) finmTile.hidden = !(objOn() && shopOn()); // руководитель Асрор: две плитки «Аптека» и «Финансист»
     // Кабинет со стройкой (Асрор Холов): оставляем только продавца-ассистента и двух финансистов; SMM, маркетолог, менеджер, юрист и «Личный ассистент» скрыты.
     var onlyFin = objOn();
     ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
@@ -5635,7 +5633,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
       (PHARM ? '' : '<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
-      (PHARM ? '<p style="margin-top:16px"><button type="button" class="btn sec" data-shop="selout" style="min-height:48px;font-size:16px;width:100%">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' : '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Управление: бухгалтерия, касса, кладовщик', 'Идора: ҳисобдорӣ, касса, анбордор', 'Boshqaruv: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
+      (PHARM ? '<p style="margin-top:16px"><button type="button" class="btn sec" data-shop="selout" style="min-height:48px;font-size:16px;width:100%">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' : '<p style="margin-top:16px"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
     setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form && !APM) i.focus(); }, 60);
   }
   // Форма «Добавить новый препарат»: название, полка, описание. Работает на телефоне, планшете и компьютере.
