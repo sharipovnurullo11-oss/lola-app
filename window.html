@@ -5777,7 +5777,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       ('<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
       '<input type="file" id="apt-cfoto-in" accept="image/*" capture="environment" hidden>' +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
-      (PHARM ? '<p style="margin-top:auto;padding-top:72px;margin-bottom:0"><button type="button" class="btn sec" data-shop="selout" style="min-height:48px;font-size:16px;width:100%">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' : '<p style="margin-top:auto;padding-top:72px;margin-bottom:0"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
+      (PHARM ? '<p style="margin-top:auto;padding-top:72px;margin-bottom:0;text-align:left"><button type="button" class="btn sec" data-apt="exit-ask" style="min-height:36px;font-size:13px;padding:0 12px;width:auto;opacity:.8">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' + (AP.exitAsk ? '<div role="dialog" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:Canvas;color:CanvasText;border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center"><p style="font-size:19px;margin:0 0 16px">' + esc(ui('Вы действительно хотите выйти?', 'Шумо воқеан баромадан мехоҳед?', 'Rostdan ham chiqmoqchimisiz?')) + '</p><div style="display:grid;gap:10px"><button type="button" class="btn" data-shop="selout" style="min-height:48px;font-size:17px">' + esc(ui('Да, выйти', 'Бале, баромадан', 'Ha, chiqish')) + '</button><button type="button" class="btn sec" data-apt="exit-no" style="min-height:48px;font-size:17px">' + esc(ui('Нет, остаться', 'Не, мондан', 'Yoʻq, qolish')) + '</button></div></div></div>' : '') : '<p style="margin-top:auto;padding-top:72px;margin-bottom:0"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
     setTimeout(function () { var i = $s('apt-q'); if (i && S.view === 'apt' && !AP.form && !APM) i.focus(); }, 60);
   }
   // Подсказки в форме «Новый препарат»: пока пишешь название, показываем уже существующие препараты (из базы магазина и из справочника).
@@ -6732,6 +6732,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return;
     }
     if (b.dataset.apt === 'popen') { AP.polki = false; AP.pq = ''; AP.q = String(b.dataset.n || ''); AP.msg = ''; AP.err = ''; render(); return; }
+    if (b.dataset.apt === 'exit-ask') { AP.exitAsk = true; render(); return; }
+    if (b.dataset.apt === 'exit-no') { AP.exitAsk = false; render(); return; }
     if (b.dataset.apt === 'polki-x') { AP.polki = false; AP.pq = ''; render(); return; }
     if (b.dataset.apt === 'multi') { var mi = $s('apt-multi-in'); if (mi && !(AP.multi && AP.multi.busy)) { mi.value = ''; mi.click(); } return; }
     if (b.dataset.apt === 'mcancel') { AP.multi = null; render(); return; }
@@ -6847,7 +6849,7 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
       o.addEventListener('click', onClick);
     }
     o.hidden = false;
-    if (!SELLER) { SELLER = true; PHARM = true; S.view = 'apt'; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; SH.d = null; SH.month = today().slice(0, 7); var kb = $s('sp-kassa-btn'); if (kb) kb.hidden = true; render(); aptLoad(); }
+    if (!SELLER) { SELLER = true; PHARM = true; S.view = 'apt'; AP.exitAsk = false; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; SH.d = null; SH.month = today().slice(0, 7); var kb = $s('sp-kassa-btn'); if (kb) kb.hidden = true; render(); aptLoad(); }
   }
   function setSeller(on) {
     var o = $s('kas-root');
