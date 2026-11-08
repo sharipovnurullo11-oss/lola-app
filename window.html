@@ -6690,8 +6690,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   /* Двойной тап по маленькому фото препарата — открывается крупно; тап по тёмному фону закрывает */
   (function () {
     var last = 0;
-    function zoomFoto(src) {
-      var d = $s('m-spec'); if (!d || !src || $s('apt-zoom')) return;
+    function zoomFoto(src, from) {
+      /* окно сотрудника — отдельный слой, а не m-spec: показываем фото в том же окне, где нажали */
+      var d = (from && from.closest && (from.closest('dialog') || (from.closest('#kas-body') && from.closest('#kas-body').parentNode))) || $s('m-spec') || document.body; if (!d || !src || $s('apt-zoom')) return;
       var o = document.createElement('div'); o.id = 'apt-zoom';
       o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out';
       o.innerHTML = '<img alt="" src="' + src + '" style="width:min(92vw,520px);max-height:90vh;object-fit:contain;border-radius:12px;background:#fff"><span style="position:absolute;top:12px;right:18px;color:#fff;font-size:34px;line-height:1">×</span>';
@@ -6700,10 +6701,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }
     document.addEventListener('touchend', function (e) {
       var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (!im) return;
-      var t = Date.now(); if (t - last < 350) { last = 0; e.preventDefault(); zoomFoto(im.src); } else last = t;
+      var t = Date.now(); if (t - last < 350) { last = 0; e.preventDefault(); zoomFoto(im.src, im); } else last = t;
     }, { passive: false });
     document.addEventListener('dblclick', function (e) {
-      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (im) zoomFoto(im.src);
+      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (im) zoomFoto(im.src, im);
     });
   })();
   function onClick(e) {
