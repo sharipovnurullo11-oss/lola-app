@@ -391,6 +391,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
 
   function render() {
     var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop' || S.view === 'apt' || S.view === 'obj'), dbd = dl && dl.querySelector('.dbody'); if (dl) { var xb = dl.querySelector('[data-close]'); if (xb) xb.style.display = S.view === 'obj' ? 'none' : ''; dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; } } } catch (e) {}
+    try { var obOn = !SELLER && S.view === 'obj'; el.classList.toggle('ob-v', obOn); var obDl = el.closest('dialog'), obBd = el.closest('.dbody'); if (obBd) obBd.style.background = obOn ? '#EEF1F6' : ''; if (obDl) obDl.style.background = obOn ? '#EEF1F6' : ''; } catch (e) {}
     if (SELLER) return PHARM ? renderApt(el) : renderShop(el);
     if (S.view === 'pa') return renderPa(el);
     if (S.view === 'asst') return renderAsst(el);
