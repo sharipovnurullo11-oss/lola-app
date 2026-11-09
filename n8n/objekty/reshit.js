@@ -41,7 +41,7 @@ const pview = (p, full) => {
   return v;
 };
 const ent = r => ({ oid: r.oid, tip: r.tip, tochka: r.tochka || '', data: r.data, statya: r.statya, summa: Number(r.summa), master: r.master, komment: r.komment });
-const recent = name => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined || String(r.tochka || '') === name)).slice(-40).reverse().map(ent);
+const recent = (name, cap) => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined || String(r.tochka || '') === name)).slice(-(cap || 40)).reverse().map(ent);
 
 // ---------- чтение ----------
 if (act === 'list') {
@@ -54,7 +54,7 @@ if (act === 'list') {
 if (act === 'point') {
   const n = txt(B.name, 60);
   if (!P[n]) return bad('нет такой точки');
-  return out({ ok: true, point: Object.assign(pview(P[n], true), { entries: recent(n) }) });
+  return out({ ok: true, point: Object.assign(pview(P[n], true), { entries: recent(n, 500) }) });
 }
 if (act === 'lich_list') {
   // Личные деньги Асрора: отдельный вид строк «lichnoe». В точки и их итоги не попадают.

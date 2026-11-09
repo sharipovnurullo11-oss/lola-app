@@ -438,7 +438,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // Данные хранит n8n по адресу /objekty (таблица «Объекты — записи (стройка)»). Кому показывать, решает сервер:
   // чужому кабинету он отвечает «нет доступа», и плитка не появляется. Деньги стройки и аптеки не смешиваются:
   // у аптеки свой «Финансист» (учёт магазина), у стройки — этот. Записи только добавляются, ошибку исправляет отмена.
-  var OB = { busy: false, err: '', msg: '', data: null, cur: null, form: null, sec: null, lich: null, keep: {}, pending: {}, delAsk: null, split: false, pre: {} };
+  var OB = { busy: false, err: '', msg: '', data: null, cur: null, form: null, sec: null, lich: null, rep: false, keep: {}, pending: {}, delAsk: null, split: false, pre: {} };
   var OB_ASK = '';
   function objOn() { try { var c = String(store('ew_cab') || ''); return !!c && lstore('ew_obj_for') === c; } catch (e) { return false; } }
   function objCheck() {
@@ -463,7 +463,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function objIn(id, label, attrs, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><input class="in2" id="' + id + '" ' + attrs + ' autocomplete="off" value="' + esc(val == null ? '' : val) + '"></label>'; }
   function objSel(id, label, opts, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><select class="in2" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>'; }
   function objPoints() { return OB.data ? OB.data.points : []; }
-  function openObj() { S.view = 'obj'; OB.lich = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
+  function openObj() { S.view = 'obj'; OB.rep = false; OB.lich = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
   function objLoad() {
     OB.busy = true;
     callTo('/objekty', { action: 'list' }).then(function (r) {
@@ -473,7 +473,7 @@ if (S.view === 'mkt') return renderMkt(el);
     });
   }
   function objOpenPoint(name, quiet) {
-    if (!quiet) OB.sec = null;
+    if (!quiet) { OB.sec = null; OB.rep = false; }
     OB.cur = { name: name, loading: !quiet }; OB.form = null; OB.err = ''; OB.delAsk = null; if (!quiet) render();
     callTo('/objekty', { action: 'point', name: name }).then(function (r) {
       if (S.view !== 'obj' || !OB.cur || OB.cur.name !== name) return;
@@ -575,9 +575,12 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'dogovor') return objAct({ action: 'dogovor', tochka: OB.cur.name, amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
   }
   function objClick(k) {
-    if (k === 'back') { if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'back') { if (OB.rep) OB.rep = false; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k.indexOf('sec:') === 0) { OB.sec = k.slice(4); OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k === 'lich') return openLich();
+    if (k === 'rep') { OB.rep = true; OB.err = ''; OB.msg = ''; return render(); }
+    if (k === 'copy') { return objCopy(); }
+    if (k === 'share') { return objShare(); }
     if (k === 'reload') return objLoad();
     if (k === 'cancel') { OB.form = null; OB.split = false; OB.err = ''; return render(); }
     if (k === 'save') return objSave();
@@ -605,19 +608,74 @@ if (S.view === 'mkt') return renderMkt(el);
         objBtn('void:' + e.oid, ask ? esc(ui('Точно отменить?', 'Бекор кунам?', 'Bekor qilaymi?')) : '✕', true, 'flex:none;height:34px;padding:0 10px;font-size:13px' + (ask ? ';color:#c0392b' : '')) + '</div>';
     }).join('');
   }
+  // Предупреждение: расходов больше, чем получено от заказчика
+  function objWarn(p) {
+    if (!(Number(p.left) < 0)) return '';
+    return '<p role="alert" style="margin:10px 0;padding:10px 12px;border-radius:12px;background:rgba(192,57,43,.14);color:#c0392b"><b>' + esc(ui('Расходов больше, чем получено', 'Хароҷот аз гирифташуда зиёд аст', 'Xarajat olingandan koʻp')) + ' ' + pkMoney(-p.left) + '.</b> ' + esc(ui('Пора попросить у заказчика новую часть.', 'Вақти аз фармоишгар қисми навро хостан аст.', 'Buyurtmachidan yangi qism soʻrash vaqti.')) + '</p>';
+  }
+  // Мастера: договорённая сумма, выплачено, осталось доплатить
+  function objMasters(p) {
+    var ms = p.masters || [], h = '<div style="margin:8px 0 12px">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px"><b>' + esc(ui('Долги по мастерам', 'Қарзҳо ба устоҳо', 'Ustalarga qarzlar')) + ': <span style="color:' + (p.mastersOwe > 0 ? '#c0392b' : 'inherit') + '">' + pkMoney(p.mastersOwe || 0) + '</span></b>' +
+      objBtn('fm:', '+ ' + esc(ui('Договор', 'Шартнома', 'Shartnoma')), true, 'height:36px;padding:0 12px;font-size:14px') + '</div>';
+    if (!ms.length) return h + '<small style="opacity:.75">' + esc(ui('Мастеров пока нет. Запишите выплату или договорённость.', 'Усто ҳоло нест. Пардохт ё шартномаро сабт кунед.', 'Ustalar hali yoʻq. Toʻlov yoki kelishuvni yozing.')) + '</small></div>';
+    ms.forEach(function (m) {
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:1;min-width:0"><b>' + esc(m.name) + '</b><br><small>' + esc(ui('выплачено', 'пардохта шуд', 'toʻlandi')) + ' ' + pkMoney(m.paid) + (m.dogovor != null ? ' · ' + esc(ui('договор', 'шартнома', 'shartnoma')) + ' ' + pkMoney(m.dogovor) + ' · <b style="color:' + (m.left > 0 ? '#c0392b' : '#1f8a4c') + '">' + esc(ui('осталось', 'монд', 'qoldi')) + ' ' + pkMoney(m.left) + '</b>' : ' · <i>' + esc(ui('договор не указан', 'шартнома нест', 'shartnoma yoʻq')) + '</i>') + '</small></span>' +
+        objBtn('fm:' + m.name, esc(ui('Договор', 'Шартнома', 'Shartnoma')), true, 'flex:none;height:34px;padding:0 10px;font-size:13px') + '</div>';
+    });
+    return h + '</div>';
+  }
+  // Отчёт заказчику: на что ушли деньги по объекту; личные расходы Асрора сюда не попадают (в данных объекта их нет)
+  function objReportText(p) {
+    var cur = ui('сомони', 'сомонӣ', 'somoni'), L = [], en = p.entries || [];
+    function money(x) { return pkMoney(x) + ' ' + cur; }
+    function sum(a) { return a.reduce(function (s, e) { return s + (Number(e.summa) || 0); }, 0); }
+    function line(e, note) { return '• ' + e.data + ' — ' + money(e.summa) + (note ? ' (' + note + ')' : ''); }
+    var adv = en.filter(function (e) { return e.tip === 'prihod'; }).slice().reverse(),
+      mas = en.filter(function (e) { return e.tip === 'rashod' && e.statya === 'master'; }).slice().reverse(),
+      mat = en.filter(function (e) { return e.tip === 'rashod' && e.statya === 'material'; }).slice().reverse(),
+      oth = en.filter(function (e) { return e.tip === 'rashod' && e.statya !== 'master' && e.statya !== 'material'; }).slice().reverse();
+    L.push(ui('Отчёт по объекту', 'Ҳисобот аз рӯи объект', 'Obyekt boʻyicha hisobot') + ': ' + p.name, today(), '');
+    L.push(ui('Получено от вас', 'Аз шумо гирифта шуд', 'Sizdan olindi') + ': ' + money(p.inn));
+    adv.forEach(function (e) { L.push(line(e, e.komment)); });
+    L.push('', ui('Потрачено', 'Сарф шуд', 'Sarflandi') + ': ' + money(p.out));
+    if (mas.length) { L.push('', ui('Мастера', 'Устоҳо', 'Ustalar') + ': ' + money(sum(mas))); mas.forEach(function (e) { L.push(line(e, e.master || e.komment)); }); }
+    if (mat.length) { L.push('', ui('Материалы', 'Масолеҳ', 'Materiallar') + ': ' + money(sum(mat))); mat.forEach(function (e) { L.push(line(e, e.komment)); }); }
+    if (oth.length) { L.push('', ui('Прочее', 'Дигар', 'Boshqa') + ': ' + money(sum(oth))); oth.forEach(function (e) { L.push(line(e, e.komment)); }); }
+    L.push('', ui('Остаток', 'Монда', 'Qoldiq') + ': ' + money(p.left));
+    return L.join('\n');
+  }
+  function renderObjReport(el) {
+    var p = OB.cur, t = objReportText(p);
+    el.innerHTML = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')) + '</h2>' + objMsgs() +
+      '<div id="ob-rep" style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:8px 0;font-size:15px;line-height:1.45">' + esc(t) + '</div>' +
+      '<div style="display:flex;gap:8px">' + objBtn('share', esc(ui('Отправить', 'Фиристодан', 'Yuborish')), false, 'flex:1;height:48px') + objBtn('copy', esc(ui('Копировать', 'Нусхабардорӣ', 'Nusxalash')), true, 'flex:1;height:48px') + '</div>' +
+      '<small style="display:block;margin-top:8px;opacity:.75">' + esc(ui('Личные расходы в отчёт не входят.', 'Хароҷоти шахсӣ дар ҳисобот нест.', 'Shaxsiy xarajatlar hisobotga kirmaydi.')) + '</small>';
+  }
+  function objCopy() {
+    var t = objReportText(OB.cur), ok = function () { OB.msg = ui('Скопировано', 'Нусха шуд', 'Nusxalandi'); OB.err = ''; render(); }, no = function () { OB.err = ui('Не получилось скопировать, выделите текст вручную', 'Нусха нашуд, матнро дастӣ ҷудо кунед', 'Nusxalab boʻlmadi, matnni qoʻlda belgilang'); render(); };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(ok, no); } catch (e) {}
+    try { var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); var r = document.execCommand('copy'); document.body.removeChild(ta); return r ? ok() : no(); } catch (e) { no(); }
+  }
+  function objShare() {
+    var t = objReportText(OB.cur);
+    try { if (navigator.share) return navigator.share({ title: OB.cur.name, text: t }).catch(function () {}); } catch (e) {}
+    try { window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank', 'noopener'); } catch (e) { objCopy(); }
+  }
   function objTotals(p) {
     return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px">' + objStatBox(ui('Получено', 'Гирифта шуд', 'Olindi'), pkMoney(p.inn), '#1f8a4c') + objStatBox(ui('Потрачено', 'Сарф шуд', 'Sarflandi'), pkMoney(p.out), '#c0392b') + objStatBox(ui('Осталось', 'Монд', 'Qoldi'), pkMoney(p.left), p.left < 0 ? '#c0392b' : 'inherit') + '</div>';
   }
   function renderObj(el) {
     var h = backBtn().replace(/←[^<]*/, '← ' + esc(objBack())) + '<h2>🏗️ ' + esc(objTitle()) + '</h2>';
     if (OB.lich) return renderLich(el);
+    if (OB.cur && OB.rep && !OB.cur.loading && !OB.cur.error) return renderObjReport(el);
     if (OB.cur) return renderObjPoint(el, h);
     if (!OB.data) { el.innerHTML = h + '<p>' + esc(OB.err || TX('Загрузка…')) + '</p>' + (OB.err ? objBtn('reload', esc(TX('Повторить')), true) : ''); return; }
     var pts = OB.data.points || [], tile = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:84px;height:auto;padding:10px;text-align:center;width:100%';
     h += '<p style="margin:4px 0 10px">' + esc(ui('Выберите клиента (объект):', 'Мижозро (объектро) интихоб кунед:', 'Mijozni (obyektni) tanlang:')) + '</p>' + objMsgs();
     h += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">';
     pts.forEach(function (p) {
-      h += '<button type="button" class="btn sec" data-obj="pt:' + esc(p.name) + '" style="' + tile + '"><b style="font-size:16px;word-break:break-word">' + esc(p.name) + '</b><small>' + esc(ui('осталось', 'монд', 'qoldi')) + ' <b' + (p.left < 0 ? ' style="color:#c0392b"' : '') + '>' + pkMoney(p.left) + '</b></small></button>';
+      h += '<button type="button" class="btn sec" data-obj="pt:' + esc(p.name) + '" style="' + tile + (Number(p.left) < 0 ? ';border-color:#c0392b;background:rgba(192,57,43,.14)' : '') + '"><b style="font-size:16px;word-break:break-word">' + esc(p.name) + '</b><small>' + esc(ui('осталось', 'монд', 'qoldi')) + ' <b' + (p.left < 0 ? ' style="color:#c0392b"' : '') + '>' + pkMoney(p.left) + '</b></small></button>';
     });
     for (var i = pts.length; i < OB_SLOTS; i++) {
       h += '<button type="button" class="btn sec" data-obj="f:client" style="' + tile + ';border-style:dashed;opacity:.8"><b style="font-size:16px">' + esc(ui('Объект', 'Объект', 'Obyekt')) + ' ' + (i + 1) + '</b><small>' + esc(ui('нажмите, чтобы назвать', 'барои ном гузоштан зер кунед', 'nom berish uchun bosing')) + '</small></button>';
@@ -661,12 +719,12 @@ if (S.view === 'mkt') return renderMkt(el);
     if (p.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(p.error) + '</p>'; return; }
     if (!k) {
       h += '<div style="display:grid;gap:10px;margin:10px 0">' + ['in', 'master', 'material'].map(function (s) {
-        return '<button type="button" class="btn' + (s === 'in' ? '' : ' sec') + '" data-obj="sec:' + s + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:auto;min-height:60px;padding:10px 14px;width:100%;font-size:18px"><span>' + objSecIcon(s) + ' ' + esc(objSecName(s)) + '</span><b>' + pkMoney(objSecSum(p, s)) + '</b></button>';
-      }).join('') + '</div>' + objMsgs() + objTotals(p);
+        return '<button type="button" class="btn' + (s === 'in' ? '' : ' sec') + '" data-obj="sec:' + s + '" style="' + (s === 'in' && Number(p.left) < 0 ? 'background:#c0392b;border-color:#c0392b;color:#fff;' : '') + 'display:flex;align-items:center;justify-content:space-between;gap:10px;height:auto;min-height:60px;padding:10px 14px;width:100%;font-size:18px"><span>' + objSecIcon(s) + ' ' + esc(objSecName(s)) + '</span><b>' + pkMoney(objSecSum(p, s)) + '</b></button>';
+      }).join('') + '</div>' + objMsgs() + objWarn(p) + objTotals(p) + objBtn('rep', '📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')), true, 'width:100%;height:50px;margin-top:10px');
       el.innerHTML = h; return;
     }
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0"><span>' + esc(ui('Всего', 'Ҷамъ', 'Jami')) + ': <b>' + pkMoney(objSecSum(p, k)) + '</b></span>' + objBtn('f:sec', '+ ' + esc(ui('Добавить', 'Илова', 'Qoʻshish')), false, 'height:44px;padding:0 18px') + '</div>';
-    h += objMsgs() + objForm() + objSecEntries(p.entries, k) + objTotals(p);
+    h += objMsgs() + objForm() + (k === 'master' ? objMasters(p) : '') + objSecEntries(p.entries, k) + objTotals(p);
     el.innerHTML = h;
   }
 
