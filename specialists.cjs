@@ -370,8 +370,9 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = objOn() ? ui('Аптека', 'Дорухона', 'Dorixona') : TX('Финансист');
     // Кабинет Асрора: плитка «Аптека» с картинкой лекарств вместо портфеля и подписью про поиск препарата.
     var finT = document.querySelector('#sp-home [data-home="fin"]'); if (finT) { var fi = finT.querySelector('.ic'), fs = finT.querySelector('small'); if (fi) { if (objOn()) fi.innerHTML = '<svg viewBox="0 0 48 48" width="1em" height="1em" style="vertical-align:-0.12em" aria-hidden="true"><rect x="7" y="20" width="34" height="22" rx="2" fill="#f4f1ea" stroke="#5b6770" stroke-width="2"/><path d="M4 20l4-10h32l4 10z" fill="#e8f5ee" stroke="#5b6770" stroke-width="2" stroke-linejoin="round"/><path d="M12 10l-2 10M20 10l-1 10M28 10l1 10M36 10l2 10" stroke="#1f9d62" stroke-width="3"/><rect x="19" y="29" width="10" height="13" rx="1" fill="#b9d7ea" stroke="#5b6770" stroke-width="1.5"/><path d="M24 2v8M20 6h8" stroke="#1f9d62" stroke-width="3" stroke-linecap="round" transform="translate(0 -1)"/><rect x="10" y="26" width="6" height="6" rx="1" fill="#b9d7ea"/><rect x="32" y="26" width="6" height="6" rx="1" fill="#b9d7ea"/></svg>'; else fi.textContent = '💼'; } if (fs && objOn()) fs.textContent = ui('Название препарата: полка и описание', 'Номи дору: раф ва тавсиф', 'Dori nomi: javon va tavsif'); }
-    // По просьбе Нурулло (08.11.2026), только кабинет Асрора: плитка называется «Аптека», и при входе в приложение сразу открывается окно поиска препарата (один раз за загрузку).
-    if (show && objOn() && shopOn() && !window.__aptAuto) { window.__aptAuto = 1; setTimeout(function () { try { openOne('fin'); } catch (e) {} }, 350); }
+    // 09.11.2026, по просьбе Нурулло: у Асрора окно поиска препарата само не открывается (раньше открывалось при каждом входе и обновлении), сразу видно главное окно с «Аптека» и «Финансист по объектам». Кнопки чата убраны: «Команда», «Свободные часы», «Развивай агента», меню.
+    var asrorCab = false; try { asrorCab = String(store('ew_cab') || '') === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5'; } catch (e) {}
+    document.body.classList.toggle('ob-only', !!(objOn() || asrorCab));
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
     var lock = show && !paDone(); if (show) paCheck();
@@ -452,6 +453,7 @@ if (S.view === 'mkt') return renderMkt(el);
       if (on !== was) applyHome();
     });
   }
+  var OB_HD = 'display:flex;align-items:center;gap:10px;margin-bottom:8px', OB_H2 = 'margin:0;font-size:18px;line-height:1.2;flex:1;min-width:0;word-break:break-word';
   function objBack() { return ui('Назад', 'Бозгашт', 'Orqaga'); }
   function objTitle() { return ui('Финансист по объектам', 'Молиячӣ аз рӯи объектҳо', 'Obyektlar boʻyicha moliyachi'); }
   function objStat(k) {
@@ -463,7 +465,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function objIn(id, label, attrs, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><input class="in2" id="' + id + '" ' + attrs + ' autocomplete="off" value="' + esc(val == null ? '' : val) + '"></label>'; }
   function objSel(id, label, opts, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><select class="in2" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>'; }
   function objPoints() { return OB.data ? OB.data.points : []; }
-  function openObj() { S.view = 'obj'; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
+  function openObj() { S.view = 'obj'; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.debts = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
   function objLoad() {
     OB.busy = true;
     callTo('/objekty', { action: 'list' }).then(function (r) {
@@ -482,14 +484,14 @@ if (S.view === 'mkt') return renderMkt(el);
     });
   }
   // Номер записи (oid) держим до удачного ответа: при обрыве связи повтор не создаёт вторую запись.
-  function objAct(body, okMsg) {
+  function objAct(body, okMsg, onOk) {
     if (OB.busy) return;
     var key = JSON.stringify(body); body.oid = OB.pending[key] || (OB.pending[key] = oid());
     var send = function () {
       callTo('/objekty', body).then(function (r) {
         OB.busy = false;
         if (!r || !r.ok) { OB.err = (r && r.error) || TX('не записано, повторите'); return render(); }
-        delete OB.pending[key]; OB.form = null; OB.keep = {}; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.msg = okMsg || ''; if (OB.lich) lichLoad(); else objLoad(); render();
+        delete OB.pending[key]; OB.form = null; OB.keep = {}; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.msg = okMsg || ''; if (onOk) onOk(); if (OB.lich) lichLoad(); else objLoad(); render();
       });
     };
     OB.busy = true; OB.err = ''; OB.msg = ''; render();
@@ -556,6 +558,8 @@ if (S.view === 'mkt') return renderMkt(el);
         objPoints().map(function (q, i) { return objIn('ob-part-' + i, q.name, 'inputmode="decimal" maxlength="12"'); }).join('');
     } else if (f === 'master') {
       h += '<b>' + esc(ui('Договорённость с мастером', 'Созиш бо усто', 'Usta bilan kelishuv')) + '</b>' + objIn('ob-master', ui('Мастер', 'Усто', 'Usta'), 'maxlength="60"', p.master) + objIn('ob-sum', ui('Сколько за всю работу, сомони', 'Барои тамоми кор, сомонӣ', 'Butun ish uchun, somoni'), 'inputmode="decimal" maxlength="12"', p.dogovor);
+    } else if (f === 'rename') {
+      h += '<b>' + esc(ui('Изменить имя объекта', 'Номи объектро иваз кардан', 'Obyekt nomini oʻzgartirish')) + '</b>' + objIn('ob-name', ui('Новое имя', 'Номи нав', 'Yangi ism'), 'maxlength="60"', OB.keep.name != null ? OB.keep.name : (OB.cur && OB.cur.name));
     } else if (f === 'dogovor') {
       h += '<b>' + esc(ui('Договор с заказчиком', 'Шартнома бо фармоишгар', 'Buyurtmachi bilan shartnoma')) + '</b>' + objIn('ob-sum', ui('Общая сумма договора, сомони', 'Маблағи умумии шартнома, сомонӣ', 'Shartnomaning umumiy summasi, somoni'), 'inputmode="decimal" maxlength="12"', p.dogovor);
     }
@@ -584,12 +588,19 @@ if (S.view === 'mkt') return renderMkt(el);
     }
     if (f === 'assign') return objAct({ action: 'assign', target: p.target, parts: objParts() }, ui('Разнесено по точкам', 'Ба нуқтаҳо тақсим шуд', 'Nuqtalarga boʻlindi'));
     if (f === 'master') return objAct({ action: 'master_set', tochka: OB.cur.name, master: objVal('ob-master'), amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
+    if (f === 'rename') {
+      var nn = objVal('ob-name'), old = OB.cur.name; OB.keep = { name: nn };
+      if (nn === old) { OB.err = ui('Имя не изменилось', 'Ном иваз нашуд', 'Ism oʻzgarmadi'); return render(); }
+      return objAct({ action: 'rename', tochka: old, name: nn }, ui('Имя изменено', 'Ном иваз шуд', 'Ism oʻzgartirildi'), function () { OB.cur = { name: nn, loading: true }; });
+    }
     if (f === 'dogovor') return objAct({ action: 'dogovor', tochka: OB.cur.name, amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
   }
   function objClick(k) {
-    if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.debts) OB.debts = null; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k.indexOf('sec:') === 0) { OB.sec = k.slice(4); OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k === 'lich') return openLich();
+    if (k === 'debts') return openDebts();
+    if (k === 'rn-tap') { var tn = Date.now(); if (OB.tapT && tn - OB.tapT < 600) { OB.tapT = 0; return objClick('f:rename'); } OB.tapT = tn; return; }
     if (k === 'rep') { OB.rep = true; OB.err = ''; OB.msg = ''; return render(); }
     if (k === 'copy') { return objCopy(); }
     if (k === 'share') { return objShare(); }
@@ -635,7 +646,7 @@ if (S.view === 'mkt') return renderMkt(el);
     });
   }
   function renderObjPhoto(el) {
-    var P = OB.ph, h = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>📷 ' + esc(ui('Фото чека', 'Акси чек', 'Chek rasmi')) + '</h2>';
+    var P = OB.ph, h = '<div style="'+OB_HD+'">' + objBtn('back', '← ' + esc(objBack()), true, 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="'+OB_H2+'">📷 ' + esc(ui('Фото чека', 'Акси чек', 'Chek rasmi')) + '</h2></div>';
     if (P.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     el.innerHTML = h + (P.err ? '<p style="color:#c0392b">' + esc(ui('Фото не найдено', 'Акс ёфт нашуд', 'Rasm topilmadi')) + '</p>' : '<img alt="" src="' + esc(P.src) + '" style="display:block;max-width:100%;height:auto;border-radius:12px;margin:8px 0">');
   }
@@ -714,7 +725,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function renderObjReport(el) {
     var p = OB.cur, t = objReportText(p);
-    el.innerHTML = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')) + '</h2>' + objMsgs() +
+    el.innerHTML = '<div style="'+OB_HD+'">' + objBtn('back', '← ' + esc(objBack()), true, 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="'+OB_H2+'">📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')) + '</h2></div>' + objMsgs() +
       '<div id="ob-rep" style="white-space:pre-wrap;word-break:break-word;border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:8px 0;font-size:15px;line-height:1.45">' + esc(t) + '</div>' +
       '<div style="display:flex;gap:8px">' + objBtn('share', esc(ui('Отправить', 'Фиристодан', 'Yuborish')), false, 'flex:1;height:48px') + objBtn('copy', esc(ui('Копировать', 'Нусхабардорӣ', 'Nusxalash')), true, 'flex:1;height:48px') + '</div>' +
       '<small style="display:block;margin-top:8px;opacity:.75">' + esc(ui('Личные расходы в отчёт не входят.', 'Хароҷоти шахсӣ дар ҳисобот нест.', 'Shaxsiy xarajatlar hisobotga kirmaydi.')) + '</small>';
@@ -733,7 +744,8 @@ if (S.view === 'mkt') return renderMkt(el);
     return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px">' + objStatBox(ui('Получено', 'Гирифта шуд', 'Olindi'), pkMoney(p.inn), '#1f8a4c') + objStatBox(ui('Потрачено', 'Сарф шуд', 'Sarflandi'), pkMoney(p.out), '#c0392b') + objStatBox(ui('Осталось', 'Монд', 'Qoldi'), pkMoney(p.left), p.left < 0 ? '#c0392b' : 'inherit') + '</div>';
   }
   function renderObj(el) {
-    var h = backBtn().replace(/←[^<]*/, '← ' + esc(objBack())) + '<h2>🏗️ ' + esc(objTitle()) + '</h2>';
+    var h = '<div style="' + OB_HD + '">' + backBtn().replace(/←[^<]*/, '← ' + esc(objBack())).replace('margin-bottom:8px', 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="' + OB_H2 + '">🏗️ ' + esc(objTitle()) + '</h2></div>';
+    if (OB.debts) return renderDebts(el);
     if (OB.lich) return renderLich(el);
     if (OB.ph && OB.cur) return renderObjPhoto(el);
     if (OB.cur && OB.rep && !OB.cur.loading && !OB.cur.error) return renderObjReport(el);
@@ -750,7 +762,35 @@ if (S.view === 'mkt') return renderMkt(el);
     }
     h += '<button type="button" class="btn" data-obj="f:client" style="' + tile + ';font-size:28px;font-weight:700"' + (OB.busy ? ' disabled' : '') + '>+<small style="font-size:13px;font-weight:400">' + esc(ui('Новый объект', 'Объекти нав', 'Yangi obyekt')) + '</small></button>';
     h += '</div>';
-    h += '<button type="button" class="btn sec" data-obj="lich" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:56px;height:auto;margin-top:16px;font-size:17px">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</button>' + objForm();
+    h += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px">' +
+      '<button type="button" class="btn sec" data-obj="lich" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;height:auto;padding:8px;font-size:14px;line-height:1.2;text-align:center">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</button>' +
+      '<button type="button" class="btn sec" data-obj="debts" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;height:auto;padding:8px;font-size:16px">💰 ' + esc(ui('Долги', 'Қарзҳо', 'Qarzlar')) + '</button></div>' + objForm();
+    el.innerHTML = h;
+  }
+  // Долги: кому ещё должны мы (мастера по объектам) и кто должен нам (заказчик, если задан договор).
+  function openDebts() {
+    OB.debts = { loading: true }; OB.lich = null; OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; render();
+    callTo('/objekty', { action: 'debts' }).then(function (r) {
+      if (S.view !== 'obj' || !OB.debts) return;
+      OB.debts = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; render();
+    });
+  }
+  function renderDebts(el) {
+    var D = OB.debts, h = '<div style="' + OB_HD + '">' + objBtn('back', '← ' + esc(objBack()), true, 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="' + OB_H2 + '">💰 ' + esc(ui('Долги', 'Қарзҳо', 'Qarzlar')) + '</h2></div>';
+    if (D.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+    if (D.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(D.error) + '</p>'; return; }
+    var box = 'border:1px solid var(--line,#ddd);border-radius:14px;padding:10px 12px;margin:8px 0';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">' + objStatBox(ui('Мы должны мастерам', 'Мо ба устоҳо қарздорем', 'Ustalarga qarzimiz'), pkMoney(D.total.mastersOwe), '#c0392b') + objStatBox(ui('Заказчики должны нам', 'Фармоишгарон ба мо қарздоранд', 'Buyurtmachilar qarzdor'), pkMoney(D.total.customersOwe), '#1f8a4c') + '</div>';
+    if (!(D.points || []).length) h += '<p style="opacity:.75">' + esc(ui('Долгов пока нет.', 'Ҳоло қарз нест.', 'Hozircha qarz yoʻq.')) + '</p>';
+    (D.points || []).forEach(function (p) {
+      h += '<div style="' + box + '"><b>📍 ' + esc(p.name) + '</b>';
+      (p.masters || []).forEach(function (m) {
+        var has = m.dogovor != null && m.dogovor !== '';
+        h += '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(127,127,127,.2);margin-top:6px"><span>👷 ' + esc(m.name) + '<br><small style="opacity:.75">' + esc(ui('выплачено', 'пардохта шуд', 'toʻlandi')) + ' ' + pkMoney(m.paid) + (has ? ' · ' + esc(ui('договор', 'шартнома', 'shartnoma')) + ' ' + pkMoney(m.dogovor) : ' · ' + esc(ui('договор не указан', 'шартнома нест', 'shartnoma yoʻq'))) + '</small></span>' + (has ? '<b style="color:' + (Number(m.left) > 0 ? '#c0392b' : '#1f8a4c') + ';white-space:nowrap">' + esc(ui('осталось', 'монд', 'qoldi')) + ' ' + pkMoney(m.left) + '</b>' : '') + '</div>';
+      });
+      if (Number(p.owes) > 0) h += '<div style="padding-top:6px;margin-top:6px;border-top:1px solid rgba(127,127,127,.2)">' + esc(ui('Заказчик ещё должен', 'Фармоишгар ҳанӯз қарздор', 'Buyurtmachi qarzdor')) + ': <b style="color:#1f8a4c">' + pkMoney(p.owes) + '</b></div>';
+      h += '</div>';
+    });
     el.innerHTML = h;
   }
   // Личные деньги Асрора: отдельная кнопка, свои записи (tip=lichnoe), с объектами не смешиваются.
@@ -772,7 +812,7 @@ if (S.view === 'mkt') return renderMkt(el);
     }).join('');
   }
   function renderLich(el) {
-    var L = OB.lich, h = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</h2>';
+    var L = OB.lich, h = '<div style="'+OB_HD+'">' + objBtn('back', '← ' + esc(objBack()), true, 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="'+OB_H2+'">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</h2></div>';
     if (L.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (L.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(L.error) + '</p>'; return; }
     h += '<div style="display:flex;gap:10px;margin:8px 0">' + objBtn('f:lich_in', '+ ' + esc(ui('Приход', 'Даромад', 'Kirim')), false, 'flex:1;height:48px') + objBtn('f:lich_out', '− ' + esc(ui('Расход', 'Хароҷот', 'Chiqim')), true, 'flex:1;height:48px') + '</div>';
@@ -782,13 +822,13 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function renderObjPoint(el, h) {
     var p = OB.cur, k = OB.sec;
-    h = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>' + (k ? objSecIcon(k) + ' ' + esc(objSecName(k)) : '📍 ' + esc(p.name)) + '</h2>';
+    h = '<div style="'+OB_HD+'">' + objBtn('back', '← ' + esc(objBack()), true, 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="'+OB_H2+'">' + (k ? objSecIcon(k) + ' ' + esc(objSecName(k)) : '📍 <button type="button" data-obj="rn-tap" style="background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer">' + esc(p.name) + '</button>') + '</h2>' + (!k && !p.loading && !p.error ? objBtn('f:rename', '✏️', true, 'flex:none;height:38px;padding:0 10px;margin:0') : '') + '</div>';
     if (p.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (p.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(p.error) + '</p>'; return; }
     if (!k) {
       h += '<div style="display:grid;gap:10px;margin:10px 0">' + ['in', 'master', 'material'].map(function (s) {
         return '<button type="button" class="btn' + (s === 'in' ? '' : ' sec') + '" data-obj="sec:' + s + '" style="' + (s === 'in' && Number(p.left) < 0 ? 'background:#c0392b;border-color:#c0392b;color:#fff;' : '') + 'display:flex;align-items:center;justify-content:space-between;gap:10px;height:auto;min-height:60px;padding:10px 14px;width:100%;font-size:18px"><span>' + objSecIcon(s) + ' ' + esc(objSecName(s)) + '</span><b>' + pkMoney(objSecSum(p, s)) + '</b></button>';
-      }).join('') + '</div>' + objMsgs() + objWarn(p) + (obMicOk() ? objBtn('mic-obj', OB.mic ? '⏹ ' + esc(ui('Слушаю…', 'Гӯш мекунам…', 'Tinglayapman…')) : '🎤 ' + esc(ui('Сказать запись голосом', 'Сабтро бо овоз гуфтан', 'Yozuvni ovoz bilan aytish')), true, 'width:100%;height:50px;margin-top:6px') : '') + objTotals(p) + objBtn('rep', '📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')), true, 'width:100%;height:50px;margin-top:10px');
+      }).join('') + '</div>' + objMsgs() + objForm() + objWarn(p) + (obMicOk() ? objBtn('mic-obj', OB.mic ? '⏹ ' + esc(ui('Слушаю…', 'Гӯш мекунам…', 'Tinglayapman…')) : '🎤 ' + esc(ui('Сказать запись голосом', 'Сабтро бо овоз гуфтан', 'Yozuvni ovoz bilan aytish')), true, 'width:100%;height:50px;margin-top:6px') : '') + objTotals(p) + objBtn('rep', '📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')), true, 'width:100%;height:50px;margin-top:10px');
       el.innerHTML = h; return;
     }
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0"><span>' + esc(ui('Всего', 'Ҷамъ', 'Jami')) + ': <b>' + pkMoney(objSecSum(p, k)) + '</b></span>' + objBtn('f:sec', '+ ' + esc(ui('Добавить', 'Илова', 'Qoʻshish')), false, 'height:44px;padding:0 18px') + '</div>';

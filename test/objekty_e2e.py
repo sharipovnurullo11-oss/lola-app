@@ -51,6 +51,14 @@ def h(route):
         if float(b['amount'] or 0) <= 0: return route.fulfill(json={"ok": False, "error": "неверная сумма"})
         add('lichnoe', statya='prihod' if b['kind'] == 'in' else 'rashod', summa=float(b['amount'])); return route.fulfill(json={"ok": True})
     if a == 'master_set': add('master_dogovor', tochka=b['tochka'], master=b['master'], summa=float(b['amount'])); return route.fulfill(json={"ok": True})
+    if a == 'rename':
+        for r in rows:
+            if r['tochka'] == b['tochka']: r['tochka'] = b['name']
+            if r['zakazchik'] == b['tochka']: r['zakazchik'] = b['name']
+        return route.fulfill(json={"ok": True})
+    if a == 'debts':
+        L = [p for p in P.values() if p['masters']]
+        return route.fulfill(json={"ok": True, "total": {"mastersOwe": sum(p['mastersOwe'] for p in L), "customersOwe": 0}, "points": [{"name": p['name'], "mastersOwe": p['mastersOwe'], "owes": None, "masters": p['masters']} for p in L]})
     if a == 'void': add('void', ssylka=b['target']); return route.fulfill(json={"ok": True})
     return route.fulfill(json={"ok": False, "error": "неизвестное действие"})
 def check(c, m):
@@ -69,6 +77,9 @@ try:
         pg.evaluate("localStorage.setItem('ew_cab','kasrortestkod000000000000000');localStorage.setItem('ew_obj_for','kasrortestkod000000000000000')"); pg.reload(); pg.wait_for_timeout(1200)
         pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
         check(pg.is_visible('#sp-home [data-home="obj"]'), 'плитка «Финансист по объектам» есть')
+        pg.wait_for_timeout(900)
+        check(pg.evaluate("document.body.classList.contains('ob-only')") and not any(pg.is_visible(x) for x in ['#b-team', '#b-slots', '#b-dev', '#b-menu']), 'у Асрора нет кнопок Команда / Свободные часы / Развивай агента / меню')
+        check(pg.is_visible('#sp-home [data-home="obj"]') and pg.evaluate("!!document.querySelector('#m-spec') && document.querySelector('#sp-home').offsetParent !== null"), 'при входе открыто главное окно, а не поиск препарата')
         pg.click('#sp-home [data-home="obj"]'); pg.wait_for_timeout(600)
         body = '#sp-body'
         check(not pg.is_visible('#m-spec [data-close]'), 'крестик X в окне объектов убран')
@@ -175,6 +186,37 @@ try:
         shot(pg, 'report')
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
         check(pg.locator(body + ' [data-obj="sec:in"]').count() == 1, 'из отчёта «Назад» возвращает в объект')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
+        # шапка: «Назад» и заголовок в одной строке
+        hd = pg.evaluate("(()=>{var h=document.querySelector('#sp-body h2'),b=document.querySelector('#sp-body [data-obj=\"back\"],#sp-body [data-sp-back]');var r1=h.getBoundingClientRect(),r2=b.getBoundingClientRect();return [Math.abs((r1.top+r1.bottom)/2-(r2.top+r2.bottom)/2), r2.right<=r1.left+2]})()")
+        check(hd[0] < 12 and hd[1], 'заголовок стоит рядом с кнопкой «Назад» в одной строке ' + str(hd))
+        pg.click(body + ' [data-obj="pt:Рустам"]'); pg.wait_for_timeout(500)
+        hd = pg.evaluate("(()=>{var h=document.querySelector('#sp-body h2'),b=document.querySelector('#sp-body [data-obj=\"back\"]');var r1=h.getBoundingClientRect(),r2=b.getBoundingClientRect();return Math.abs((r1.top+r1.bottom)/2-(r2.top+r2.bottom)/2)})()")
+        check(hd < 12, 'внутри объекта имя в одной строке с «Назад»')
+        # переименование: один тап ничего не делает, двойной открывает форму
+        pg.click(body + ' [data-obj="rn-tap"]'); pg.wait_for_timeout(900)
+        check(pg.locator(body + ' #ob-name').count() == 0, 'одиночный тап по имени форму не открывает')
+        pg.click(body + ' [data-obj="rn-tap"]'); pg.click(body + ' [data-obj="rn-tap"]'); pg.wait_for_timeout(300)
+        check(pg.locator(body + ' #ob-name').count() == 1 and pg.input_value(body + ' #ob-name') == 'Рустам', 'двойной тап открывает форму с текущим именем')
+        pg.fill(body + ' #ob-name', 'Рустам'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(300)
+        check(pg.locator(body + ' #ob-name').count() == 1, 'то же имя не сохраняется')
+        pg.fill(body + ' #ob-name', 'Рустамджон'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(900)
+        check('Рустамджон' in pg.inner_text(body + ' h2') and pg.locator(body + ' #ob-name').count() == 0, 'имя изменено, объект открыт под новым именем')
+        shot(pg, 'rename')
+        pg.click(body + ' [data-obj="f:rename"]'); pg.wait_for_timeout(300)
+        check(pg.locator(body + ' #ob-name').count() == 1, 'кнопка ✏️ тоже открывает форму')
+        pg.click(body + ' [data-obj="cancel"]'); pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(500)
+        check(pg.locator(body + ' [data-obj="pt:Рустамджон"]').count() == 1 and pg.locator(body + ' [data-obj="pt:Рустам"]').count() == 0, 'в списке новое имя')
+        # нижний ряд: две кнопки в одну строку, каждая около половины ширины
+        w = pg.evaluate("(()=>{var a=document.querySelector('#sp-body [data-obj=\"lich\"]').getBoundingClientRect(),b=document.querySelector('#sp-body [data-obj=\"debts\"]').getBoundingClientRect(),c=document.querySelector('#sp-body').getBoundingClientRect();return [Math.abs(a.top-b.top)<4, a.width/c.width, b.width/c.width]})()")
+        check(w[0] and 0.35 < w[1] < 0.6 and 0.35 < w[2] < 0.6, '«Личные расходы» и «Долги» рядом, по половине экрана ' + str(w))
+        shot(pg, 'bottom')
+        pg.click(body + ' [data-obj="debts"]'); pg.wait_for_timeout(600)
+        t = pg.inner_text(body)
+        check('Фарход' in t and 'Рустамджон' in t and 'Мы должны мастерам' in t, 'окно «Долги»: мастер и объект видны')
+        shot(pg, 'debts')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(400)
+        check(pg.locator(body + ' [data-obj="debts"]').count() == 1, 'из «Долгов» «Назад» возвращает к объектам')
         check(not errs, 'нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()

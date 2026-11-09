@@ -22,8 +22,22 @@ const live = all.filter(r => r.tip !== 'void' && !voided[String(r.oid)]);
 const P = {};
 const pt = n => P[n] || (P[n] = { name: n, zakazchik: '', dogovor: null, inn: 0, out: 0, by: {}, M: {} });
 const mm = (p, name) => p.M[name] || (p.M[name] = { name: name, dogovor: null, paid: 0 });
+// Переименование: запись «rename» (tochka = прежнее имя, zakazchik = новое). Старые записи остаются под прежним именем, мы переводим их на новое.
+const cur = {};
+const nm = n => cur[n] || n;
 live.forEach(r => {
-  const n = String(r.tochka || ''), s = Number(r.summa) || 0;
+  if (r.tip === 'rename') {
+    const from = nm(String(r.tochka || '')), to = String(r.zakazchik || '');
+    if (from && to && P[from] && !P[to]) {
+      P[to] = P[from]; P[to].name = to; delete P[from];
+      Object.keys(cur).forEach(k => { if (cur[k] === from) cur[k] = to; });
+      cur[from] = to;
+      if (P[to].zakazchik === from) P[to].zakazchik = to;
+    }
+    return;
+  }
+  if (r.tip === 'tochka') delete cur[String(r.tochka || '')];
+  const n = nm(String(r.tochka || '')), s = Number(r.summa) || 0;
   if (r.tip === 'tochka') { const p = pt(n); if (r.zakazchik) p.zakazchik = String(r.zakazchik); if (s > 0) p.dogovor = s; }
   else if (r.tip === 'dogovor') { pt(n).dogovor = s > 0 ? s : null; }
   else if (r.tip === 'prihod') { const p = pt(n); p.inn += s; if (r.zakazchik && !p.zakazchik) p.zakazchik = String(r.zakazchik); }
@@ -40,8 +54,8 @@ const pview = (p, full) => {
   if (full) { v.by = {}; Object.keys(p.by).forEach(k => { v.by[k] = r2(p.by[k]); }); v.masters = ms; }
   return v;
 };
-const ent = r => ({ oid: r.oid, tip: r.tip, tochka: r.tochka || '', data: r.data, statya: r.statya, summa: Number(r.summa), master: r.master, komment: r.komment, foto: r.ssylka === 'foto' });
-const recent = (name, cap) => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined || String(r.tochka || '') === name)).slice(-(cap || 40)).reverse().map(ent);
+const ent = r => ({ oid: r.oid, tip: r.tip, tochka: nm(String(r.tochka || '')), data: r.data, statya: r.statya, summa: Number(r.summa), master: r.master, komment: r.komment, foto: r.ssylka === 'foto' });
+const recent = (name, cap) => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined || nm(String(r.tochka || '')) === name)).slice(-(cap || 40)).reverse().map(ent);
 
 // ---------- чтение ----------
 if (act === 'list') {
@@ -56,6 +70,12 @@ if (act === 'point') {
   if (!P[n]) return bad('нет такой точки');
   return out({ ok: true, point: Object.assign(pview(P[n], true), { entries: recent(n, 500) }) });
 }
+if (act === 'debts') {
+  // Долги: по каждому объекту — мастера (выплачено / договор / осталось) и сколько ещё должен заказчик (если задан договор объекта).
+  const list = names.map(n => pview(P[n], true)).filter(p => p.masters.length || (p.owes || 0) > 0);
+  const total = { mastersOwe: r2(list.reduce((s, p) => s + p.mastersOwe, 0)), customersOwe: r2(list.reduce((s, p) => s + (p.owes || 0), 0)) };
+  return out({ ok: true, total: total, points: list.map(p => ({ name: p.name, mastersOwe: p.mastersOwe, owes: p.owes, masters: p.masters })) });
+}
 if (act === 'lich_list') {
   // Личные деньги Асрора: отдельный вид строк «lichnoe». В точки и их итоги не попадают.
   const L = live.filter(r => r.tip === 'lichnoe');
@@ -68,7 +88,7 @@ if (act === 'lich_list') {
 const oid = txt(B.oid, 40);
 const base = () => ({ kabinet_kod: kod, tip: '', oid: '', tochka: '', data: when, statya: '', summa: 0, master: '', zakazchik: '', komment: txt(B.note, 200), ssylka: '', avtor: '' });
 const wr = rows => all.some(r => r.oid === rows[0].oid) ? out({ ok: true, dup: true }) : out({ ok: true }, rows);
-const known = ['add_point', 'dogovor', 'in', 'out', 'master_set', 'void', 'assign', 'lich_add'];
+const known = ['add_point', 'dogovor', 'in', 'out', 'master_set', 'void', 'assign', 'lich_add', 'rename'];
 if (known.indexOf(act) < 0) return bad('неизвестное действие');
 if (!oid) return bad('нет номера записи');
 const tochka = txt(B.tochka, 60);
@@ -80,6 +100,16 @@ if (act === 'add_point') {
   const d = (B.dogovor == null || B.dogovor === '') ? 0 : num(B.dogovor);
   if (isNaN(d) || d < 0) return bad('неверная сумма договора');
   const r = base(); r.tip = 'tochka'; r.oid = oid; r.tochka = n; r.zakazchik = txt(B.zakazchik, 60); r.summa = d;
+  return wr([r]);
+}
+if (act === 'rename') {
+  if (all.some(r => r.oid === oid)) return out({ ok: true, dup: true });
+  if (!P[tochka]) return bad('нет такого объекта');
+  const to = txt(B.name, 60);
+  if (!to) return bad('введите имя');
+  if (to === tochka) return bad('имя не изменилось');
+  if (P[to]) return bad('такой объект уже есть');
+  const r = base(); r.tip = 'rename'; r.oid = oid; r.tochka = tochka; r.zakazchik = to;
   return wr([r]);
 }
 if (act === 'dogovor') {
