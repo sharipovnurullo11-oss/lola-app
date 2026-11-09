@@ -140,11 +140,26 @@ try:
         check(pg.input_value('#ob-sum') == '500' and 'цемент' in pg.input_value('#ob-note') and 'Материалы' in pg.inner_text(body), 'голос: форма «Материалы» заполнена: 500, цемент')
         n0 = len([c for c in calls if c.get('action') == 'out'])
         check(len([c for c in calls if c.get('action') == 'out']) == n0, 'голос сам ничего не записывает')
+        # голос мягче: сумма есть, раздел не назван → «Материалы» с предупреждением; суммы нет → показывает, что услышал
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
+        pg.evaluate("window.__say = 'бензин 100'"); pg.click(body + ' [data-obj="mic-obj"]'); pg.wait_for_timeout(500)
+        check(pg.input_value('#ob-sum') == '100' and 'Раздел не понял' in pg.inner_text(body), 'голос: раздел не назван — «Материалы» и предупреждение')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
+        pg.evaluate("window.__say = 'привет как дела'"); pg.click(body + ' [data-obj="mic-obj"]'); pg.wait_for_timeout(500)
+        check('Услышал' in pg.inner_text(body) and 'привет как дела' in pg.inner_text(body) and 'Не нашёл сумму' in pg.inner_text(body), 'голос: без суммы показывает, что услышал')
+        pg.evaluate("window.__say = 'материалы цемент 500 сомони'"); pg.click(body + ' [data-obj="mic-obj"]'); pg.wait_for_timeout(500)
+        check(pg.input_value('#ob-sum') == '500', 'голос: снова «цемент 500»')
         # фото чека к записи
         from PIL import Image
         Image.new('RGB', (300, 200), (200, 120, 40)).save('/tmp/chek_test.jpg')
         pg.set_input_files('#ob-foto-in', '/tmp/chek_test.jpg'); pg.wait_for_timeout(900)
         check('Фото добавлено' in pg.inner_text(body) and pg.input_value('#ob-sum') == '500', 'фото чека добавлено, введённое сохранилось')
+        # фото чека: можно сфотографировать (камера) или выбрать из галереи
+        check(pg.get_attribute('#ob-foto-in', 'capture') == 'environment' and pg.locator('#ob-foto-gal').count() == 1 and pg.get_attribute('#ob-foto-gal', 'capture') is None, 'фото: две кнопки — камера и галерея (без принудительной камеры)')
+        pg.click(body + ' [data-obj="foto-off"]'); pg.wait_for_timeout(300)
+        check('Фото добавлено' not in pg.inner_text(body), 'фото: можно убрать')
+        pg.set_input_files('#ob-foto-gal', '/tmp/chek_test.jpg'); pg.wait_for_timeout(900)
+        check('Фото добавлено' in pg.inner_text(body) and pg.input_value('#ob-sum') == '500', 'фото из галереи добавлено, введённое сохранилось')
         pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(900)
         fsave = [c for c in calls if c.get('action') == 'save' and str(c.get('name', '')).startswith('chek:')]
         outs = [c for c in calls if c.get('action') == 'out' and c.get('foto') == 1]
