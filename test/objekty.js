@@ -23,6 +23,12 @@ assert.ok(call({ action: 'master_set', oid: 'm1', tochka: 'Точка 1', master
 assert.ok(call({ action: 'out', oid: 'o1', tochka: 'Точка 1', statya: 'master', master: 'Фарход', amount: '500' }).ok);
 assert.ok(!call({ action: 'out', oid: 'o2', statya: 'master', amount: '100' }).ok, 'мастер без имени');
 assert.ok(call({ action: 'out', oid: 'o3', statya: 'material', parts: [{ tochka: 'Точка 1', amount: '700' }, { tochka: 'Точка 2', amount: '300' }] }).ok, 'разделить на 2 точки');
+// фото чека: запись помечается «есть фото»
+assert.ok(call({ action: 'out', oid: 'fo1', tochka: 'Точка 1', statya: 'material', amount: '10', foto: 1 }).ok);
+assert.ok(call({ action: 'out', oid: 'fo2', tochka: 'Точка 1', statya: 'material', amount: '20' }).ok);
+r = call({ action: 'point', name: 'Точка 1' }).point.entries;
+assert.equal(r.find(e => e.oid === 'fo1').foto, true, 'с фото'); assert.equal(r.find(e => e.oid === 'fo2').foto, false, 'без фото');
+assert.ok(call({ action: 'void', oid: 'fv1', target: 'fo1' }).ok); assert.ok(call({ action: 'void', oid: 'fv2', target: 'fo2' }).ok);
 // отчёт заказчику берёт все записи объекта, не только последние 40
 assert.ok(call({ action: 'add_point', oid: 'big0', name: 'Большой' }).ok);
 for (let i = 0; i < 120; i++) assert.ok(call({ action: 'in', oid: 'big' + (i + 1), tochka: 'Большой', amount: '10' }).ok);
