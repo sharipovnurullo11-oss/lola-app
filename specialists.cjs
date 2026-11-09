@@ -349,6 +349,8 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
   function applyHome() {
     if (!injectHome()) return;
+    var asrorCab0 = false; try { asrorCab0 = String(store('ew_cab') || '') === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5'; } catch (e) {}
+    var aOn = function () { return objOn() || asrorCab0; }; // кабинет Асрора узнаём сразу, не дожидаясь ответа сервера: иначе секунду виден обычный список специалистов (личный ассистент и др.)
     var user = false; try { user = mode() === 'user' && owner(); } catch (e) {}
     if (!user) HOME = true;
     prevUser = user;
@@ -360,19 +362,26 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var shopTile = document.querySelector('#sp-home [data-home="shop"]'); if (shopTile) shopTile.hidden = !shopOn();
     // Стройка: плитка «Финансист по объектам» только там, где сервер /objekty её разрешил; тогда обычный «Финансист» подписываем «Финансист аптеки».
     if (user) objCheck();
-    var objTile = document.querySelector('#sp-home [data-home="obj"]'); if (objTile) objTile.hidden = !objOn();
+    var objTile = document.querySelector('#sp-home [data-home="obj"]'); if (objTile) objTile.hidden = !aOn();
     // Кабинет со стройкой (Асрор Холов): оставляем только продавца-ассистента и двух финансистов; SMM, маркетолог, менеджер, юрист и «Личный ассистент» скрыты.
-    var onlyFin = objOn();
+    var onlyFin = aOn();
     ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
     var paHero = document.querySelector('#sp-home [data-home="pa"]'); if (paHero) paHero.hidden = onlyFin;
     // По просьбе Нурулло (08.11.2026) в кабинете Асрора Холова убраны «Мой ассистент: сводка дня» и «Продавец-ассистент». Остальным кабинетам они видны как раньше.
     ['assistant', 'seller'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
-    var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = objOn() ? ui('Аптека', 'Дорухона', 'Dorixona') : TX('Финансист');
+    var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = aOn() ? ui('Аптека', 'Дорухона', 'Dorixona') : TX('Финансист');
     // Кабинет Асрора: плитка «Аптека» с картинкой лекарств вместо портфеля и подписью про поиск препарата.
-    var finT = document.querySelector('#sp-home [data-home="fin"]'); if (finT) { var fi = finT.querySelector('.ic'), fs = finT.querySelector('small'); if (fi) { if (objOn()) fi.innerHTML = '<svg viewBox="0 0 48 48" width="1em" height="1em" style="vertical-align:-0.12em" aria-hidden="true"><rect x="7" y="20" width="34" height="22" rx="2" fill="#f4f1ea" stroke="#5b6770" stroke-width="2"/><path d="M4 20l4-10h32l4 10z" fill="#e8f5ee" stroke="#5b6770" stroke-width="2" stroke-linejoin="round"/><path d="M12 10l-2 10M20 10l-1 10M28 10l1 10M36 10l2 10" stroke="#1f9d62" stroke-width="3"/><rect x="19" y="29" width="10" height="13" rx="1" fill="#b9d7ea" stroke="#5b6770" stroke-width="1.5"/><path d="M24 2v8M20 6h8" stroke="#1f9d62" stroke-width="3" stroke-linecap="round" transform="translate(0 -1)"/><rect x="10" y="26" width="6" height="6" rx="1" fill="#b9d7ea"/><rect x="32" y="26" width="6" height="6" rx="1" fill="#b9d7ea"/></svg>'; else fi.textContent = '💼'; } if (fs && objOn()) fs.textContent = ui('Название препарата: полка и описание', 'Номи дору: раф ва тавсиф', 'Dori nomi: javon va tavsif'); }
+    // 09.11.2026, Асрор: две большие кнопки с новыми иконками (аптека и объекты), без лишнего текста.
+    if (onlyFin) {
+      var svgA = '<svg viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="23" height="23" rx="7"/><path d="M16.5 11v11M11 16.5h11"/><g transform="rotate(-45 33 33)"><rect x="20.5" y="26" width="25" height="14" rx="7"/><path d="M33 26v14"/></g></svg>';
+      var svgO = '<svg viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="19" width="17" height="24" rx="2.5"/><rect x="24" y="7" width="17" height="36" rx="2.5"/><path d="M12 25h7M12 31h7M12 37h7M29 13h7M29 19h7M29 25h7M29 31h7M29 37h7M3 43h42"/></svg>';
+      [['fin', svgA], ['obj', svgO]].forEach(function (z) { var t = document.querySelector('#sp-home [data-home="' + z[0] + '"] .ic'); if (t && !t.getAttribute('data-big')) { t.innerHTML = z[1]; t.setAttribute('data-big', '1'); } });
+    }
+    var finT = document.querySelector('#sp-home [data-home="fin"]'); if (finT) { var fi = finT.querySelector('.ic'), fs = finT.querySelector('small'); if (fi && !fi.getAttribute('data-big')) { if (aOn()) fi.innerHTML = '<svg viewBox="0 0 48 48" width="1em" height="1em" style="vertical-align:-0.12em" aria-hidden="true"><rect x="7" y="20" width="34" height="22" rx="2" fill="#f4f1ea" stroke="#5b6770" stroke-width="2"/><path d="M4 20l4-10h32l4 10z" fill="#e8f5ee" stroke="#5b6770" stroke-width="2" stroke-linejoin="round"/><path d="M12 10l-2 10M20 10l-1 10M28 10l1 10M36 10l2 10" stroke="#1f9d62" stroke-width="3"/><rect x="19" y="29" width="10" height="13" rx="1" fill="#b9d7ea" stroke="#5b6770" stroke-width="1.5"/><path d="M24 2v8M20 6h8" stroke="#1f9d62" stroke-width="3" stroke-linecap="round" transform="translate(0 -1)"/><rect x="10" y="26" width="6" height="6" rx="1" fill="#b9d7ea"/><rect x="32" y="26" width="6" height="6" rx="1" fill="#b9d7ea"/></svg>'; else fi.textContent = '💼'; } if (fs && aOn()) fs.textContent = ui('Название препарата: полка и описание', 'Номи дору: раф ва тавсиф', 'Dori nomi: javon va tavsif'); }
     // 09.11.2026, по просьбе Нурулло: у Асрора окно поиска препарата само не открывается (раньше открывалось при каждом входе и обновлении), сразу видно главное окно с «Аптека» и «Финансист по объектам». Кнопки чата убраны: «Команда», «Свободные часы», «Развивай агента», меню.
     var asrorCab = false; try { asrorCab = String(store('ew_cab') || '') === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5'; } catch (e) {}
-    document.body.classList.toggle('ob-only', !!(objOn() || asrorCab));
+    document.body.classList.toggle('ob-only', !!(aOn() || asrorCab));
+    if (show || !(aOn() || asrorCab)) document.documentElement.classList.remove('ob-pre');
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
     var lock = show && !paDone(); if (show) paCheck();
