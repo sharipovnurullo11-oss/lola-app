@@ -25,11 +25,19 @@ const mm = (p, name) => p.M[name] || (p.M[name] = { name: name, dogovor: null, p
 // Переименование: запись «rename» (tochka = прежнее имя, zakazchik = новое). Старые записи остаются под прежним именем, мы переводим их на новое.
 const cur = {};
 const nm = n => cur[n] || n;
+// Корзина: записи «tochka_trash» / «tochka_restore» / «tochka_purge» (tochka = имя объекта). Данные объекта не стираем: строки только добавляются.
+const TRS = {};
 live.forEach(r => {
+  if (r.tip === 'tochka_trash' || r.tip === 'tochka_restore' || r.tip === 'tochka_purge') {
+    const tn = nm(String(r.tochka || ''));
+    if (r.tip === 'tochka_trash') TRS[tn] = 'trash'; else if (r.tip === 'tochka_restore') delete TRS[tn]; else TRS[tn] = 'purged';
+    return;
+  }
   if (r.tip === 'rename') {
     const from = nm(String(r.tochka || '')), to = String(r.zakazchik || '');
     if (from && to && P[from] && !P[to]) {
       P[to] = P[from]; P[to].name = to; delete P[from];
+      if (TRS[from]) { TRS[to] = TRS[from]; delete TRS[from]; }
       Object.keys(cur).forEach(k => { if (cur[k] === from) cur[k] = to; });
       cur[from] = to;
       if (P[to].zakazchik === from) P[to].zakazchik = to;
@@ -44,6 +52,9 @@ live.forEach(r => {
   else if (r.tip === 'rashod') { const p = pt(n); p.out += s; p.by[r.statya] = (p.by[r.statya] || 0) + s; if (r.statya === 'master' && r.master) mm(p, String(r.master)).paid += s; }
   else if (r.tip === 'master_dogovor') { mm(pt(n), String(r.master)).dogovor = s > 0 ? s : null; }
 });
+// Объекты из корзины в обычные списки, итоги и долги не попадают: P — только живые, TP — в корзине.
+const TP = {};
+Object.keys(TRS).forEach(n => { if (P[n]) { if (TRS[n] === 'trash') TP[n] = P[n]; delete P[n]; } });
 const U = P[''] || null; delete P[''];
 const names = Object.keys(P).sort((a, b) => a.localeCompare(b, 'ru'));
 
@@ -55,7 +66,7 @@ const pview = (p, full) => {
   return v;
 };
 const ent = r => ({ oid: r.oid, tip: r.tip, tochka: nm(String(r.tochka || '')), data: r.data, statya: r.statya, summa: Number(r.summa), master: r.master, komment: r.komment, foto: r.ssylka === 'foto' });
-const recent = (name, cap) => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined || nm(String(r.tochka || '')) === name)).slice(-(cap || 40)).reverse().map(ent);
+const recent = (name, cap) => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined ? !TRS[nm(String(r.tochka || ''))] : nm(String(r.tochka || '')) === name)).slice(-(cap || 40)).reverse().map(ent);
 
 // ---------- чтение ----------
 if (act === 'list') {
@@ -63,7 +74,7 @@ if (act === 'list') {
   const unOut = U ? r2(U.out) : 0;
   const total = { inn: r2(list.reduce((s, p) => s + p.inn, 0)), out: r2(list.reduce((s, p) => s + p.out, 0) + unOut), customersOwe: r2(list.reduce((s, p) => s + (p.owes || 0), 0)), mastersOwe: r2(list.reduce((s, p) => s + p.mastersOwe, 0)), unassigned: unOut };
   total.left = r2(total.inn - total.out);
-  return out({ ok: true, role: 'owner', points: list, total: total, unassigned: U ? recent('') : [], recent: recent().slice(0, 15) });
+  return out({ ok: true, role: 'owner', points: list, trash: Object.keys(TP).length, total: total, unassigned: U ? recent('') : [], recent: recent().slice(0, 15) });
 }
 if (act === 'point') {
   const n = txt(B.name, 60);
@@ -75,6 +86,10 @@ if (act === 'debts') {
   const list = names.map(n => pview(P[n], true)).filter(p => p.masters.length || (p.owes || 0) > 0);
   const total = { mastersOwe: r2(list.reduce((s, p) => s + p.mastersOwe, 0)), customersOwe: r2(list.reduce((s, p) => s + (p.owes || 0), 0)) };
   return out({ ok: true, total: total, points: list.map(p => ({ name: p.name, mastersOwe: p.mastersOwe, owes: p.owes, masters: p.masters })) });
+}
+if (act === 'trash_list') {
+  const tn = Object.keys(TP).sort((a, b) => a.localeCompare(b, 'ru'));
+  return out({ ok: true, points: tn.map(n => pview(TP[n], false)) });
 }
 if (act === 'lich_list') {
   // Личные деньги Асрора: отдельный вид строк «lichnoe». В точки и их итоги не попадают.
@@ -88,7 +103,7 @@ if (act === 'lich_list') {
 const oid = txt(B.oid, 40);
 const base = () => ({ kabinet_kod: kod, tip: '', oid: '', tochka: '', data: when, statya: '', summa: 0, master: '', zakazchik: '', komment: txt(B.note, 200), ssylka: '', avtor: '' });
 const wr = rows => all.some(r => r.oid === rows[0].oid) ? out({ ok: true, dup: true }) : out({ ok: true }, rows);
-const known = ['add_point', 'dogovor', 'in', 'out', 'master_set', 'void', 'assign', 'lich_add', 'rename'];
+const known = ['add_point', 'dogovor', 'in', 'out', 'master_set', 'void', 'assign', 'lich_add', 'rename', 'trash_point', 'restore_point', 'purge_point'];
 if (known.indexOf(act) < 0) return bad('неизвестное действие');
 if (!oid) return bad('нет номера записи');
 const tochka = txt(B.tochka, 60);
@@ -97,6 +112,7 @@ if (act === 'add_point') {
   const n = txt(B.name, 60);
   if (!n) return bad('введите название точки');
   if (P[n]) return bad('такая точка уже есть');
+  if (TRS[n]) return bad('такое имя уже было (объект в корзине). Верните его или назовите иначе');
   const d = (B.dogovor == null || B.dogovor === '') ? 0 : num(B.dogovor);
   if (isNaN(d) || d < 0) return bad('неверная сумма договора');
   const r = base(); r.tip = 'tochka'; r.oid = oid; r.tochka = n; r.zakazchik = txt(B.zakazchik, 60); r.summa = d;
@@ -109,7 +125,15 @@ if (act === 'rename') {
   if (!to) return bad('введите имя');
   if (to === tochka) return bad('имя не изменилось');
   if (P[to]) return bad('такой объект уже есть');
+  if (TRS[to]) return bad('такое имя уже было (объект в корзине). Назовите иначе');
   const r = base(); r.tip = 'rename'; r.oid = oid; r.tochka = tochka; r.zakazchik = to;
+  return wr([r]);
+}
+if (act === 'trash_point' || act === 'restore_point' || act === 'purge_point') {
+  if (all.some(r => r.oid === oid)) return out({ ok: true, dup: true });
+  if (act === 'trash_point' && !P[tochka]) return bad('нет такого объекта');
+  if (act !== 'trash_point' && !TP[tochka]) return bad('нет такого объекта в корзине');
+  const r = base(); r.tip = act === 'trash_point' ? 'tochka_trash' : act === 'restore_point' ? 'tochka_restore' : 'tochka_purge'; r.oid = oid; r.tochka = tochka;
   return wr([r]);
 }
 if (act === 'dogovor') {

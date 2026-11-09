@@ -2967,7 +2967,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function objIn(id, label, attrs, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><input class="in2" id="' + id + '" ' + attrs + ' autocomplete="off" value="' + esc(val == null ? '' : val) + '"></label>'; }
   function objSel(id, label, opts, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><select class="in2" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>'; }
   function objPoints() { return OB.data ? OB.data.points : []; }
-  function openObj() { S.view = 'obj'; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.debts = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
+  function openObj() { S.view = 'obj'; OB.trash = null; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.debts = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
   function objLoad() {
     OB.busy = true;
     callTo('/objekty', { action: 'list' }).then(function (r) {
@@ -3111,8 +3111,21 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'dogovor') return objAct({ action: 'dogovor', tochka: OB.cur.name, amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
   }
   function objClick(k) {
-    if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.debts) OB.debts = null; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.trash) OB.trash = null; else if (OB.debts) OB.debts = null; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k.indexOf('sec:') === 0) { OB.sec = k.slice(4); OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'trash-open') return openTrash();
+    if (k === 'trash') {
+      if (!OB.cur) return;
+      if (OB.delAsk !== 'pt-trash') { OB.delAsk = 'pt-trash'; return render(); }
+      var tn = OB.cur.name; OB.delAsk = null;
+      return objAct({ action: 'trash_point', tochka: tn }, ui('Объект «' + tn + '» перемещён в корзину', 'Объекти «' + tn + '» ба сабад гузошта шуд', '«' + tn + '» obyekti savatga solindi'), function () { OB.cur = null; OB.sec = null; OB.rep = false; OB.form = null; });
+    }
+    if (k.indexOf('restore:') === 0) return objAct({ action: 'restore_point', tochka: k.slice(8) }, ui('Объект возвращён', 'Объект баргардонида шуд', 'Obyekt qaytarildi'), function () { OB.trash = { loading: true }; trashLoad(); });
+    if (k.indexOf('purge:') === 0) {
+      if (OB.delAsk !== k) { OB.delAsk = k; return render(); }
+      OB.delAsk = null;
+      return objAct({ action: 'purge_point', tochka: k.slice(6) }, ui('Объект удалён навсегда', 'Объект якбора нест карда шуд', 'Obyekt butunlay oʻchirildi'), function () { OB.trash = { loading: true }; trashLoad(); });
+    }
     if (k === 'lich') return openLich();
     if (k === 'debts') return openDebts();
     if (k === 'rn-tap') { var tn = Date.now(); if (OB.tapT && tn - OB.tapT < 600) { OB.tapT = 0; return objClick('f:rename'); } OB.tapT = tn; return; }
@@ -3270,6 +3283,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function renderObj(el) {
     var h = '<div style="' + OB_HD + '">' + backBtn().replace(/←[^<]*/, '← ' + esc(objBack())).replace('margin-bottom:8px', 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="' + OB_H2 + '">🏗️ ' + esc(objTitle()) + '</h2></div>';
+    if (OB.trash) return renderTrash(el);
     if (OB.debts) return renderDebts(el);
     if (OB.lich) return renderLich(el);
     if (OB.ph && OB.cur) return renderObjPhoto(el);
@@ -3289,7 +3303,31 @@ if (S.view === 'mkt') return renderMkt(el);
     h += '</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px">' +
       '<button type="button" class="btn sec" data-obj="lich" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;height:auto;padding:8px;font-size:14px;line-height:1.2;text-align:center">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</button>' +
-      '<button type="button" class="btn sec" data-obj="debts" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;height:auto;padding:8px;font-size:16px">💰 ' + esc(ui('Долги', 'Қарзҳо', 'Qarzlar')) + '</button></div>' + objForm();
+      '<button type="button" class="btn sec" data-obj="debts" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;height:auto;padding:8px;font-size:16px">💰 ' + esc(ui('Долги', 'Қарзҳо', 'Qarzlar')) + '</button></div>' +
+      (OB.data.trash > 0 ? objBtn('trash-open', '🗑 ' + esc(ui('Корзина', 'Сабад', 'Savat')) + ' (' + OB.data.trash + ')', true, 'width:100%;height:46px;margin-top:10px') : '') + objForm();
+    el.innerHTML = h;
+  }
+  // Корзина объектов: удалённый объект уходит сюда со всеми записями, в итоги не входит; его можно вернуть или удалить навсегда.
+  function openTrash() { OB.trash = { loading: true }; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; trashLoad(); render(); }
+  function trashLoad() {
+    callTo('/objekty', { action: 'trash_list' }).then(function (r) {
+      if (S.view !== 'obj' || !OB.trash) return;
+      OB.trash = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; render();
+    });
+  }
+  function renderTrash(el) {
+    var T2 = OB.trash, h = '<div style="' + OB_HD + '">' + objBtn('back', '← ' + esc(objBack()), true, 'margin:0;flex:none;height:38px;padding:0 12px') + '<h2 style="' + OB_H2 + '">🗑 ' + esc(ui('Корзина', 'Сабад', 'Savat')) + '</h2></div>';
+    if (T2.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+    if (T2.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(T2.error) + '</p>'; return; }
+    h += objMsgs() + '<div style="margin:12px 2px;font-size:13px;opacity:.8;line-height:1.4">' + esc(ui('Объекты из корзины не считаются в итогах. Верните объект — все записи на месте. «Удалить навсегда» убирает объект из корзины, вернуть его потом нельзя.', 'Объектҳои сабад дар ҳисоб намераванд. Объектро баргардонед — ҳамаи сабтҳо ҷояшон. «Якбора нест кардан» объектро аз сабад мебарорад, баргардонидан имконнопазир аст.', 'Savatdagi obyektlar hisobga kirmaydi. Obyektni qaytaring — barcha yozuvlar joyida. «Butunlay oʻchirish» obyektni savatdan olib tashlaydi, qaytarib boʻlmaydi.')) + '</div>';
+    if (!(T2.points || []).length) h += '<p style="opacity:.75">' + esc(ui('Корзина пуста.', 'Сабад холӣ аст.', 'Savat boʻsh.')) + '</p>';
+    (T2.points || []).forEach(function (p) {
+      var ask = OB.delAsk === 'purge:' + p.name;
+      h += '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:8px 0;background:#fff"><b>📍 ' + esc(p.name) + '</b>' + (p.zakazchik ? '<br><small style="opacity:.8">' + esc(p.zakazchik) + '</small>' : '') +
+        '<br><small>' + esc(ui('получено', 'гирифта шуд', 'olindi')) + ' ' + pkMoney(p.inn) + ' · ' + esc(ui('потрачено', 'харҷ шуд', 'sarflandi')) + ' ' + pkMoney(p.out) + ' · ' + esc(ui('осталось', 'монд', 'qoldi')) + ' <b>' + pkMoney(p.left) + '</b></small>' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' + objBtn('restore:' + p.name, '↩️ ' + esc(ui('Вернуть', 'Баргардонидан', 'Qaytarish')), false, 'flex:1;height:44px') +
+        objBtn('purge:' + p.name, ask ? esc(ui('Точно навсегда?', 'Якбора?', 'Butunlaymi?')) : esc(ui('Удалить навсегда', 'Якбора нест кардан', 'Butunlay oʻchirish')), true, 'flex:1;height:44px;color:#c0392b' + (ask ? ';border-color:#c0392b;font-weight:700' : '')) + '</div></div>';
+    });
     el.innerHTML = h;
   }
   // Долги: кому ещё должны мы (мастера по объектам) и кто должен нам (заказчик, если задан договор).
@@ -3353,7 +3391,8 @@ if (S.view === 'mkt') return renderMkt(el);
     if (!k) {
       h += '<div style="display:grid;gap:10px;margin:10px 0">' + ['in', 'master', 'material'].map(function (s) {
         return '<button type="button" class="btn' + (s === 'in' ? '' : ' sec') + '" data-obj="sec:' + s + '" style="' + (s === 'in' && Number(p.left) < 0 ? 'background:#c0392b;border-color:#c0392b;color:#fff;' : '') + 'display:flex;align-items:center;justify-content:space-between;gap:10px;height:auto;min-height:60px;padding:10px 14px;width:100%;font-size:18px"><span>' + objSecIcon(s) + ' ' + esc(objSecName(s)) + '</span><b>' + pkMoney(objSecSum(p, s)) + '</b></button>';
-      }).join('') + '</div>' + objMsgs() + objForm() + objWarn(p) + (obMicOk() ? objBtn('mic-obj', OB.mic ? '⏹ ' + esc(ui('Слушаю…', 'Гӯш мекунам…', 'Tinglayapman…')) : '🎤 ' + esc(ui('Сказать запись голосом', 'Сабтро бо овоз гуфтан', 'Yozuvni ovoz bilan aytish')), true, 'width:100%;height:50px;margin-top:6px') : '') + objTotals(p) + objBtn('rep', '📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')), true, 'width:100%;height:50px;margin-top:10px');
+      }).join('') + '</div>' + objMsgs() + objForm() + objWarn(p) + (obMicOk() ? objBtn('mic-obj', OB.mic ? '⏹ ' + esc(ui('Слушаю…', 'Гӯш мекунам…', 'Tinglayapman…')) : '🎤 ' + esc(ui('Сказать запись голосом', 'Сабтро бо овоз гуфтан', 'Yozuvni ovoz bilan aytish')), true, 'width:100%;height:50px;margin-top:6px') : '') + objTotals(p) + objBtn('rep', '📄 ' + esc(ui('Отчёт для заказчика', 'Ҳисобот барои фармоишгар', 'Buyurtmachi uchun hisobot')), true, 'width:100%;height:50px;margin-top:10px') +
+        objBtn('trash', OB.delAsk === 'pt-trash' ? '🗑 ' + esc(ui('Точно в корзину? Нажмите ещё раз', 'Ба сабад мегузорем? Боз пахш кунед', 'Savatga solamizmi? Yana bosing')) : '🗑 ' + esc(ui('Удалить объект (в корзину)', 'Нест кардани объект (ба сабад)', 'Obyektni oʻchirish (savatga)')), true, 'width:100%;height:46px;margin-top:10px;color:#c0392b' + (OB.delAsk === 'pt-trash' ? ';border-color:#c0392b;font-weight:700' : ''));
       el.innerHTML = h; return;
     }
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0"><span>' + esc(ui('Всего', 'Ҷамъ', 'Jami')) + ': <b>' + pkMoney(objSecSum(p, k)) + '</b></span>' + objBtn('f:sec', '+ ' + esc(ui('Добавить', 'Илова', 'Qoʻshish')), false, 'height:44px;padding:0 18px') + '</div>';
