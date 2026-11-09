@@ -69,4 +69,26 @@ assert.deepEqual([r.inn, r.out, r.left, r.entries.length], [1000, 0, 1000, 1]);
 assert.equal(call({ action: 'lich_list' }, false).error, 'нет доступа', 'чужому кабинету личное не отдаётся');
 assert.equal(table.filter(r => r.kabinet_kod !== 'KOD').length, 0, 'все строки с кодом кабинета');
 console.log('ok - финансист по объектам: точки, приход, расход, мастера, отмена, разноска, личные деньги');
+// переименование объекта: записи и итоги переходят на новое имя; повтор, занятое и пустое имя отклоняются
+assert.ok(call({ action: 'add_point', oid: 'rn0', name: 'Абду' }).ok);
+assert.ok(call({ action: 'in', oid: 'rn1', tochka: 'Абду', amount: '500', note: 'аванс' }).ok);
+assert.ok(call({ action: 'out', oid: 'rn2', tochka: 'Абду', statya: 'master', master: 'Фарход', amount: '200' }).ok);
+assert.ok(call({ action: 'master_set', oid: 'rn3', tochka: 'Абду', master: 'Фарход', amount: '1000' }).ok);
+assert.equal(call({ action: 'rename', oid: 'rn4', tochka: 'Абду', name: 'Точка 1' }).error, 'такой объект уже есть');
+assert.equal(call({ action: 'rename', oid: 'rn4', tochka: 'Абду', name: '  ' }).error, 'введите имя');
+assert.equal(call({ action: 'rename', oid: 'rn4', tochka: 'Нет', name: 'Х' }).error, 'нет такого объекта');
+assert.ok(call({ action: 'rename', oid: 'rn5', tochka: 'Абду', name: 'Абдулло' }).ok);
+assert.ok(call({ action: 'rename', oid: 'rn5', tochka: 'Абду', name: 'Абдулло' }).dup, 'повтор не дублирует');
+r = call({ action: 'list' });
+assert.ok(!r.points.find(p => p.name === 'Абду') && r.points.find(p => p.name === 'Абдулло'), 'старого имени нет, новое есть');
+const ab = r.points.find(p => p.name === 'Абдулло'); assert.deepEqual([ab.inn, ab.out, ab.left], [500, 200, 300], 'итоги переехали');
+r = call({ action: 'point', name: 'Абдулло' }).point;
+assert.equal(r.entries.length, 2, 'записи объекта на новом имени'); assert.equal(r.masters[0].left, 800, 'долг мастеру сохранился');
+assert.equal(call({ action: 'point', name: 'Абду' }).error, 'нет такой точки');
+assert.ok(call({ action: 'in', oid: 'rn6', tochka: 'Абдулло', amount: '100' }).ok, 'после переименования пишем в новое имя');
+assert.ok(call({ action: 'rename', oid: 'rn7', tochka: 'Абдулло', name: 'Абду' }).ok, 'можно вернуть прежнее имя');
+r = call({ action: 'point', name: 'Абду' }).point; assert.equal(r.entries.length, 3); assert.equal(r.inn, 600);
+// долги
+r = call({ action: 'debts' });
+assert.ok(r.ok && r.total.mastersOwe >= 800, 'долги мастерам'); assert.ok(r.points.find(p => p.name === 'Абду').masters[0].left === 800);
 console.log('OBJEKTY PASSED');
