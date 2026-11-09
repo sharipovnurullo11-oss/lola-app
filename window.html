@@ -2988,12 +2988,19 @@ if (S.view === 'mkt') return renderMkt(el);
   // Номер записи (oid) держим до удачного ответа: при обрыве связи повтор не создаёт вторую запись.
   function objAct(body, okMsg, onOk) {
     if (OB.busy) return;
-    var key = JSON.stringify(body); body.oid = OB.pending[key] || (OB.pending[key] = oid());
+    var key = JSON.stringify(body), ed = OB.edit && (body.action === 'in' || body.action === 'out' || body.action === 'lich_add') ? OB.edit : null;
+    if (ed) { key += '|ed:' + ed.oid; okMsg = ui('Запись исправлена', 'Сабт ислоҳ шуд', 'Yozuv tuzatildi'); }
+    body.oid = OB.pending[key] || (OB.pending[key] = oid());
     var send = function () {
       callTo('/objekty', body).then(function (r) {
-        OB.busy = false;
-        if (!r || !r.ok) { OB.err = (r && r.error) || TX('не записано, повторите'); return render(); }
-        delete OB.pending[key]; OB.form = null; OB.keep = {}; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.msg = okMsg || ''; if (onOk) onOk(); if (OB.lich) lichLoad(); else objLoad(); render();
+        if (!r || !r.ok) { OB.busy = false; OB.err = (r && r.error) || TX('не записано, повторите'); return render(); }
+        var fin = function (verr) {
+          OB.busy = false; delete OB.pending[key]; OB.form = null; OB.keep = {}; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.edit = null; OB.msg = okMsg || ''; if (onOk) onOk();
+          if (verr) { OB.msg = ''; OB.err = ui('Новая запись сохранена, но старую отменить не удалось. Отмените старую кнопкой ✕.', 'Сабти нав захира шуд, аммо сабти кӯҳнаро бекор карда натавонистем. Онро бо ✕ бекор кунед.', 'Yangi yozuv saqlandi, lekin eskisini bekor qilib boʻlmadi. Eskisini ✕ bilan bekor qiling.'); }
+          if (OB.lich) lichLoad(); else objLoad(); render();
+        };
+        if (!ed) return fin(false);
+        callTo('/objekty', { action: 'void', target: ed.oid, oid: ed.vo }).then(function (v) { fin(!v || !v.ok); }, function () { fin(true); });
       });
     };
     OB.busy = true; OB.err = ''; OB.msg = ''; render();
@@ -3016,6 +3023,27 @@ if (S.view === 'mkt') return renderMkt(el);
     if (withNone) o.unshift(['', ui('Не распределено (точка неизвестна)', 'Тақсим нашуда (нуқта номаълум)', 'Taqsimlanmagan (nuqta nomaʼlum)')]);
     return o;
   }
+  var OB_ED = 'flex:1;min-width:0;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer';
+  function OB_EDHINT() { return '<small style="display:block;opacity:.65;margin:2px 0 4px">' + esc(ui('Чтобы исправить запись, нажмите на неё два раза.', 'Барои ислоҳ, ба сабт ду бор зер кунед.', 'Yozuvni tuzatish uchun ustiga ikki marta bosing.')) + '</small>'; }
+  // Исправление записи: открываем форму с прежними данными; при «Записать» сохраняется новая запись, а старая отменяется (void).
+  function objEditOpen(id) {
+    var e = null, list = OB.lich ? (OB.lich.entries || []) : ((OB.cur && OB.cur.entries) || []);
+    list.forEach(function (x) { if (x.oid === id) e = x; });
+    if (!e || OB.busy) return;
+    OB.edit = { oid: id, vo: oid() }; OB.err = ''; OB.msg = ''; OB.delAsk = null; OB.foto = ''; OB.fbusy = false; OB.split = false; OB.pre = {};
+    if (OB.lich) {
+      var inn = e.kind === 'in', arr = inn ? LC_IN : LC_OUT, lc = lcFind(e.komment), ci = '', rest = String(e.komment || '');
+      if (lc) { ci = String(arr.indexOf(lc)); if (ci === '-1') ci = ''; rest = String(e.komment).slice(lc[0].length + 1).split(' · ').slice(1).join(' · '); }
+      OB.form = inn ? 'lich_in' : 'lich_out'; OB.keep = { sum: String(e.summa), note: rest, date: e.data || today(), cat: ci };
+    } else {
+      OB.form = 'sec'; OB.keep = { sum: String(e.summa), note: OB.sec === 'master' ? (e.master || e.komment || '') : (e.komment || ''), date: e.data || today() };
+      if (e.foto) {
+        OB.fbusy = true;
+        fbCall({ action: 'get', name: 'chek:' + id }).then(function (r) { if (!OB.edit || OB.edit.oid !== id) return; OB.fbusy = false; if (r && r.ok && r.foto) OB.foto = r.foto; render(); });
+      }
+    }
+    render(); var z = $s('ob-sum'); if (z) z.focus();
+  }
   function objEntries(list, showPoint) {
     if (!list || !list.length) return '<p style="opacity:.75">' + esc(ui('Записей пока нет.', 'Ҳоло сабт нест.', 'Hali yozuv yoʻq.')) + '</p>';
     return list.map(function (e) {
@@ -3032,7 +3060,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function lcFind(t) { var all = LC_OUT.concat(LC_IN); t = String(t || ''); for (var i = 0; i < all.length; i++) if (t.indexOf(all[i][0] + ' ') === 0) return all[i]; return null; }
   function objForm() {
     var f = OB.form, p = OB.pre || {}; if (!f) return '';
-    var h = '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:8px">';
+    var h = '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:8px">' + (OB.edit ? '<b style="color:#B26A00">✏️ ' + esc(ui('Исправление записи', 'Ислоҳи сабт', 'Yozuvni tuzatish')) + '</b>' : '');
     if (f === 'point') {
       h += '<b>' + esc(ui('Новая точка (объект)', 'Нуқтаи нав (объект)', 'Yangi nuqta (obyekt)')) + '</b>' + objIn('ob-name', ui('Название', 'Ном', 'Nomi'), 'maxlength="60" placeholder="' + esc(ui('Дом в Рудаки', 'Хона дар Рӯдакӣ', 'Rudakidagi uy')) + '"') +
         objIn('ob-zak', ui('Заказчик (по желанию)', 'Фармоишгар (ихтиёрӣ)', 'Buyurtmachi (ixtiyoriy)'), 'maxlength="60"') + objIn('ob-dog', ui('Сумма договора, сомони (если есть)', 'Маблағи шартнома, сомонӣ (агар бошад)', 'Shartnoma summasi, somoni (boʻlsa)'), 'inputmode="decimal" maxlength="12"');
@@ -3111,7 +3139,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'dogovor') return objAct({ action: 'dogovor', tochka: OB.cur.name, amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
   }
   function objClick(k) {
-    if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.trash) OB.trash = null; else if (OB.debts) OB.debts = null; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.trash) OB.trash = null; else if (OB.debts) OB.debts = null; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.edit = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k.indexOf('sec:') === 0) { OB.sec = k.slice(4); OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k === 'trash-open') return openTrash();
     if (k === 'trash') {
@@ -3128,12 +3156,13 @@ if (S.view === 'mkt') return renderMkt(el);
     }
     if (k === 'lich') return openLich();
     if (k === 'debts') return openDebts();
+    if (k.indexOf('ed:') === 0) { var ei = k.slice(3), et = Date.now(); if (OB.edTap && OB.edTap.id === ei && et - OB.edTap.t < 600) { OB.edTap = null; return objEditOpen(ei); } OB.edTap = { id: ei, t: et }; return; }
     if (k === 'rn-tap') { var tn = Date.now(); if (OB.tapT && tn - OB.tapT < 600) { OB.tapT = 0; return objClick('f:rename'); } OB.tapT = tn; return; }
     if (k === 'rep') { OB.rep = true; OB.err = ''; OB.msg = ''; return render(); }
     if (k === 'copy') { return objCopy(); }
     if (k === 'share') { return objShare(); }
     if (k === 'reload') return objLoad();
-    if (k === 'cancel') { OB.form = null; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.err = ''; return render(); }
+    if (k === 'cancel') { OB.edit = null; OB.form = null; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.err = ''; return render(); }
     if (k === 'foto-off') { OB.foto = ''; objKeepForm(); return render(); }
     if (k.indexOf('cat:') === 0) { objKeepForm(); var ci = k.slice(4); OB.keep.cat = String(OB.keep.cat) === ci ? '' : ci; render(); var cz = $s('ob-sum'); if (cz) cz.focus(); return; }
     if (k === 'mic') return obMic('sec');
@@ -3144,7 +3173,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k.indexOf('pt:') === 0) return objOpenPoint(k.slice(3));
     if (k.indexOf('void:') === 0) { var id = k.slice(5); if (OB.delAsk !== id) { OB.delAsk = id; return render(); } OB.delAsk = null; return objAct({ action: 'void', target: id }, ui('Запись отменена', 'Сабт бекор шуд', 'Yozuv bekor qilindi')); }
     if (k.indexOf('assign:') === 0) { var t = k.slice(7), e = null; (OB.data.unassigned || []).forEach(function (x) { if (x.oid === t) e = x; }); if (!e) return; OB.form = 'assign'; OB.pre = { target: t, summa: e.summa }; OB.err = ''; return render(); }
-    if (k.indexOf('f:') === 0) { var f = k.slice(2); OB.form = f; OB.keep = {}; OB.foto = ''; OB.fbusy = false; OB.split = false; OB.err = ''; OB.msg = ''; OB.pre = OB.cur && OB.cur.name ? { tochka: OB.cur.name, dogovor: OB.cur.dogovor } : {}; render(); var x = $s(f === 'point' || f === 'client' ? 'ob-name' : 'ob-sum'); if (x) x.focus(); return; }
+    if (k.indexOf('f:') === 0) { var f = k.slice(2); OB.edit = null; OB.form = f; OB.keep = {}; OB.foto = ''; OB.fbusy = false; OB.split = false; OB.err = ''; OB.msg = ''; OB.pre = OB.cur && OB.cur.name ? { tochka: OB.cur.name, dogovor: OB.cur.dogovor } : {}; render(); var x = $s(f === 'point' || f === 'client' ? 'ob-name' : 'ob-sum'); if (x) x.focus(); return; }
     if (k.indexOf('fm:') === 0) { var mn = k.slice(3), md = null; (OB.cur.masters || []).forEach(function (m) { if (m.name === mn) md = m; }); OB.form = 'master'; OB.pre = { master: mn, dogovor: md && md.dogovor != null ? md.dogovor : '' }; OB.err = ''; return render(); }
     if (k.indexOf('pay:') === 0) { OB.form = 'out'; OB.split = false; OB.pre = { tochka: OB.cur.name, statya: 'master', master: k.slice(4) }; OB.err = ''; render(); var y = $s('ob-sum'); if (y) y.focus(); return; }
   }
@@ -3157,10 +3186,10 @@ if (S.view === 'mkt') return renderMkt(el);
   function objSecEntries(list, k) {
     var rows = (list || []).filter(function (e) { return k === 'in' ? e.tip === 'prihod' : (e.tip === 'rashod' && e.statya === k); });
     if (!rows.length) return '<p style="opacity:.75">' + esc(ui('Записей пока нет.', 'Ҳоло сабт нест.', 'Hali yozuv yoʻq.')) + '</p>';
-    return rows.map(function (e) {
+    return OB_EDHINT() + rows.map(function (e) {
       var ask = OB.delAsk === e.oid, note = k === 'master' ? (e.master || e.komment) : e.komment;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:1;min-width:0"><b style="color:' + (k === 'in' ? '#1f8a4c' : '#c0392b') + '">' + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
-        (note ? '<br><small style="opacity:.8">' + esc(note) + '</small>' : '') + '</span>' +
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><button type="button" data-obj="ed:' + esc(e.oid) + '" style="' + OB_ED + '"><b style="color:' + (k === 'in' ? '#1f8a4c' : '#c0392b') + '">' + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
+        (note ? '<br><small style="opacity:.8">' + esc(note) + '</small>' : '') + '</button>' +
         (e.foto ? objBtn('ph:' + e.oid, '📷', true, 'flex:none;height:34px;padding:0 10px;font-size:15px') : '') +
         objBtn('void:' + e.oid, ask ? esc(ui('Точно отменить?', 'Бекор кунам?', 'Bekor qilaymi?')) : '✕', true, 'flex:none;height:34px;padding:0 10px;font-size:13px' + (ask ? ';color:#c0392b' : '')) + '</div>';
     }).join('');
@@ -3367,10 +3396,10 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function lichEntries(list) {
     if (!list || !list.length) return '<p style="opacity:.75">' + esc(ui('Записей пока нет.', 'Ҳоло сабт нест.', 'Hali yozuv yoʻq.')) + '</p>';
-    return list.map(function (e) {
+    return OB_EDHINT() + list.map(function (e) {
       var inn = e.kind === 'in', ask = OB.delAsk === e.oid, lc = lcFind(e.komment), lrest = lc ? String(e.komment).slice(lc[0].length + 1).split(' · ').slice(1).join(' · ') : String(e.komment || '');
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:none;width:44px;height:44px;border-radius:14px;background:' + (inn ? '#DDF3EC' : '#FFF3D6') + ';display:flex;align-items:center;justify-content:center;font-size:24px">' + (lc ? lc[0] : inn ? '＋' : '－') + '</span><span style="flex:1;min-width:0"><b style="color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
-        (lc || lrest ? '<br><small style="opacity:.8">' + (lc ? '<b>' + esc(lcName(lc)) + '</b>' + (lrest ? ' · ' : '') : '') + esc(lrest) + '</small>' : '') + '</span>' +
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:none;width:44px;height:44px;border-radius:14px;background:' + (inn ? '#DDF3EC' : '#FFF3D6') + ';display:flex;align-items:center;justify-content:center;font-size:24px">' + (lc ? lc[0] : inn ? '＋' : '－') + '</span><button type="button" data-obj="ed:' + esc(e.oid) + '" style="' + OB_ED + '"><b style="color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
+        (lc || lrest ? '<br><small style="opacity:.8">' + (lc ? '<b>' + esc(lcName(lc)) + '</b>' + (lrest ? ' · ' : '') : '') + esc(lrest) + '</small>' : '') + '</button>' +
         objBtn('void:' + e.oid, ask ? esc(ui('Точно отменить?', 'Бекор кунам?', 'Bekor qilaymi?')) : '✕', true, 'flex:none;height:34px;padding:0 10px;font-size:13px' + (ask ? ';color:#c0392b' : '')) + '</div>';
     }).join('');
   }
