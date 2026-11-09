@@ -163,15 +163,16 @@ html.ob-pre .app>.chs,html.ob-pre .app>.lbar,html.ob-pre .app>.work,html.ob-pre 
 /* Кабинет Асрора: две большие кнопки главного окна */
 body.ob-only #sp-home>h2,body.ob-only #sp-home>p{display:none}
 body.ob-only #sp-home{padding:14px 16px 20px;display:flex;flex-direction:column}
-body.ob-only #sp-home .sp-grid{display:flex!important;flex-direction:column;gap:16px!important;flex:1;min-height:0}
-body.ob-only #sp-home .sp-tile:not([hidden]){position:relative;flex:1 1 0;min-height:170px;max-height:320px;align-items:flex-start!important;justify-content:flex-end;gap:6px!important;padding:22px 22px 20px!important;border:0!important;border-radius:28px!important;color:#fff;text-align:left;overflow:hidden;box-shadow:0 14px 30px rgba(15,23,42,.22),inset 0 1px 0 rgba(255,255,255,.25);transition:transform .15s ease,box-shadow .15s ease}
+body.ob-only #sp-home .sp-grid{display:flex!important;flex-direction:row;align-items:flex-start;gap:12px!important;width:100%;max-width:640px;margin:0 auto;min-height:0}
+body.ob-only #sp-home .sp-tile:not([hidden]){position:relative;flex:1 1 0;min-width:0;aspect-ratio:1/1;align-items:flex-start!important;justify-content:flex-end;gap:6px!important;padding:16px!important;border:0!important;border-radius:28px!important;color:#fff;text-align:left;overflow:hidden;box-shadow:0 14px 30px rgba(15,23,42,.22),inset 0 1px 0 rgba(255,255,255,.25);transition:transform .15s ease,box-shadow .15s ease}
 body.ob-only #sp-home .sp-tile[data-home="fin"]{background:radial-gradient(120% 90% at 100% 0%,rgba(255,255,255,.22),transparent 55%),linear-gradient(145deg,#047857,#10b981 55%,#34d399)}
 body.ob-only #sp-home .sp-tile[data-home="obj"]{background:radial-gradient(120% 90% at 100% 0%,rgba(255,255,255,.2),transparent 55%),linear-gradient(145deg,#1e3a8a,#3b5bdb 55%,#6d8cff)}
 body.ob-only #sp-home .sp-tile:active{transform:scale(.98)}
-body.ob-only #sp-home .sp-tile .ic{position:absolute;left:22px;top:20px;display:grid;place-items:center;width:92px;height:92px;border-radius:28px;background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);font-size:0!important}
-body.ob-only #sp-home .sp-tile b{font-size:26px!important;line-height:1.15;letter-spacing:-.01em}
-body.ob-only #sp-home .sp-tile small{display:block!important;font-size:14px!important;opacity:.92!important}
-body.ob-only #sp-home .sp-tile::after{content:"\2192";position:absolute;right:20px;top:22px;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);font-size:20px}
+body.ob-only #sp-home .sp-tile .ic{position:absolute;left:16px;top:16px;display:grid;place-items:center;width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);font-size:0!important}
+body.ob-only #sp-home .sp-tile .ic svg{width:36px;height:36px}
+body.ob-only #sp-home .sp-tile b{font-size:20px!important;line-height:1.15;letter-spacing:-.01em}
+body.ob-only #sp-home .sp-tile small{display:block!important;font-size:12px!important;opacity:.92!important}
+body.ob-only #sp-home .sp-tile::after{content:"\2192";position:absolute;right:14px;top:14px;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);font-size:16px}
 @media(prefers-reduced-motion:reduce){body.ob-only #sp-home .sp-tile{transition:none}}
 body.ob-only #b-team,body.ob-only #b-slots,body.ob-only #b-dev,body.ob-only #b-menu,body.ob-only #brk{display:none!important}
 @media(max-width:859px){body.inchat #b-dev,body.inchat #b-menu,body.inchat #b-team,body.inchat #lbar,body.inchat #alertbar,body.inchat #chs,body.inchat #hint,body.inchat #addbar,body.inchat #inapp{display:none!important}}
@@ -1871,10 +1872,11 @@ $('ar-list').addEventListener('click', function(e){
   if (!AS_KOD) return;
   var nm = ''; try { nm = sessionStorage.getItem('adm_as_name') || ''; } catch (e) {}
   var b = document.createElement('div');
-  b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#14234d;color:#fff;font:14px/1.3 system-ui,sans-serif;padding:8px 12px;display:flex;gap:10px;align-items:center';
-  b.innerHTML = '<span style="flex:1">Админ: кабинет клиента' + (nm ? ' «' + String(nm).replace(/[<>&"]/g, '') + '»' : '') + '. Вы работаете как клиент: можно отвечать его клиентам и подключать каналы.</span><button id="as-back" style="border:0;border-radius:8px;padding:7px 12px;background:#ff8a1f;color:#fff;font:inherit;cursor:pointer">← К списку</button>';
+  // Маленькая кнопка вверху (в шапке), чтобы не мешала смотреть как клиент. Подсказка — по наведению.
+  b.style.cssText = 'position:fixed;top:11px;left:200px;z-index:99998;display:flex;align-items:center';
+  b.title = 'Админ: кабинет клиента' + (nm ? ' «' + String(nm).replace(/[<>&"]/g, '') + '». ' : '. ') + 'Вы работаете как клиент.';
+  b.innerHTML = '<button id="as-back" style="border:0;border-radius:14px;padding:6px 12px;background:#ff8a1f;color:#fff;font:600 12px/1.2 system-ui,sans-serif;cursor:pointer">← К списку</button>';
   document.body.appendChild(b);
-  document.body.style.paddingBottom = '48px';
   document.getElementById('as-back').onclick = function () { location.hash = '#admin'; location.reload(); };
   var t = admTok();
   fetch('https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'view', token: t, kod: AS_KOD }) })
