@@ -58,6 +58,9 @@ try:
         check(pg.is_visible('#sp-home [data-home="obj"]'), 'плитка «Финансист по объектам» есть')
         pg.click('#sp-home [data-home="obj"]'); pg.wait_for_timeout(600)
         body = '#sp-body'
+        check(not pg.is_visible('#m-spec [data-close]'), 'крестик X в окне объектов убран')
+        check(pg.evaluate("document.getElementById('m-spec').style.width") == '100vw', 'окно объектов на весь экран')
+        check(pg.inner_text('#sp-body [data-sp-back]').strip().endswith('Назад'), 'вверху кнопка «Назад»')
         check(pg.locator(body + ' [data-obj="f:client"]').count() == 7, 'пустое окно: 6 мест под объекты и кнопка «+»')
         pg.click(body + ' [data-obj="f:client"] >> nth=0'); pg.wait_for_timeout(200)
         pg.fill('#ob-name', 'Рустам'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
@@ -112,6 +115,8 @@ try:
         check([num(x) for x in boxes[:3]] == [10000, 0, 10000], 'личные: отмена пересчитывает итог ' + str(boxes))
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(400)
         check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2 and pg.locator(body + ' [data-obj="lich"]').count() == 1, 'назад: объекты на месте, личные не смешаны')
+        pg.click('#sp-body [data-sp-back]'); pg.wait_for_timeout(400)
+        check(pg.is_visible('#sp-home') or 'Специалист' in pg.inner_text('#sp-body'), '«Назад» возвращает к списку специалистов')
         check(not errs, 'нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()
