@@ -40,7 +40,7 @@ const pview = (p, full) => {
   if (full) { v.by = {}; Object.keys(p.by).forEach(k => { v.by[k] = r2(p.by[k]); }); v.masters = ms; }
   return v;
 };
-const ent = r => ({ oid: r.oid, tip: r.tip, tochka: r.tochka || '', data: r.data, statya: r.statya, summa: Number(r.summa), master: r.master, komment: r.komment });
+const ent = r => ({ oid: r.oid, tip: r.tip, tochka: r.tochka || '', data: r.data, statya: r.statya, summa: Number(r.summa), master: r.master, komment: r.komment, foto: r.ssylka === 'foto' });
 const recent = (name, cap) => live.filter(r => (r.tip === 'prihod' || r.tip === 'rashod') && (name === undefined || String(r.tochka || '') === name)).slice(-(cap || 40)).reverse().map(ent);
 
 // ---------- чтение ----------
@@ -93,7 +93,7 @@ if (act === 'in') {
   if (!P[tochka]) return bad('выберите точку');
   const s = num(B.amount);
   if (isNaN(s) || s <= 0 || s > 1000000000) return bad('неверная сумма');
-  const r = base(); r.tip = 'prihod'; r.oid = oid; r.tochka = tochka; r.summa = s; r.zakazchik = txt(B.zakazchik, 60);
+  const r = base(); r.tip = 'prihod'; r.oid = oid; r.tochka = tochka; r.summa = s; r.zakazchik = txt(B.zakazchik, 60); if (B.foto) r.ssylka = 'foto';
   return wr([r]);
 }
 if (act === 'out') {
@@ -107,7 +107,7 @@ if (act === 'out') {
     const t = txt(parts[i].tochka, 60), s = num(parts[i].amount);
     if (t && !P[t]) return bad('нет такой точки');
     if (isNaN(s) || s <= 0 || s > 1000000000) return bad('неверная сумма');
-    const r = base(); r.tip = 'rashod'; r.oid = parts.length > 1 ? oid + '-' + (i + 1) : oid; r.tochka = t; r.statya = st; r.summa = s; r.master = st === 'master' ? master : '';
+    const r = base(); r.tip = 'rashod'; r.oid = parts.length > 1 ? oid + '-' + (i + 1) : oid; r.tochka = t; r.statya = st; r.summa = s; r.master = st === 'master' ? master : ''; if (B.foto) r.ssylka = 'foto';
     rows.push(r);
   }
   return wr(rows);

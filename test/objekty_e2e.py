@@ -2,7 +2,7 @@
 import subprocess, time, json, os, re
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8127'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
-rows = []; calls = []; nid = [1]
+rows = []; calls = []; nid = [1]; photos = {}
 def pts():
     P = {}
     voided = set(r['ssylka'] for r in rows if r['tip'] == 'void')
@@ -24,16 +24,20 @@ def pts():
     return P
 def h(route):
     u = route.request.url
+    if u.endswith('/foto-big'):
+        fb = json.loads(route.request.post_data); calls.append(fb)
+        if fb['action'] == 'save': photos[fb['name']] = fb['foto']; return route.fulfill(json={"ok": True})
+        return route.fulfill(json={"ok": True, "foto": photos.get(fb['name'], '')})
     if not u.endswith('/objekty'): return route.fulfill(json={"ok": True, "staff": [], "sessions": [], "chats": []})
     b = json.loads(route.request.post_data); calls.append(b); a = b['action']; P = pts()
     if a == 'ping': return route.fulfill(json={"ok": True})
     if a == 'list': return route.fulfill(json={"ok": True, "points": list(P.values()), "total": {"inn": 0, "out": 0, "left": 0}, "unassigned": [], "recent": []})
     if a == 'point':
         p = dict(P[b['name']]); voided = set(r['ssylka'] for r in rows if r['tip'] == 'void')
-        p['entries'] = [{"oid": r['oid'], "tip": r['tip'], "tochka": r['tochka'], "data": r['data'], "statya": r['statya'], "summa": r['summa'], "master": r['master'], "komment": r['komment']} for r in reversed(rows) if r['tip'] in ('prihod', 'rashod') and r['tochka'] == b['name'] and r['oid'] not in voided]
+        p['entries'] = [{"oid": r['oid'], "tip": r['tip'], "tochka": r['tochka'], "data": r['data'], "statya": r['statya'], "summa": r['summa'], "master": r['master'], "komment": r['komment'], "foto": r.get('foto', False)} for r in reversed(rows) if r['tip'] in ('prihod', 'rashod') and r['tochka'] == b['name'] and r['oid'] not in voided]
         return route.fulfill(json={"ok": True, "point": p})
     def add(tip, **kw):
-        rows.append(dict({'oid': b['oid'], 'tip': tip, 'tochka': '', 'data': b.get('date', ''), 'statya': '', 'summa': 0, 'master': '', 'zakazchik': '', 'komment': b.get('note', ''), 'ssylka': ''}, **kw))
+        rows.append(dict({'oid': b['oid'], 'tip': tip, 'tochka': '', 'data': b.get('date', ''), 'statya': '', 'summa': 0, 'master': '', 'zakazchik': '', 'komment': b.get('note', ''), 'ssylka': '', 'foto': bool(b.get('foto'))}, **kw))
     if a == 'add_point': add('tochka', tochka=b['name'], zakazchik=b.get('zakazchik', '')); return route.fulfill(json={"ok": True})
     if a == 'in': add('prihod', tochka=b['tochka'], summa=float(b['amount'])); return route.fulfill(json={"ok": True})
     if a == 'out':
@@ -59,6 +63,7 @@ def num(t): return int(re.sub(r'[^0-9]', '', t) or 0)
 try:
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path=os.environ.get('CHROME') or None); pg = b.new_page(viewport={'width': 390, 'height': 800}); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
+        pg.add_init_script("window.SpeechRecognition = window.webkitSpeechRecognition = function(){ this.start = function(){ var s=this; setTimeout(function(){ s.onresult({results:[[{transcript: window.__say || 'материалы цемент 500 сомони'}]]}); s.onend(); }, 60); }; this.stop = function(){}; };")
         pg.route('**/webhook/**', h)
         pg.goto('http://localhost:8127/window.html'); pg.wait_for_timeout(500)
         pg.evaluate("localStorage.setItem('ew_cab','kasrortestkod000000000000000');localStorage.setItem('ew_obj_for','kasrortestkod000000000000000')"); pg.reload(); pg.wait_for_timeout(1200)
@@ -113,6 +118,28 @@ try:
         check([num(x) for x in boxes[:3]] == [5000, 800, 4200], 'отмена записи пересчитывает итог ' + str(boxes))
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
         check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2, 'назад к списку объектов')
+        # голос: «материалы цемент 500 сомони» открывает форму материалов, уже заполненную
+        pg.click(body + ' [data-obj="pt:Рустам"]'); pg.wait_for_timeout(500)
+        pg.click(body + ' [data-obj="mic-obj"]'); pg.wait_for_timeout(500)
+        check(pg.input_value('#ob-sum') == '500' and 'цемент' in pg.input_value('#ob-note') and 'Материалы' in pg.inner_text(body), 'голос: форма «Материалы» заполнена: 500, цемент')
+        n0 = len([c for c in calls if c.get('action') == 'out'])
+        check(len([c for c in calls if c.get('action') == 'out']) == n0, 'голос сам ничего не записывает')
+        # фото чека к записи
+        from PIL import Image
+        Image.new('RGB', (300, 200), (200, 120, 40)).save('/tmp/chek_test.jpg')
+        pg.set_input_files('#ob-foto-in', '/tmp/chek_test.jpg'); pg.wait_for_timeout(900)
+        check('Фото добавлено' in pg.inner_text(body) and pg.input_value('#ob-sum') == '500', 'фото чека добавлено, введённое сохранилось')
+        pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(900)
+        fsave = [c for c in calls if c.get('action') == 'save' and str(c.get('name', '')).startswith('chek:')]
+        outs = [c for c in calls if c.get('action') == 'out' and c.get('foto') == 1]
+        check(len(fsave) == 1 and len(outs) == 1 and fsave[0]['name'] == 'chek:' + outs[0]['oid'] and fsave[0]['foto'].startswith('data:image/jpeg'), 'фото сохранено под номером записи, запись помечена')
+        check(pg.locator(body + ' [data-obj^="ph:"]').count() == 1, 'в списке у записи значок фото')
+        pg.click(body + ' [data-obj^="ph:"]'); pg.wait_for_timeout(500)
+        check(pg.locator(body + ' img').count() == 1, 'фото чека открывается')
+        shot(pg, 'chek')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
+        pg.click(body + ' [data-obj^="void:"] >> nth=0'); pg.wait_for_timeout(200); pg.click(body + ' [data-obj^="void:"] >> nth=0'); pg.wait_for_timeout(600)
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300); pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
         # перерасход: расходы больше аванса — кнопка красная и есть предупреждение
         pg.click(body + ' [data-obj="pt:Фарид"]'); pg.wait_for_timeout(400); pg.click(body + ' [data-obj="sec:material"]'); pg.wait_for_timeout(200); pg.click(body + ' [data-obj="f:sec"]'); pg.wait_for_timeout(200)
         pg.fill('#ob-sum', '100'); pg.fill('#ob-note', 'гвозди'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
