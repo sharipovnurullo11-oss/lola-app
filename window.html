@@ -175,6 +175,24 @@ body.ob-only #sp-home .sp-tile small{display:block!important;font-size:12px!impo
 body.ob-only #sp-home .sp-tile::after{content:"\2192";position:absolute;right:14px;top:14px;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);font-size:16px}
 @media(prefers-reduced-motion:reduce){body.ob-only #sp-home .sp-tile{transition:none}}
 body.ob-only #b-team,body.ob-only #b-slots,body.ob-only #b-dev,body.ob-only #b-menu,body.ob-only #brk{display:none!important}
+/* Финансист по объектам: стиль «стройка» — чертёжная сетка, тёмно-синяя шапка с жёлтой полосой, карточки-бирки */
+.ob-v{background-color:#EEF1F6;background-image:linear-gradient(rgba(22,34,79,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(22,34,79,.05) 1px,transparent 1px);background-size:24px 24px;min-height:100dvh}
+.ob-v>div:first-child{background:var(--navy);color:#fff;padding:10px 12px!important;border-radius:16px;border-bottom:4px solid var(--amber);box-shadow:0 8px 18px rgba(22,34,79,.18)}
+.ob-v>div:first-child h2{color:#fff;letter-spacing:.01em}
+.ob-v>div:first-child button{background:rgba(255,255,255,.12)!important;color:#fff!important;border:1px solid rgba(255,255,255,.3)!important;border-radius:12px!important}
+.ob-v>div:first-child+p{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 2px 8px!important}
+.ob-v .btn.sec{background:#fff;border:1px solid #CBD3E3;color:var(--ink);border-radius:14px}
+.ob-v button[data-obj^="pt:"]{align-items:flex-start!important;text-align:left!important;background:#fff!important;border:1px solid #CBD3E3!important;border-left:7px solid var(--amber)!important;border-radius:14px!important;box-shadow:0 2px 0 rgba(22,34,79,.06),0 10px 20px rgba(22,34,79,.09);min-height:108px!important;padding:12px 14px!important;color:var(--ink)!important;justify-content:space-between!important}
+.ob-v button[data-obj^="pt:"][style*="192,57,43"]{border-left-color:var(--bad)!important;background:#FFF4F2!important}
+.ob-v button[data-obj^="pt:"]>b{font-size:17px!important}
+.ob-v button[data-obj^="pt:"] small{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ob-v button[data-obj^="pt:"] small b{display:block;font-size:21px;letter-spacing:0;text-transform:none;color:var(--ok);margin-top:2px}
+.ob-v .btn.sec[data-obj="f:client"]{background:rgba(255,255,255,.55)!important;border:2px dashed #9AA6C4!important;opacity:1!important;color:var(--muted)!important;box-shadow:none;border-radius:14px!important;min-height:108px!important}
+.ob-v .btn.sec[data-obj="f:client"] small{font-size:12px}
+.ob-v .btn:not(.sec)[data-obj="f:client"]{background:repeating-linear-gradient(135deg,#F5A524 0 16px,#F0991A 16px 32px)!important;color:#1A1200!important;border-radius:14px!important;min-height:108px!important;box-shadow:0 10px 20px rgba(245,165,36,.35);border:0!important}
+.ob-v .btn.sec[data-obj="lich"],.ob-v .btn.sec[data-obj="debts"]{background:var(--navy)!important;color:#fff!important;border:0!important;border-radius:14px!important;min-height:58px!important;box-shadow:0 8px 18px rgba(22,34,79,.2)}
+.ob-v .in2{border:1.5px solid #CBD3E3;border-radius:12px;background:#fff}
+.ob-v .in2:focus{outline:0;border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,165,36,.3)}
 @media(max-width:859px){body.inchat #b-dev,body.inchat #b-menu,body.inchat #b-team,body.inchat #lbar,body.inchat #alertbar,body.inchat #chs,body.inchat #hint,body.inchat #addbar,body.inchat #inapp{display:none!important}}
 @media(min-width:860px){
   .work{grid-template-columns:360px 1fr}
@@ -2865,6 +2883,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
 
   function render() {
     var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop' || S.view === 'apt' || S.view === 'obj'), dbd = dl && dl.querySelector('.dbody'); if (dl) { var xb = dl.querySelector('[data-close]'); if (xb) xb.style.display = S.view === 'obj' ? 'none' : ''; dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; } } } catch (e) {}
+    try { var obOn = !SELLER && S.view === 'obj'; el.classList.toggle('ob-v', obOn); var obDl = el.closest('dialog'), obBd = el.closest('.dbody'); if (obBd) obBd.style.background = obOn ? '#EEF1F6' : ''; if (obDl) obDl.style.background = obOn ? '#EEF1F6' : ''; } catch (e) {}
     if (SELLER) return PHARM ? renderApt(el) : renderShop(el);
     if (S.view === 'pa') return renderPa(el);
     if (S.view === 'asst') return renderAsst(el);
