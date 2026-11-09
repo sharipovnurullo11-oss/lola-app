@@ -56,12 +56,19 @@ if (act === 'point') {
   if (!P[n]) return bad('нет такой точки');
   return out({ ok: true, point: Object.assign(pview(P[n], true), { entries: recent(n) }) });
 }
+if (act === 'lich_list') {
+  // Личные деньги Асрора: отдельный вид строк «lichnoe». В точки и их итоги не попадают.
+  const L = live.filter(r => r.tip === 'lichnoe');
+  const sumBy = st => r2(L.filter(r => r.statya === st).reduce((s, r) => s + (Number(r.summa) || 0), 0));
+  const inn = sumBy('prihod'), outv = sumBy('rashod');
+  return out({ ok: true, inn: inn, out: outv, left: r2(inn - outv), entries: L.slice(-100).reverse().map(r => ({ oid: r.oid, kind: r.statya === 'prihod' ? 'in' : 'out', data: r.data, summa: Number(r.summa), komment: r.komment || '' })) });
+}
 
 // ---------- запись (только добавление; ошибку исправляет отмена «void») ----------
 const oid = txt(B.oid, 40);
 const base = () => ({ kabinet_kod: kod, tip: '', oid: '', tochka: '', data: when, statya: '', summa: 0, master: '', zakazchik: '', komment: txt(B.note, 200), ssylka: '', avtor: '' });
 const wr = rows => all.some(r => r.oid === rows[0].oid) ? out({ ok: true, dup: true }) : out({ ok: true }, rows);
-const known = ['add_point', 'dogovor', 'in', 'out', 'master_set', 'void', 'assign'];
+const known = ['add_point', 'dogovor', 'in', 'out', 'master_set', 'void', 'assign', 'lich_add'];
 if (known.indexOf(act) < 0) return bad('неизвестное действие');
 if (!oid) return bad('нет номера записи');
 const tochka = txt(B.tochka, 60);
@@ -113,9 +120,17 @@ if (act === 'master_set') {
   const r = base(); r.tip = 'master_dogovor'; r.oid = oid; r.tochka = tochka; r.master = master; r.summa = d;
   return wr([r]);
 }
+if (act === 'lich_add') {
+  const kind = String(B.kind || '');
+  if (kind !== 'in' && kind !== 'out') return bad('выберите приход или расход');
+  const s = num(B.amount);
+  if (isNaN(s) || s <= 0 || s > 1000000000) return bad('неверная сумма');
+  const r = base(); r.tip = 'lichnoe'; r.oid = oid; r.statya = kind === 'in' ? 'prihod' : 'rashod'; r.summa = s;
+  return wr([r]);
+}
 if (act === 'void') {
   const target = txt(B.target, 60);
-  const t = live.find(r => r.oid === target && (r.tip === 'prihod' || r.tip === 'rashod'));
+  const t = live.find(r => r.oid === target && (r.tip === 'prihod' || r.tip === 'rashod' || r.tip === 'lichnoe'));
   if (!t) return bad('запись не найдена');
   const r = base(); r.tip = 'void'; r.oid = oid; r.ssylka = target; r.tochka = String(t.tochka || ''); r.summa = Number(t.summa) || 0;
   return wr([r]);

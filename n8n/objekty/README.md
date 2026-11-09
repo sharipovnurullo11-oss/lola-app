@@ -11,7 +11,7 @@
 | `reshit.js` | «Решить» — точки, приход от заказчика, расход по статьям, мастера, отмена, разноска «не распределено» |
 
 Таблица n8n «Объекты — записи (стройка)» (`WE2oT3lpGI7WSj9h`): `kabinet_kod`, `tip`, `oid`, `tochka`, `data`, `statya`, `summa`, `master`, `zakazchik`, `komment`, `ssylka`, `avtor`.
-Строки только добавляются. Виды строк (`tip`): `tochka` (новая точка, `zakazchik`, `summa` = договор), `dogovor` (новая сумма договора), `prihod` (заказчик заплатил), `rashod` (`statya`: `master` / `material` / `doroga` / `tehnika` / `prochee`; у мастера — `master`), `master_dogovor` (сколько мастеру за всю работу), `void` (отмена записи, `ssylka` = её `oid`).
+Строки только добавляются. Виды строк (`tip`): `tochka` (новая точка, `zakazchik`, `summa` = договор), `dogovor` (новая сумма договора), `prihod` (заказчик заплатил), `rashod` (`statya`: `master` / `material` / `doroga` / `tehnika` / `prochee`; у мастера — `master`), `master_dogovor` (сколько мастеру за всю работу), `void` (отмена записи, `ssylka` = её `oid`), `lichnoe` (личные деньги Асрора: `statya` = `prihod` / `rashod`; в точки и их итоги не попадают).
 Расход без точки — «не распределено»; действие `assign` отменяет его и пишет новые строки по точкам на ту же сумму. Расход на несколько точек сразу — `out` с `parts` (строки `oid-1`, `oid-2`…).
 
-Действия: `list`, `point`, `add_point`, `dogovor`, `in`, `out`, `master_set`, `void`, `assign`. Повтор с тем же `oid` отвечает `dup: true` и ничего не пишет.
+Действия: `list`, `point`, `add_point`, `dogovor`, `in`, `out`, `master_set`, `void`, `assign`, `lich_list` (личные: всего приходов/расходов/остаток + записи), `lich_add` (`kind` = `in`/`out`, `amount`, `date`, `note`). Повтор с тем же `oid` отвечает `dup: true` и ничего не пишет.

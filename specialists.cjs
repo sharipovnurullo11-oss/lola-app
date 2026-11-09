@@ -438,7 +438,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // Данные хранит n8n по адресу /objekty (таблица «Объекты — записи (стройка)»). Кому показывать, решает сервер:
   // чужому кабинету он отвечает «нет доступа», и плитка не появляется. Деньги стройки и аптеки не смешиваются:
   // у аптеки свой «Финансист» (учёт магазина), у стройки — этот. Записи только добавляются, ошибку исправляет отмена.
-  var OB = { busy: false, err: '', msg: '', data: null, cur: null, form: null, sec: null, keep: {}, pending: {}, delAsk: null, split: false, pre: {} };
+  var OB = { busy: false, err: '', msg: '', data: null, cur: null, form: null, sec: null, lich: null, keep: {}, pending: {}, delAsk: null, split: false, pre: {} };
   var OB_ASK = '';
   function objOn() { try { var c = String(store('ew_cab') || ''); return !!c && lstore('ew_obj_for') === c; } catch (e) { return false; } }
   function objCheck() {
@@ -462,7 +462,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function objIn(id, label, attrs, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><input class="in2" id="' + id + '" ' + attrs + ' autocomplete="off" value="' + esc(val == null ? '' : val) + '"></label>'; }
   function objSel(id, label, opts, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><select class="in2" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>'; }
   function objPoints() { return OB.data ? OB.data.points : []; }
-  function openObj() { S.view = 'obj'; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
+  function openObj() { S.view = 'obj'; OB.lich = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
   function objLoad() {
     OB.busy = true;
     callTo('/objekty', { action: 'list' }).then(function (r) {
@@ -488,7 +488,7 @@ if (S.view === 'mkt') return renderMkt(el);
     callTo('/objekty', body).then(function (r) {
       OB.busy = false;
       if (!r || !r.ok) { OB.err = (r && r.error) || TX('не записано, повторите'); return render(); }
-      delete OB.pending[key]; OB.form = null; OB.keep = {}; OB.split = false; OB.msg = okMsg || ''; objLoad(); render();
+      delete OB.pending[key]; OB.form = null; OB.keep = {}; OB.split = false; OB.msg = okMsg || ''; if (OB.lich) lichLoad(); else objLoad(); render();
     });
   }
   function objVal(id) { var x = $s(id); return x ? String(x.value || '').trim() : ''; }
@@ -517,6 +517,10 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'point') {
       h += '<b>' + esc(ui('Новая точка (объект)', 'Нуқтаи нав (объект)', 'Yangi nuqta (obyekt)')) + '</b>' + objIn('ob-name', ui('Название', 'Ном', 'Nomi'), 'maxlength="60" placeholder="' + esc(ui('Дом в Рудаки', 'Хона дар Рӯдакӣ', 'Rudakidagi uy')) + '"') +
         objIn('ob-zak', ui('Заказчик (по желанию)', 'Фармоишгар (ихтиёрӣ)', 'Buyurtmachi (ixtiyoriy)'), 'maxlength="60"') + objIn('ob-dog', ui('Сумма договора, сомони (если есть)', 'Маблағи шартнома, сомонӣ (агар бошад)', 'Shartnoma summasi, somoni (boʻlsa)'), 'inputmode="decimal" maxlength="12"');
+    } else if (f === 'lich_in' || f === 'lich_out') {
+      var li = f === 'lich_in';
+      h += '<b style="color:' + (li ? '#1f8a4c' : '#c0392b') + '">' + (li ? '+ ' + esc(ui('Приход', 'Даромад', 'Kirim')) : '− ' + esc(ui('Расход', 'Хароҷот', 'Chiqim'))) + '</b>' + objIn('ob-sum', ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoni'), 'inputmode="decimal" maxlength="12" placeholder="1000"', OB.keep.sum) + objIn('ob-date', ui('Дата', 'Сана', 'Sana'), 'type="date"', OB.keep.date || today()) +
+        objIn('ob-note', ui('Комментарий', 'Эзоҳ', 'Izoh'), 'maxlength="200"', OB.keep.note);
     } else if (f === 'client') {
       h += '<b>' + esc(ui('Новый объект', 'Объекти нав', 'Yangi obyekt')) + '</b>' + objIn('ob-name', ui('Имя клиента', 'Номи фармоишгар', 'Buyurtmachi ismi'), 'maxlength="60"', OB.keep.name);
     } else if (f === 'sec') {
@@ -549,6 +553,10 @@ if (S.view === 'mkt') return renderMkt(el);
     var f = OB.form, p = OB.pre || {};
     if (f === 'point') return objAct({ action: 'add_point', name: objVal('ob-name'), zakazchik: objVal('ob-zak'), dogovor: objVal('ob-dog') }, ui('Точка добавлена', 'Нуқта илова шуд', 'Nuqta qoʻshildi'));
     if (f === 'client') { var cn = objVal('ob-name'); OB.keep = { name: cn }; return objAct({ action: 'add_point', name: cn, zakazchik: cn }, ui('Объект добавлен', 'Объект илова шуд', 'Obyekt qoʻshildi')); }
+    if (f === 'lich_in' || f === 'lich_out') {
+      var ls = objVal('ob-sum'), ln = objVal('ob-note'), ld = objVal('ob-date'); OB.keep = { sum: ls, note: ln, date: ld };
+      return objAct({ action: 'lich_add', kind: f === 'lich_in' ? 'in' : 'out', amount: ls, note: ln, date: ld }, ui('Записано', 'Сабт шуд', 'Yozildi'));
+    }
     if (f === 'sec') {
       var sk = OB.sec, sm = objVal('ob-sum'), nt = objVal('ob-note'), dt = objVal('ob-date'); OB.keep = { sum: sm, note: nt, date: dt };
       if (sk === 'master' && !nt) { OB.err = ui('Впишите имя мастера', 'Номи усторо нависед', 'Usta ismini yozing'); return render(); }
@@ -566,8 +574,9 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'dogovor') return objAct({ action: 'dogovor', tochka: OB.cur.name, amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
   }
   function objClick(k) {
-    if (k === 'back') { if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'back') { if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k.indexOf('sec:') === 0) { OB.sec = k.slice(4); OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
+    if (k === 'lich') return openLich();
     if (k === 'reload') return objLoad();
     if (k === 'cancel') { OB.form = null; OB.split = false; OB.err = ''; return render(); }
     if (k === 'save') return objSave();
@@ -600,6 +609,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function renderObj(el) {
     var h = backBtn() + '<h2 style="padding-right:36px">🏗️ ' + esc(objTitle()) + '</h2>';
+    if (OB.lich) return renderLich(el);
     if (OB.cur) return renderObjPoint(el, h);
     if (!OB.data) { el.innerHTML = h + '<p>' + esc(OB.err || TX('Загрузка…')) + '</p>' + (OB.err ? objBtn('reload', esc(TX('Повторить')), true) : ''); return; }
     var pts = OB.data.points || [], tile = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:84px;height:auto;padding:10px;text-align:center;width:100%';
@@ -612,7 +622,35 @@ if (S.view === 'mkt') return renderMkt(el);
       h += '<button type="button" class="btn sec" data-obj="f:client" style="' + tile + ';border-style:dashed;opacity:.8"><b style="font-size:16px">' + esc(ui('Объект', 'Объект', 'Obyekt')) + ' ' + (i + 1) + '</b><small>' + esc(ui('нажмите, чтобы назвать', 'барои ном гузоштан зер кунед', 'nom berish uchun bosing')) + '</small></button>';
     }
     h += '<button type="button" class="btn" data-obj="f:client" style="' + tile + ';font-size:28px;font-weight:700"' + (OB.busy ? ' disabled' : '') + '>+<small style="font-size:13px;font-weight:400">' + esc(ui('Новый объект', 'Объекти нав', 'Yangi obyekt')) + '</small></button>';
-    h += '</div>' + objForm();
+    h += '</div>';
+    h += '<button type="button" class="btn sec" data-obj="lich" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:56px;height:auto;margin-top:16px;font-size:17px">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</button>' + objForm();
+    el.innerHTML = h;
+  }
+  // Личные деньги Асрора: отдельная кнопка, свои записи (tip=lichnoe), с объектами не смешиваются.
+  function openLich() { OB.lich = { loading: true }; OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; lichLoad(); render(); }
+  function lichLoad() {
+    OB.busy = true;
+    callTo('/objekty', { action: 'lich_list' }).then(function (r) {
+      OB.busy = false; if (S.view !== 'obj' || !OB.lich) return;
+      OB.lich = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; render();
+    });
+  }
+  function lichEntries(list) {
+    if (!list || !list.length) return '<p style="opacity:.75">' + esc(ui('Записей пока нет.', 'Ҳоло сабт нест.', 'Hali yozuv yoʻq.')) + '</p>';
+    return list.map(function (e) {
+      var inn = e.kind === 'in', ask = OB.delAsk === e.oid;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:1;min-width:0"><b style="color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
+        (e.komment ? '<br><small style="opacity:.8">' + esc(e.komment) + '</small>' : '') + '</span>' +
+        objBtn('void:' + e.oid, ask ? esc(ui('Точно отменить?', 'Бекор кунам?', 'Bekor qilaymi?')) : '✕', true, 'flex:none;height:34px;padding:0 10px;font-size:13px' + (ask ? ';color:#c0392b' : '')) + '</div>';
+    }).join('');
+  }
+  function renderLich(el) {
+    var L = OB.lich, h = objBtn('back', '← ' + esc(objTitle()), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</h2>';
+    if (L.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+    if (L.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(L.error) + '</p>'; return; }
+    h += '<div style="display:flex;gap:10px;margin:8px 0">' + objBtn('f:lich_in', '+ ' + esc(ui('Приход', 'Даромад', 'Kirim')), false, 'flex:1;height:48px') + objBtn('f:lich_out', '− ' + esc(ui('Расход', 'Хароҷот', 'Chiqim')), true, 'flex:1;height:48px') + '</div>';
+    h += objMsgs() + objForm() + lichEntries(L.entries);
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px">' + objStatBox(ui('Всего приходов', 'Ҷамъи даромад', 'Jami kirim'), pkMoney(L.inn), '#1f8a4c') + objStatBox(ui('Всего расходов', 'Ҷамъи хароҷот', 'Jami chiqim'), pkMoney(L.out), '#c0392b') + objStatBox(ui('Остаток', 'Монда', 'Qoldiq'), pkMoney(L.left), L.left < 0 ? '#c0392b' : 'inherit') + '</div>';
     el.innerHTML = h;
   }
   function renderObjPoint(el, h) {
