@@ -380,7 +380,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
 
   function render() {
-    var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop' || S.view === 'apt'), dbd = dl && dl.querySelector('.dbody'); if (dl) { dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; } } } catch (e) {}
+    var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop' || S.view === 'apt' || S.view === 'obj'), dbd = dl && dl.querySelector('.dbody'); if (dl) { var xb = dl.querySelector('[data-close]'); if (xb) xb.style.display = S.view === 'obj' ? 'none' : ''; dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; } } } catch (e) {}
     if (SELLER) return PHARM ? renderApt(el) : renderShop(el);
     if (S.view === 'pa') return renderPa(el);
     if (S.view === 'asst') return renderAsst(el);
@@ -452,6 +452,7 @@ if (S.view === 'mkt') return renderMkt(el);
       if (on !== was) applyHome();
     });
   }
+  function objBack() { return ui('Назад', 'Бозгашт', 'Orqaga'); }
   function objTitle() { return ui('Финансист по объектам', 'Молиячӣ аз рӯи объектҳо', 'Obyektlar boʻyicha moliyachi'); }
   function objStat(k) {
     return k === 'master' ? ui('Мастера', 'Устоҳо', 'Ustalar') : k === 'material' ? ui('Материалы', 'Масолеҳ', 'Materiallar') : k === 'doroga' ? ui('Дорога', 'Роҳ', 'Yoʻl') : k === 'tehnika' ? ui('Техника', 'Техника', 'Texnika') : ui('Прочее', 'Дигар', 'Boshqa');
@@ -608,7 +609,7 @@ if (S.view === 'mkt') return renderMkt(el);
     return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px">' + objStatBox(ui('Получено', 'Гирифта шуд', 'Olindi'), pkMoney(p.inn), '#1f8a4c') + objStatBox(ui('Потрачено', 'Сарф шуд', 'Sarflandi'), pkMoney(p.out), '#c0392b') + objStatBox(ui('Осталось', 'Монд', 'Qoldi'), pkMoney(p.left), p.left < 0 ? '#c0392b' : 'inherit') + '</div>';
   }
   function renderObj(el) {
-    var h = backBtn() + '<h2 style="padding-right:36px">🏗️ ' + esc(objTitle()) + '</h2>';
+    var h = backBtn().replace(/←[^<]*/, '← ' + esc(objBack())) + '<h2>🏗️ ' + esc(objTitle()) + '</h2>';
     if (OB.lich) return renderLich(el);
     if (OB.cur) return renderObjPoint(el, h);
     if (!OB.data) { el.innerHTML = h + '<p>' + esc(OB.err || TX('Загрузка…')) + '</p>' + (OB.err ? objBtn('reload', esc(TX('Повторить')), true) : ''); return; }
@@ -645,7 +646,7 @@ if (S.view === 'mkt') return renderMkt(el);
     }).join('');
   }
   function renderLich(el) {
-    var L = OB.lich, h = objBtn('back', '← ' + esc(objTitle()), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</h2>';
+    var L = OB.lich, h = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>👤 ' + esc(ui('Личные расходы Асрора', 'Хароҷоти шахсии Асрор', 'Asrorning shaxsiy xarajatlari')) + '</h2>';
     if (L.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (L.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(L.error) + '</p>'; return; }
     h += '<div style="display:flex;gap:10px;margin:8px 0">' + objBtn('f:lich_in', '+ ' + esc(ui('Приход', 'Даромад', 'Kirim')), false, 'flex:1;height:48px') + objBtn('f:lich_out', '− ' + esc(ui('Расход', 'Хароҷот', 'Chiqim')), true, 'flex:1;height:48px') + '</div>';
@@ -655,7 +656,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function renderObjPoint(el, h) {
     var p = OB.cur, k = OB.sec;
-    h = objBtn('back', '← ' + esc(k ? p.name : objTitle()), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">' + (k ? objSecIcon(k) + ' ' + esc(objSecName(k)) : '📍 ' + esc(p.name)) + '</h2>';
+    h = objBtn('back', '← ' + esc(objBack()), true, 'margin-bottom:8px') + '<h2>' + (k ? objSecIcon(k) + ' ' + esc(objSecName(k)) : '📍 ' + esc(p.name)) + '</h2>';
     if (p.loading) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (p.error) { el.innerHTML = h + '<p style="color:#c0392b">' + esc(p.error) + '</p>'; return; }
     if (!k) {
