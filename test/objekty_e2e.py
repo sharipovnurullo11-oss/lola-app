@@ -32,6 +32,13 @@ def h(route):
     if a == 'out':
         if b['statya'] == 'master' and not b.get('master'): return route.fulfill(json={"ok": False, "error": "укажите мастера"})
         add('rashod', tochka=b['tochka'], statya=b['statya'], master=b.get('master', ''), summa=float(b['amount'])); return route.fulfill(json={"ok": True})
+    if a == 'lich_list':
+        vv = set(r['ssylka'] for r in rows if r['tip'] == 'void'); L = [r for r in rows if r['tip'] == 'lichnoe' and r['oid'] not in vv]
+        i = sum(r['summa'] for r in L if r['statya'] == 'prihod'); o = sum(r['summa'] for r in L if r['statya'] == 'rashod')
+        return route.fulfill(json={"ok": True, "inn": i, "out": o, "left": i - o, "entries": [{"oid": r['oid'], "kind": 'in' if r['statya'] == 'prihod' else 'out', "data": r['data'], "summa": r['summa'], "komment": r['komment']} for r in reversed(L)]})
+    if a == 'lich_add':
+        if float(b['amount'] or 0) <= 0: return route.fulfill(json={"ok": False, "error": "неверная сумма"})
+        add('lichnoe', statya='prihod' if b['kind'] == 'in' else 'rashod', summa=float(b['amount'])); return route.fulfill(json={"ok": True})
     if a == 'void': add('void', ssylka=b['target']); return route.fulfill(json={"ok": True})
     return route.fulfill(json={"ok": False, "error": "неизвестное действие"})
 def check(c, m):
@@ -89,6 +96,22 @@ try:
         check([num(x) for x in boxes[:3]] == [5000, 800, 4200], 'отмена записи пересчитывает итог ' + str(boxes))
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
         check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2, 'назад к списку объектов')
+        # личные расходы Асрора: отдельная кнопка, свои итоги, объекты не затрагиваются
+        pg.click(body + ' [data-obj="lich"]'); pg.wait_for_timeout(500)
+        check('Личные расходы Асрора' in pg.inner_text(body) and 'Всего приходов' in pg.inner_text(body) and 'Всего расходов' in pg.inner_text(body) and 'Остаток' in pg.inner_text(body), 'личные: окно с тремя итогами')
+        pg.click(body + ' [data-obj="f:lich_in"]'); pg.fill('#ob-sum', '10000'); pg.fill('#ob-note', 'от брата'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
+        pg.click(body + ' [data-obj="f:lich_out"]'); pg.fill('#ob-sum', '0'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(500)
+        check('неверная сумма' in pg.inner_text(body) and pg.input_value('#ob-sum') == '0', 'личные: ошибка не стирает введённое')
+        pg.fill('#ob-sum', '2500'); pg.fill('#ob-note', 'бензин'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
+        check(any(c.get('action') == 'lich_add' and c.get('kind') == 'out' and c.get('amount') == '2500' and c.get('note') == 'бензин' and c.get('date') for c in calls), 'личные: расход записан с датой и комментарием')
+        boxes = pg.locator(body + ' div[style*="min-width:90px"] div').all_inner_texts()
+        check([num(x) for x in boxes[:3]] == [10000, 2500, 7500], 'личные итоги 10000/2500/7500 ' + str(boxes))
+        shot(pg, 'lich')
+        pg.click(body + ' [data-obj^="void:"] >> nth=0'); pg.wait_for_timeout(200); pg.click(body + ' [data-obj^="void:"] >> nth=0'); pg.wait_for_timeout(600)
+        boxes = pg.locator(body + ' div[style*="min-width:90px"] div').all_inner_texts()
+        check([num(x) for x in boxes[:3]] == [10000, 0, 10000], 'личные: отмена пересчитывает итог ' + str(boxes))
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(400)
+        check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2 and pg.locator(body + ' [data-obj="lich"]').count() == 1, 'назад: объекты на месте, личные не смешаны')
         check(not errs, 'нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()
