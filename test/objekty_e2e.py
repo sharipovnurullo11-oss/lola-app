@@ -13,7 +13,14 @@ def pts():
             p = P[r['tochka']]
             if r['tip'] == 'prihod': p['inn'] += r['summa']
             else: p['out'] += r['summa']; p['by'][r['statya']] = p['by'].get(r['statya'], 0) + r['summa']
-    for p in P.values(): p['left'] = p['inn'] - p['out']; p['owes'] = None; p['mastersOwe'] = 0; p['dogovor'] = None
+    for p in P.values():
+        p['left'] = p['inn'] - p['out']; p['owes'] = None; p['dogovor'] = None; M = {}
+        for r in rows:
+            if r['tochka'] != p['name'] or r['oid'] in voided: continue
+            if r['tip'] == 'rashod' and r['statya'] == 'master' and r['master']: M.setdefault(r['master'], {'name': r['master'], 'dogovor': None, 'paid': 0})['paid'] += r['summa']
+            if r['tip'] == 'master_dogovor': M.setdefault(r['master'], {'name': r['master'], 'dogovor': None, 'paid': 0})['dogovor'] = r['summa']
+        for m in M.values(): m['left'] = None if m['dogovor'] is None else max(0, m['dogovor'] - m['paid'])
+        p['masters'] = list(M.values()); p['mastersOwe'] = sum(m['left'] or 0 for m in M.values())
     return P
 def h(route):
     u = route.request.url
@@ -39,6 +46,7 @@ def h(route):
     if a == 'lich_add':
         if float(b['amount'] or 0) <= 0: return route.fulfill(json={"ok": False, "error": "неверная сумма"})
         add('lichnoe', statya='prihod' if b['kind'] == 'in' else 'rashod', summa=float(b['amount'])); return route.fulfill(json={"ok": True})
+    if a == 'master_set': add('master_dogovor', tochka=b['tochka'], master=b['master'], summa=float(b['amount'])); return route.fulfill(json={"ok": True})
     if a == 'void': add('void', ssylka=b['target']); return route.fulfill(json={"ok": True})
     return route.fulfill(json={"ok": False, "error": "неизвестное действие"})
 def check(c, m):
@@ -83,6 +91,12 @@ try:
         check('имя мастера' in pg.inner_text(body).lower() and not any(c.get('statya') == 'master' for c in calls), 'мастер без имени не записывается')
         pg.fill('#ob-note', 'Фарход'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
         check(any(c.get('action') == 'out' and c.get('statya') == 'master' and c.get('master') == 'Фарход' and c.get('amount') == '800' for c in calls) and 'Фарход' in pg.inner_text(body), 'мастер: сумма, дата, имя записаны и видны')
+        check('Долги по мастерам' in pg.inner_text(body) and 'Фарход' in pg.inner_text(body) and 'договор не указан' in pg.inner_text(body), 'долги по мастерам: мастер виден, договор не указан')
+        pg.click(body + ' [data-obj="fm:Фарход"]'); pg.wait_for_timeout(200); pg.fill('#ob-sum', '2000'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
+        check(any(c.get('action') == 'master_set' and c.get('master') == 'Фарход' and c.get('amount') == '2000' for c in calls), 'договор с мастером записан')
+        t = pg.inner_text(body)
+        check('осталось 1 200' in t and 'Долги по мастерам: 1 200' in t, 'долг по мастеру: выплачено 800, договор 2000, осталось 1200 ' + t[:300])
+        shot(pg, 'masters')
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
         pg.click(body + ' [data-obj="sec:material"]'); pg.wait_for_timeout(200); pg.click(body + ' [data-obj="f:sec"]'); pg.wait_for_timeout(200)
         pg.fill('#ob-sum', '1200'); pg.fill('#ob-note', 'цемент'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
@@ -99,6 +113,15 @@ try:
         check([num(x) for x in boxes[:3]] == [5000, 800, 4200], 'отмена записи пересчитывает итог ' + str(boxes))
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
         check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2, 'назад к списку объектов')
+        # перерасход: расходы больше аванса — кнопка красная и есть предупреждение
+        pg.click(body + ' [data-obj="pt:Фарид"]'); pg.wait_for_timeout(400); pg.click(body + ' [data-obj="sec:material"]'); pg.wait_for_timeout(200); pg.click(body + ' [data-obj="f:sec"]'); pg.wait_for_timeout(200)
+        pg.fill('#ob-sum', '100'); pg.fill('#ob-note', 'гвозди'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(400)
+        check('Расходов больше, чем получено' in pg.inner_text(body), 'перерасход: есть предупреждение')
+        check('rgb(192, 57, 43)' in pg.evaluate("getComputedStyle(document.querySelector('#sp-body [data-obj=\"sec:in\"]')).backgroundColor"), 'перерасход: кнопка «Аванс» красная')
+        shot(pg, 'overspend')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(400)
+        check('rgb(192, 57, 43)' in pg.evaluate("getComputedStyle(document.querySelector('#sp-body [data-obj=\"pt:Фарид\"]')).borderColor"), 'перерасход: кнопка объекта красная на главной')
         # личные расходы Асрора: отдельная кнопка, свои итоги, объекты не затрагиваются
         pg.click(body + ' [data-obj="lich"]'); pg.wait_for_timeout(500)
         check('Личные расходы Асрора' in pg.inner_text(body) and 'Всего приходов' in pg.inner_text(body) and 'Всего расходов' in pg.inner_text(body) and 'Остаток' in pg.inner_text(body), 'личные: окно с тремя итогами')
@@ -117,6 +140,14 @@ try:
         check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2 and pg.locator(body + ' [data-obj="lich"]').count() == 1, 'назад: объекты на месте, личные не смешаны')
         pg.click('#sp-body [data-sp-back]'); pg.wait_for_timeout(400)
         check(pg.is_visible('#sp-home') or 'Специалист' in pg.inner_text('#sp-body'), '«Назад» возвращает к списку специалистов')
+        pg.click('#sp-home [data-home="obj"]'); pg.wait_for_timeout(600)
+        pg.click(body + ' [data-obj="pt:Рустам"]'); pg.wait_for_timeout(500); pg.click(body + ' [data-obj="rep"]'); pg.wait_for_timeout(300)
+        rep = pg.inner_text('#ob-rep')
+        check(rep.startswith('Отчёт по объекту: Рустам') and 'первый аванс' in rep and 'Фарход' in rep and 'цемент' not in rep and 'Остаток: 4 200' in rep, 'отчёт заказчику: аванс, мастер, остаток; отменённое не входит')
+        check('бензин' not in rep and 'от брата' not in rep, 'личные расходы в отчёт не попадают')
+        shot(pg, 'report')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(300)
+        check(pg.locator(body + ' [data-obj="sec:in"]').count() == 1, 'из отчёта «Назад» возвращает в объект')
         check(not errs, 'нет ошибок страницы ' + str(errs))
         b.close()
 finally: srv.terminate()

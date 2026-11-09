@@ -23,6 +23,10 @@ assert.ok(call({ action: 'master_set', oid: 'm1', tochka: 'Точка 1', master
 assert.ok(call({ action: 'out', oid: 'o1', tochka: 'Точка 1', statya: 'master', master: 'Фарход', amount: '500' }).ok);
 assert.ok(!call({ action: 'out', oid: 'o2', statya: 'master', amount: '100' }).ok, 'мастер без имени');
 assert.ok(call({ action: 'out', oid: 'o3', statya: 'material', parts: [{ tochka: 'Точка 1', amount: '700' }, { tochka: 'Точка 2', amount: '300' }] }).ok, 'разделить на 2 точки');
+// отчёт заказчику берёт все записи объекта, не только последние 40
+assert.ok(call({ action: 'add_point', oid: 'big0', name: 'Большой' }).ok);
+for (let i = 0; i < 120; i++) assert.ok(call({ action: 'in', oid: 'big' + (i + 1), tochka: 'Большой', amount: '10' }).ok);
+assert.equal(call({ action: 'point', name: 'Большой' }).point.entries.length, 120, 'в записях объекта все 120');
 assert.ok(call({ action: 'out', oid: 'o4', statya: 'doroga', amount: '50' }).ok, 'без точки = не распределено');
 assert.equal(call({ action: 'out', oid: 'o5', tochka: 'Точка 9', statya: 'doroga', amount: '50' }).error, 'нет такой точки');
 assert.ok(!call({ action: 'out', oid: 'o6', tochka: 'Точка 1', statya: 'doroga', amount: '-5' }).ok, 'минус');
