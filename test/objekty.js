@@ -91,4 +91,34 @@ r = call({ action: 'point', name: 'Абду' }).point; assert.equal(r.entries.le
 // долги
 r = call({ action: 'debts' });
 assert.ok(r.ok && r.total.mastersOwe >= 800, 'долги мастерам'); assert.ok(r.points.find(p => p.name === 'Абду').masters[0].left === 800);
+// корзина: объект уходит в корзину вместе с записями, не считается в итогах, возвращается целым, удаляется навсегда
+assert.ok(call({ action: 'add_point', oid: 'tr0', name: 'Лишний', zakazchik: 'Тест', dogovor: '1000' }).ok);
+assert.ok(call({ action: 'in', oid: 'tr1', tochka: 'Лишний', amount: '400' }).ok); assert.ok(call({ action: 'out', oid: 'tr2', tochka: 'Лишний', statya: 'material', amount: '150' }).ok);
+r = call({ action: 'list' }); const tBefore = r.total, nBefore = r.points.length; assert.equal(r.trash, 0, 'корзина пуста');
+assert.ok(!call({ action: 'trash_point', oid: 'trx', tochka: 'Нет такого' }).ok, 'нет такого объекта');
+assert.ok(call({ action: 'trash_point', oid: 'tr3', tochka: 'Лишний' }).ok);
+assert.ok(call({ action: 'trash_point', oid: 'tr3', tochka: 'Лишний' }).dup, 'повтор не удваивает');
+r = call({ action: 'list' });
+assert.ok(!r.points.find(p => p.name === 'Лишний') && r.points.length === nBefore - 1 && r.trash === 1, 'в корзине: нет в списке, счётчик 1');
+assert.deepEqual([r.total.inn, r.total.out], [tBefore.inn - 400, tBefore.out - 150], 'итоги без объекта из корзины');
+assert.ok(r.recent.every(e => e.tochka !== 'Лишний'), 'в последних записях его нет');
+assert.equal(call({ action: 'point', name: 'Лишний' }).error, 'нет такой точки');
+assert.ok(!call({ action: 'in', oid: 'tr4', tochka: 'Лишний', amount: '5' }).ok, 'в корзину ничего не пишем');
+assert.ok(!call({ action: 'add_point', oid: 'tr5', name: 'Лишний' }).ok, 'имя занято корзиной');
+assert.ok(!call({ action: 'debts' }).points.find(p => p.name === 'Лишний'), 'в долгах его нет');
+r = call({ action: 'trash_list' }); assert.ok(r.ok && r.points.length === 1 && r.points[0].name === 'Лишний' && r.points[0].inn === 400 && r.points[0].left === 250, 'корзина показывает объект с итогами');
+assert.ok(!call({ action: 'restore_point', oid: 'tr6', tochka: 'Абду' }).ok, 'вернуть можно только из корзины');
+assert.ok(call({ action: 'restore_point', oid: 'tr7', tochka: 'Лишний' }).ok);
+r = call({ action: 'list' }); assert.deepEqual([r.total.inn, r.total.out, r.points.length, r.trash], [tBefore.inn, tBefore.out, nBefore, 0], 'после возврата всё как было');
+r = call({ action: 'point', name: 'Лишний' }).point; assert.equal(r.entries.length, 2, 'записи вернулись вместе с объектом'); assert.equal(r.zakazchik, 'Тест');
+assert.ok(call({ action: 'trash_point', oid: 'tr8', tochka: 'Лишний' }).ok);
+assert.ok(call({ action: 'purge_point', oid: 'tr9', tochka: 'Лишний' }).ok);
+assert.equal(call({ action: 'trash_list' }).points.length, 0, 'удалён навсегда: в корзине нет');
+assert.ok(!call({ action: 'restore_point', oid: 'tr10', tochka: 'Лишний' }).ok, 'навсегда — не вернуть');
+assert.ok(!call({ action: 'add_point', oid: 'tr11', name: 'Лишний' }).ok, 'имя не используется повторно, чтобы старые записи не смешались');
+r = call({ action: 'list' }); assert.deepEqual([r.total.inn, r.total.out, r.trash], [tBefore.inn - 400, tBefore.out - 150, 0]);
+// переименование и корзина вместе
+assert.ok(call({ action: 'add_point', oid: 'tq0', name: 'Старое' }).ok); assert.ok(call({ action: 'rename', oid: 'tq1', tochka: 'Старое', name: 'Новое' }).ok);
+assert.ok(call({ action: 'trash_point', oid: 'tq2', tochka: 'Новое' }).ok); assert.equal(call({ action: 'trash_list' }).points[0].name, 'Новое');
+assert.ok(call({ action: 'restore_point', oid: 'tq3', tochka: 'Новое' }).ok); assert.ok(call({ action: 'list' }).points.find(p => p.name === 'Новое'));
 console.log('OBJEKTY PASSED');

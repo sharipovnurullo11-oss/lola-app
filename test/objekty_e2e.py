@@ -2,7 +2,7 @@
 import subprocess, time, json, os, re
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3', '-m', 'http.server', '8127'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
-rows = []; calls = []; nid = [1]; photos = {}
+rows = []; calls = []; nid = [1]; photos = {}; trashed = {}; TP = {}
 def pts():
     P = {}
     voided = set(r['ssylka'] for r in rows if r['tip'] == 'void')
@@ -21,6 +21,8 @@ def pts():
             if r['tip'] == 'master_dogovor': M.setdefault(r['master'], {'name': r['master'], 'dogovor': None, 'paid': 0})['dogovor'] = r['summa']
         for m in M.values(): m['left'] = None if m['dogovor'] is None else max(0, m['dogovor'] - m['paid'])
         p['masters'] = list(M.values()); p['mastersOwe'] = sum(m['left'] or 0 for m in M.values())
+    for n in list(P):
+        if n in trashed: TP[n] = P.pop(n)
     return P
 def h(route):
     u = route.request.url
@@ -31,7 +33,11 @@ def h(route):
     if not u.endswith('/objekty'): return route.fulfill(json={"ok": True, "staff": [], "sessions": [], "chats": []})
     b = json.loads(route.request.post_data); calls.append(b); a = b['action']; P = pts()
     if a == 'ping': return route.fulfill(json={"ok": True})
-    if a == 'list': return route.fulfill(json={"ok": True, "points": list(P.values()), "total": {"inn": 0, "out": 0, "left": 0}, "unassigned": [], "recent": []})
+    if a == 'list': return route.fulfill(json={"ok": True, "points": list(P.values()), "trash": len([n for n in TP if trashed.get(n) == 'trash']), "total": {"inn": 0, "out": 0, "left": 0}, "unassigned": [], "recent": []})
+    if a == 'trash_point': trashed[b['tochka']] = 'trash'; return route.fulfill(json={"ok": True})
+    if a == 'restore_point': trashed.pop(b['tochka'], None); return route.fulfill(json={"ok": True})
+    if a == 'purge_point': trashed[b['tochka']] = 'purged'; return route.fulfill(json={"ok": True})
+    if a == 'trash_list': return route.fulfill(json={"ok": True, "points": [TP[n] for n in TP if trashed.get(n) == 'trash']})
     if a == 'point':
         p = dict(P[b['name']]); voided = set(r['ssylka'] for r in rows if r['tip'] == 'void')
         p['entries'] = [{"oid": r['oid'], "tip": r['tip'], "tochka": r['tochka'], "data": r['data'], "statya": r['statya'], "summa": r['summa'], "master": r['master'], "komment": r['komment'], "foto": r.get('foto', False)} for r in reversed(rows) if r['tip'] in ('prihod', 'rashod') and r['tochka'] == b['name'] and r['oid'] not in voided]
@@ -208,6 +214,31 @@ try:
         shot(pg, 'lich_list')
         pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(400)
         check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2 and pg.locator(body + ' [data-obj="lich"]').count() == 1, 'назад: объекты на месте, личные не смешаны')
+        # корзина: удалить объект (два нажатия), корзина со счётчиком, вернуть, удалить навсегда
+        pg.click(body + ' [data-obj="f:client"] >> nth=0'); pg.fill('#ob-name', 'Лишний'); pg.click(body + ' [data-obj="save"]'); pg.wait_for_timeout(600)
+        check(pg.locator(body + ' [data-obj^="pt:"]').count() == 3 and pg.locator(body + ' [data-obj="trash-open"]').count() == 0, 'корзина: 3 объекта, кнопки «Корзина» пока нет')
+        pg.click(body + ' [data-obj="pt:Лишний"]'); pg.wait_for_timeout(400)
+        check('Удалить объект' in pg.inner_text(body), 'корзина: в окне объекта есть кнопка «Удалить объект (в корзину)»')
+        pg.click(body + ' [data-obj="trash"]'); pg.wait_for_timeout(300)
+        check(not any(c.get('action') == 'trash_point' for c in calls) and 'Нажмите ещё раз' in pg.inner_text(body), 'корзина: первое нажатие только спрашивает')
+        pg.click(body + ' [data-obj="trash"]'); pg.wait_for_timeout(700)
+        check(any(c.get('action') == 'trash_point' and c.get('tochka') == 'Лишний' for c in calls) and pg.locator(body + ' [data-obj="pt:Лишний"]').count() == 0 and pg.locator(body + ' [data-obj^="pt:"]').count() == 2, 'корзина: объект ушёл из списка')
+        check('перемещён в корзину' in pg.inner_text(body) and 'Корзина (1)' in pg.inner_text(body), 'корзина: сообщение и счётчик «Корзина (1)»')
+        pg.click(body + ' [data-obj="trash-open"]'); pg.wait_for_timeout(500)
+        check('Лишний' in pg.inner_text(body) and pg.locator(body + ' [data-obj="restore:Лишний"]').count() == 1, 'корзина: объект лежит в корзине, есть «Вернуть»')
+        shot(pg, 'trash')
+        pg.click(body + ' [data-obj="restore:Лишний"]'); pg.wait_for_timeout(700)
+        check('Корзина пуста' in pg.inner_text(body), 'корзина: после «Вернуть» корзина пуста')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(500)
+        check(pg.locator(body + ' [data-obj="pt:Лишний"]').count() == 1 and pg.locator(body + ' [data-obj="trash-open"]').count() == 0, 'корзина: объект вернулся на главную')
+        pg.click(body + ' [data-obj="pt:Лишний"]'); pg.wait_for_timeout(400); pg.click(body + ' [data-obj="trash"]'); pg.click(body + ' [data-obj="trash"]'); pg.wait_for_timeout(700)
+        pg.click(body + ' [data-obj="trash-open"]'); pg.wait_for_timeout(500)
+        pg.click(body + ' [data-obj="purge:Лишний"]'); pg.wait_for_timeout(300)
+        check(not any(c.get('action') == 'purge_point' for c in calls) and 'Точно навсегда' in pg.inner_text(body), 'корзина: «Удалить навсегда» тоже спрашивает ещё раз')
+        pg.click(body + ' [data-obj="purge:Лишний"]'); pg.wait_for_timeout(700)
+        check(any(c.get('action') == 'purge_point' and c.get('tochka') == 'Лишний' for c in calls) and 'Корзина пуста' in pg.inner_text(body), 'корзина: удалён навсегда, корзина пуста')
+        pg.click(body + ' [data-obj="back"]'); pg.wait_for_timeout(500)
+        check(pg.locator(body + ' [data-obj^="pt:"]').count() == 2, 'корзина: на главной снова 2 объекта')
         pg.click('#sp-body [data-sp-back]'); pg.wait_for_timeout(400)
         check(pg.is_visible('#sp-home') or 'Специалист' in pg.inner_text('#sp-body'), '«Назад» возвращает к списку специалистов')
         pg.click('#sp-home [data-home="obj"]'); pg.wait_for_timeout(600)
