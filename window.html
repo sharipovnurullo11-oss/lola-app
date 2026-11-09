@@ -3052,7 +3052,8 @@ if (S.view === 'mkt') return renderMkt(el);
       var sk = OB.sec;
       h += '<b style="color:' + (sk === 'in' ? '#1f8a4c' : '#c0392b') + '">' + (sk === 'in' ? '+ ' : '− ') + esc(objSecName(sk)) + '</b>' + objIn('ob-sum', ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoni'), 'inputmode="decimal" maxlength="12" placeholder="1000"', OB.keep.sum) + objIn('ob-date', ui('Дата', 'Сана', 'Sana'), 'type="date"', OB.keep.date || today()) +
         objIn('ob-note', sk === 'master' ? ui('Имя мастера', 'Номи усто', 'Usta ismi') : sk === 'material' ? ui('Что куплено', 'Чӣ харида шуд', 'Nima sotib olindi') : ui('Комментарий (по желанию)', 'Эзоҳ (ихтиёрӣ)', 'Izoh (ixtiyoriy)'), 'maxlength="200"', OB.keep.note) +
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="btn sec" style="position:relative;display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;cursor:pointer">📷 ' + esc(ui('Фото чека', 'Акси чек', 'Chek rasmi')) + '<input type="file" id="ob-foto-in" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0"></label>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="btn sec" style="position:relative;display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;cursor:pointer">📷 ' + esc(ui('Сфотографировать', 'Акс гирифтан', 'Suratga olish')) + '<input type="file" id="ob-foto-in" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0"></label>' +
+        '<label class="btn sec" style="position:relative;display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;cursor:pointer">🖼️ ' + esc(ui('Из галереи', 'Аз галерея', 'Galereyadan')) + '<input type="file" id="ob-foto-gal" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"></label>' +
         (OB.fbusy ? '<small>' + esc(ui('Обработка фото…', 'Акс коркард шуда истодааст…', 'Rasm qayta ishlanmoqda…')) + '</small>' : OB.foto ? '<small style="color:#1f8a4c">✓ ' + esc(ui('Фото добавлено', 'Акс илова шуд', 'Rasm qoʻshildi')) + '</small>' + objBtn('foto-off', '✕', true, 'height:34px;padding:0 10px;font-size:13px') : '') + '</div>' +
         (obMicOk() ? objBtn('mic', (OB.mic ? '⏹ ' + esc(ui('Слушаю… нажмите, когда закончите', 'Гӯш мекунам… пахш кунед', 'Tinglayapman… tugagach bosing')) : '🎤 ' + esc(ui('Сказать голосом', 'Бо овоз гуфтан', 'Ovoz bilan aytish'))), true, 'height:44px') : '');
     } else if (f === 'in') {
@@ -3176,16 +3177,25 @@ if (S.view === 'mkt') return renderMkt(el);
     var rc = new SR(), got = '', done = false; OBM = rc; OB.mic = true; OB.err = ''; OB.msg = '';
     rc.lang = 'ru-RU'; rc.interimResults = false; rc.continuous = false; rc.maxAlternatives = 1;
     rc.onresult = function (e) { got = ''; for (var i = 0; i < e.results.length; i++) got += e.results[i][0].transcript + ' '; };
-    rc.onerror = function (e) { OB.err = e && (e.error === 'not-allowed' || e.error === 'service-not-allowed') ? ui('Разрешите микрофон для этого сайта в настройках браузера', 'Микрофонро дар танзимоти браузер иҷозат диҳед', 'Brauzer sozlamalarida mikrofonga ruxsat bering') : ui('Не получилось услышать. Попробуйте ещё раз или впишите вручную.', 'Нашунида шуд. Боз кӯшиш кунед ё дастӣ нависед.', 'Eshitilmadi. Qayta urinib koʻring yoki qoʻlda yozing.'); };
+    rc.onerror = function (e) {
+      var er = e && e.error;
+      OB.err = er === 'not-allowed' || er === 'service-not-allowed' ? ui('Разрешите микрофон для этого сайта в настройках браузера', 'Микрофонро дар танзимоти браузер иҷозат диҳед', 'Brauzer sozlamalarida mikrofonga ruxsat bering')
+        : er === 'no-speech' ? ui('Не услышал голос. Нажмите микрофон и говорите сразу, поближе к телефону.', 'Овоз нашунида шуд. Микрофонро пахш кунед ва фавран гӯед.', 'Ovoz eshitilmadi. Mikrofonni bosing va darhol gapiring.')
+        : er === 'audio-capture' ? ui('Микрофон не найден или занят другим приложением', 'Микрофон ёфт нашуд ё банд аст', 'Mikrofon topilmadi yoki band')
+        : er === 'network' ? ui('Нет связи с сервисом распознавания речи. Проверьте интернет.', 'Бо хидмати шинохти овоз пайваст нашуд. Интернетро санҷед.', 'Nutqni tanish xizmatiga ulanib boʻlmadi. Internetni tekshiring.')
+        : er === 'language-not-supported' ? ui('Этот язык голосом не поддерживается', 'Ин забон бо овоз дастгирӣ намешавад', 'Bu til ovozda qoʻllab-quvvatlanmaydi')
+        : ui('Не получилось услышать. Попробуйте ещё раз или впишите вручную.', 'Нашунида шуд. Боз кӯшиш кунед ё дастӣ нависед.', 'Eshitilmadi. Qayta urinib koʻring yoki qoʻlda yozing.');
+    };
     rc.onend = function () {
       if (done) return; done = true; OBM = null; OB.mic = false;
       var t = String(got || '').trim(), low = t.toLowerCase();
       if (t) {
-        var p = (typeof parseVoice === 'function') ? parseVoice(t) : null, sec = obSecOf(low) || (mode === 'sec' ? OB.sec : '');
-        if (!p || !sec) OB.err = ui('Не расслышал. Скажите так: материалы, цемент, 500 сомони', 'Нашунидам. Чунин гӯед: масолеҳ, семент, 500 сомонӣ', 'Eshitmadim. Shunday ayting: materiallar, sement, 500 somoni');
+        var p = (typeof parseVoice === 'function') ? parseVoice(t) : null, sec = obSecOf(low) || (mode === 'sec' ? OB.sec : ''), guess = false;
+        if (p && !sec) { sec = 'material'; guess = true; }
+        if (!p) OB.err = ui('Услышал: «' + t + '». Не нашёл сумму. Скажите так: цемент 500', 'Шунидам: «' + t + '». Маблағ ёфт нашуд. Чунин гӯед: семент 500', 'Eshitdim: «' + t + '». Summa topilmadi. Shunday ayting: sement 500');
         else {
           var note = String(p.note || '').replace(/(аванс|получил|получила|пришло|пришли|заказчик\w*|мастер\w*|материал\w*|купил\w*|усто|рабоч\w*|зарплат\w*|оплат\w*)/gi, ' ').replace(/\s+/g, ' ').trim();
-          OB.sec = sec; OB.form = 'sec'; OB.foto = ''; OB.fbusy = false; OB.keep = { sum: String(p.amount), note: note, date: today() }; OB.msg = ui('Проверьте и нажмите «Записать»: ', 'Санҷед ва «Записать»-ро пахш кунед: ', 'Tekshiring va «Записать»ni bosing: ') + t;
+          OB.sec = sec; OB.form = 'sec'; OB.foto = ''; OB.fbusy = false; OB.keep = { sum: String(p.amount), note: note, date: today() }; OB.msg = (guess ? ui('Раздел не понял, поставил «Материалы» — если не так, нажмите «Отмена» и выберите раздел. ', 'Бахшро нафаҳмидам, «Масолеҳ» гузоштам — агар нодуруст бошад, «Бекор»-ро пахш кунед ва бахшро интихоб кунед. ', 'Boʻlimni tushunmadim, «Materiallar» qoʻydim — notoʻgʻri boʻlsa, «Bekor»ni bosing va boʻlimni tanlang. ') : '') + ui('Проверьте и нажмите «Записать»: ', 'Санҷед ва «Записать»-ро пахш кунед: ', 'Tekshiring va «Записать»ni bosing: ') + t;
         }
       } else if (!OB.err) OB.err = ui('Ничего не услышал', 'Чизе нашунидам', 'Hech narsa eshitmadim');
       render();
@@ -3194,7 +3204,7 @@ if (S.view === 'mkt') return renderMkt(el);
     render();
   }
   document.addEventListener('change', function (e) {
-    var t = e.target; if (!t || t.id !== 'ob-foto-in' || !t.files || !t.files[0]) return;
+    var t = e.target; if (!t || (t.id !== 'ob-foto-in' && t.id !== 'ob-foto-gal') || !t.files || !t.files[0]) return;
     var fl = t.files[0]; objKeepForm(); OB.fbusy = true; OB.foto = ''; OB.err = ''; render();
     shFotoHQ(fl, function (hq) {
       OB.fbusy = false; if (!hq) OB.err = ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'); else OB.foto = hq;
