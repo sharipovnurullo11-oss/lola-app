@@ -7015,6 +7015,8 @@ if (b.dataset.mkt) return mktClick(b.dataset.mkt);
   function eligible() {
     try {
       if (typeof AS_KOD !== 'undefined' && AS_KOD) return false;
+      // Экраны админа (#admin и #as=код): смена адреса при открытии кабинета клиента не должна вызывать вопрос «выйти»
+      if (/^#(admin|as=)/.test(String(root.location.hash || ''))) return false;
       return typeof mode === 'function' && mode() === 'user';
     } catch (e) { return false; }
   }
