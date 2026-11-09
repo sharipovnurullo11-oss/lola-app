@@ -533,6 +533,11 @@ if (S.view === 'mkt') return renderMkt(el);
         (!showPoint || e.tochka ? objBtn('void:' + e.oid, ask ? esc(ui('Точно отменить?', 'Бекор кунам?', 'Bekor qilaymi?')) : '✕', true, 'flex:none;height:32px;padding:0 10px;font-size:13px' + (ask ? ';color:#c0392b' : '')) : objBtn('assign:' + e.oid, esc(ui('Разнести по точкам', 'Ба нуқтаҳо тақсим', 'Nuqtalarga boʻlish')), true, 'flex:none;height:32px;padding:0 10px;font-size:13px')) + '</div>';
     }).join('');
   }
+  // Личные расходы Асрора: значки-категории. Значок и название пишутся в начало комментария («⛽ Заправка · текст»), сервер менять не нужно.
+  var LC_OUT = [['⛽', 'Заправка', 'Ёқилғӣ', 'Yoqilgʻi'], ['💊', 'Лекарства', 'Дору', 'Dori'], ['🛒', 'Продукты', 'Хӯрокворӣ', 'Oziq-ovqat'], ['🍴', 'Кафе', 'Қаҳвахона', 'Kafe'], ['🚕', 'Дорога', 'Роҳ', 'Yoʻl'], ['📱', 'Связь', 'Алоқа', 'Aloqa'], ['👕', 'Одежда', 'Либос', 'Kiyim'], ['🏠', 'Дом', 'Хона', 'Uy'], ['🎁', 'Подарки', 'Тӯҳфа', 'Sovgʻa'], ['📦', 'Другое', 'Дигар', 'Boshqa']];
+  var LC_IN = [['💼', 'Зарплата', 'Маош', 'Maosh'], ['🤝', 'От клиента', 'Аз фармоишгар', 'Mijozdan'], ['💰', 'Другое', 'Дигар', 'Boshqa']];
+  function lcName(c) { return ui(c[1], c[2], c[3]); }
+  function lcFind(t) { var all = LC_OUT.concat(LC_IN); t = String(t || ''); for (var i = 0; i < all.length; i++) if (t.indexOf(all[i][0] + ' ') === 0) return all[i]; return null; }
   function objForm() {
     var f = OB.form, p = OB.pre || {}; if (!f) return '';
     var h = '<div style="border:1px solid var(--line,#ddd);border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:8px">';
@@ -541,8 +546,14 @@ if (S.view === 'mkt') return renderMkt(el);
         objIn('ob-zak', ui('Заказчик (по желанию)', 'Фармоишгар (ихтиёрӣ)', 'Buyurtmachi (ixtiyoriy)'), 'maxlength="60"') + objIn('ob-dog', ui('Сумма договора, сомони (если есть)', 'Маблағи шартнома, сомонӣ (агар бошад)', 'Shartnoma summasi, somoni (boʻlsa)'), 'inputmode="decimal" maxlength="12"');
     } else if (f === 'lich_in' || f === 'lich_out') {
       var li = f === 'lich_in';
-      h += '<b style="color:' + (li ? '#1f8a4c' : '#c0392b') + '">' + (li ? '+ ' + esc(ui('Приход', 'Даромад', 'Kirim')) : '− ' + esc(ui('Расход', 'Хароҷот', 'Chiqim'))) + '</b>' + objIn('ob-sum', ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoni'), 'inputmode="decimal" maxlength="12" placeholder="1000"', OB.keep.sum) + objIn('ob-date', ui('Дата', 'Сана', 'Sana'), 'type="date"', OB.keep.date || today()) +
-        objIn('ob-note', ui('Комментарий', 'Эзоҳ', 'Izoh'), 'maxlength="200"', OB.keep.note);
+      h += '<b style="color:' + (li ? '#1f8a4c' : '#c0392b') + '">' + (li ? '+ ' + esc(ui('Приход', 'Даромад', 'Kirim')) : '− ' + esc(ui('Расход', 'Хароҷот', 'Chiqim'))) + '</b>' +
+        '<small style="opacity:.75">' + esc(ui('Нажмите значок', 'Нишонро пахш кунед', 'Belgini bosing')) + '</small>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px">' + (li ? LC_IN : LC_OUT).map(function (c, i) {
+          var on = String(OB.keep.cat) === String(i);
+          return objBtn('cat:' + i, '<span style="font-size:28px;line-height:1">' + c[0] + '</span><small style="font-size:11.5px;line-height:1.1;word-break:break-word">' + esc(lcName(c)) + '</small>', true, 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:auto;min-height:72px;padding:8px 2px;border-radius:14px' + (on ? ';border:2px solid #F5A524;background:#FFF3D6;font-weight:700' : ''));
+        }).join('') + '</div>' +
+        objIn('ob-sum', ui('Сумма, в сомони', 'Маблағ, сомонӣ', 'Summa, somoni'), 'inputmode="decimal" maxlength="12" placeholder="1000"', OB.keep.sum) + objIn('ob-date', ui('Дата', 'Сана', 'Sana'), 'type="date"', OB.keep.date || today()) +
+        objIn('ob-note', ui('Комментарий (по желанию)', 'Эзоҳ (ихтиёрӣ)', 'Izoh (ixtiyoriy)'), 'maxlength="170"', OB.keep.note);
     } else if (f === 'client') {
       h += '<b>' + esc(ui('Новый объект', 'Объекти нав', 'Yangi obyekt')) + '</b>' + objIn('ob-name', ui('Имя клиента', 'Номи фармоишгар', 'Buyurtmachi ismi'), 'maxlength="60"', OB.keep.name);
     } else if (f === 'sec') {
@@ -581,8 +592,9 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'point') return objAct({ action: 'add_point', name: objVal('ob-name'), zakazchik: objVal('ob-zak'), dogovor: objVal('ob-dog') }, ui('Точка добавлена', 'Нуқта илова шуд', 'Nuqta qoʻshildi'));
     if (f === 'client') { var cn = objVal('ob-name'); OB.keep = { name: cn }; return objAct({ action: 'add_point', name: cn, zakazchik: cn }, ui('Объект добавлен', 'Объект илова шуд', 'Obyekt qoʻshildi')); }
     if (f === 'lich_in' || f === 'lich_out') {
-      var ls = objVal('ob-sum'), ln = objVal('ob-note'), ld = objVal('ob-date'); OB.keep = { sum: ls, note: ln, date: ld };
-      return objAct({ action: 'lich_add', kind: f === 'lich_in' ? 'in' : 'out', amount: ls, note: ln, date: ld }, ui('Записано', 'Сабт шуд', 'Yozildi'));
+      var ls = objVal('ob-sum'), ln = objVal('ob-note'), ld = objVal('ob-date'), lc = OB.keep ? OB.keep.cat : '', lcd = (f === 'lich_in' ? LC_IN : LC_OUT)[Number(lc)]; OB.keep = { sum: ls, note: ln, date: ld, cat: lc };
+      var lfull = lcd && lc !== '' && lc != null ? lcd[0] + ' ' + lcd[1] + (ln ? ' · ' + ln : '') : ln;
+      return objAct({ action: 'lich_add', kind: f === 'lich_in' ? 'in' : 'out', amount: ls, note: lfull, date: ld }, ui('Записано', 'Сабт шуд', 'Yozildi'));
     }
     if (f === 'sec') {
       var sk = OB.sec, sm = objVal('ob-sum'), nt = objVal('ob-note'), dt = objVal('ob-date'); OB.keep = { sum: sm, note: nt, date: dt };
@@ -617,6 +629,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'reload') return objLoad();
     if (k === 'cancel') { OB.form = null; OB.split = false; OB.foto = ''; OB.fbusy = false; OB.err = ''; return render(); }
     if (k === 'foto-off') { OB.foto = ''; objKeepForm(); return render(); }
+    if (k.indexOf('cat:') === 0) { objKeepForm(); var ci = k.slice(4); OB.keep.cat = String(OB.keep.cat) === ci ? '' : ci; render(); var cz = $s('ob-sum'); if (cz) cz.focus(); return; }
     if (k === 'mic') return obMic('sec');
     if (k === 'mic-obj') return obMic('obj');
     if (k.indexOf('ph:') === 0) return objPhoto(k.slice(3));
@@ -647,7 +660,7 @@ if (S.view === 'mkt') return renderMkt(el);
     }).join('');
   }
   // Сохраняем введённое в форме перед перерисовкой
-  function objKeepForm() { OB.keep = { sum: objVal('ob-sum'), note: objVal('ob-note'), date: objVal('ob-date') }; }
+  function objKeepForm() { OB.keep = { sum: objVal('ob-sum'), note: objVal('ob-note'), date: objVal('ob-date'), cat: OB.keep ? OB.keep.cat : '' }; }
   function objPhoto(id) {
     OB.ph = { oid: id, loading: true }; render();
     fbCall({ action: 'get', name: 'chek:' + id }).then(function (r) {
@@ -815,9 +828,9 @@ if (S.view === 'mkt') return renderMkt(el);
   function lichEntries(list) {
     if (!list || !list.length) return '<p style="opacity:.75">' + esc(ui('Записей пока нет.', 'Ҳоло сабт нест.', 'Hali yozuv yoʻq.')) + '</p>';
     return list.map(function (e) {
-      var inn = e.kind === 'in', ask = OB.delAsk === e.oid;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:1;min-width:0"><b style="color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
-        (e.komment ? '<br><small style="opacity:.8">' + esc(e.komment) + '</small>' : '') + '</span>' +
+      var inn = e.kind === 'in', ask = OB.delAsk === e.oid, lc = lcFind(e.komment), lrest = lc ? String(e.komment).slice(lc[0].length + 1).split(' · ').slice(1).join(' · ') : String(e.komment || '');
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span style="flex:none;width:44px;height:44px;border-radius:14px;background:' + (inn ? '#DDF3EC' : '#FFF3D6') + ';display:flex;align-items:center;justify-content:center;font-size:24px">' + (lc ? lc[0] : inn ? '＋' : '－') + '</span><span style="flex:1;min-width:0"><b style="color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + pkMoney(e.summa) + '</b> · ' + esc(e.data) +
+        (lc || lrest ? '<br><small style="opacity:.8">' + (lc ? '<b>' + esc(lcName(lc)) + '</b>' + (lrest ? ' · ' : '') : '') + esc(lrest) + '</small>' : '') + '</span>' +
         objBtn('void:' + e.oid, ask ? esc(ui('Точно отменить?', 'Бекор кунам?', 'Bekor qilaymi?')) : '✕', true, 'flex:none;height:34px;padding:0 10px;font-size:13px' + (ask ? ';color:#c0392b' : '')) + '</div>';
     }).join('');
   }
