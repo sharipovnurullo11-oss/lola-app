@@ -3683,7 +3683,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     try { var dd3 = el.closest('dialog'); if (dd3) dd3.classList.remove('nox'); } catch (e) {}
     var f = AP.form || {};
     el.innerHTML = '<div style="max-width:720px;margin:0 auto;padding:8px 4px 24px"><h2 style="padding-right:36px;font-size:26px">➕ ' + esc(f.old ? ui('Изменить препарат', 'Тағйир додани дору', 'Dorini oʻzgartirish') : ui('Новый препарат', 'Доруи нав', 'Yangi dori')) + '</h2>' +
-      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"' + (f.old && f.shop ? ' readonly' : '')) + (f.old && f.shop ? '<small style="opacity:.7">' + esc(ui('Название берётся из учёта магазина — здесь его не меняют', 'Ном аз ҳисоби мағоза гирифта мешавад — дар ин ҷо тағйир намеёбад', 'Nom doʻkon hisobidan olinadi — bu yerda oʻzgartirilmaydi')) + '</small>' : '') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" data-zoom="1" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + (f.old ? '' : aptSugHtml(f.name)) + '</div>' +
+      '<label style="display:block;margin:10px 0 4px;font-weight:600">' + esc(ui('Название', 'Ном', 'Nomi')) + '</label>' + shIn('apt-f-name', ui('Например: Парацетамол 500 мг', 'Масалан: Парацетамол 500 мг', 'Masalan: Paratsetamol 500 mg'), f.name, 'inputmode="text" enterkeyhint="next"' + (f.old && f.shop ? ' readonly' : '')) + (f.old && f.shop ? '<small style="opacity:.7">' + esc(ui('Название берётся из учёта магазина — здесь его не меняют', 'Ном аз ҳисоби мағоза гирифта мешавад — дар ин ҷо тағйир намеёбад', 'Nom doʻkon hisobidan olinadi — bu yerda oʻzgartirilmaydi')) + '</small>' : '') + '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">' + (f.foto ? '<img alt="" data-zoom="1" data-nm="' + esc(f.old || f.name || '') + '" src="' + f.foto + '" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<button type="button" class="btn sec" data-apt="foto" ' + (AP.fbusy ? 'disabled ' : '') + 'style="flex:1;min-height:48px;font-size:17px">📷 ' + esc(AP.fbusy ? ui('Читаю название…', 'Ном хонда истодааст…', 'Nomini oʻqiyapman…') : (f.foto ? ui('Переснять фото', 'Аксро аз нав гирифтан', 'Rasmni qayta olish') : ui('Сфотографировать препарат', 'Акси доруро гирифтан', 'Dorini suratga olish'))) + '</button></div><input type="file" id="apt-foto-in" accept="image/*" capture="environment" hidden><div id="apt-f-sug">' + (f.old ? '' : aptSugHtml(f.name)) + '</div>' +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Полка', 'Раф', 'Javon')) + '</label>' + shIn('apt-f-polka', ui('Номер или название полки', 'Рақам ё номи раф', 'Javon raqami yoki nomi'), f.polka, 'inputmode="text" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Сколько штук добавить', 'Чанд дона илова кунед', 'Necha dona qoʻshiladi')) + '</label>' + shIn('apt-f-kolvo', ui('Например: 20', 'Масалан: 20', 'Masalan: 20'), f.kolvo, 'inputmode="decimal" enterkeyhint="next"') +
       '<label style="display:block;margin:12px 0 4px;font-weight:600">' + esc(ui('Описание: для чего препарат', 'Тавсиф: дору барои чӣ', 'Tavsif: dori nima uchun')) + '</label>' +
@@ -4591,7 +4591,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     rd.readAsDataURL(file);
   }
   function fbCall(body) { try { return callTo('/foto-big', body).catch(function () { return null; }); } catch (e) { return Promise.resolve(null); } }
-  /* Двойной тап по маленькому фото препарата — открывается крупно; тап по тёмному фону закрывает */
+  /* Тап по маленькому фото препарата — открывается крупно; тап по тёмному фону закрывает */
   (function () {
     var last = 0;
     function zoomFoto(src, from) {
@@ -4610,19 +4610,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
         else if (FB[nm] === undefined) fbCall({ action: 'get', name: nm }).then(function (r) { var big = r && r.ok && r.foto || ''; FB[nm] = big; put(big); });
       }
     }
-    document.addEventListener('touchend', function (e) {
-      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (!im) return;
-      var t = Date.now(); if (t - last < 350) { last = 0; e.preventDefault(); zoomFoto(im.src, im); } else last = t;
-    }, { passive: false });
-    document.addEventListener('dblclick', function (e) {
-      var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (im) zoomFoto(im.src, im);
-    });
+    /* Одно касание по фото — сразу открывается крупно (телефон и компьютер дают click) */
     /* iPhone (Safari): двойное касание часто превращается в масштаб страницы или не даёт touchend — ловим ещё и по click и отключаем масштаб страницы на фото */
     try { var zs = document.createElement('style'); zs.textContent = 'img[data-zoom]{touch-action:manipulation;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}'; document.head.appendChild(zs); } catch (er) {}
-    var lastC = 0;
     document.addEventListener('click', function (e) {
       var im = e.target && e.target.closest ? e.target.closest('img[data-zoom]') : null; if (!im) return;
-      var t = Date.now(); if (t - lastC < 450) { lastC = 0; zoomFoto(im.src, im); } else lastC = t;
+      e.preventDefault(); zoomFoto(im.src, im);
     });
   })();
   function onClick(e) {
