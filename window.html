@@ -33,6 +33,9 @@ var LANG = 'ru';
       var n = String(navigator.language || '').toLowerCase().slice(0, 2);
       if (n === 'tg') LANG = 'tg'; else if (n === 'uz') LANG = 'uz';
     }
+    /* 10.11.2026, только кабинет Асрора Холова: весь интерфейс (и «Личный ассистент») всегда на русском */
+    var ak = 'kd6es8ycn5fa6gj43v7vlmw3nc0z5', hc = (/^#as=([A-Za-z0-9_-]{20,80})$/.exec(location.hash || '') || [])[1] || '';
+    if (hc === ak || localStorage.getItem('ew_cab') === ak || sessionStorage.getItem('ew_cab') === ak) LANG = 'ru';
   } catch (e) {}
   window.LANG = LANG;
   document.documentElement.lang = LANG === 'tg' ? 'tg' : (LANG === 'uz' ? 'uz' : 'ru');
