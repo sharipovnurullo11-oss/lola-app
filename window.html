@@ -824,7 +824,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/apteka-spisok','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -2972,7 +2972,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function objIn(id, label, attrs, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><input class="in2" id="' + id + '" ' + attrs + ' autocomplete="off" value="' + esc(val == null ? '' : val) + '"></label>'; }
   function objSel(id, label, opts, val) { return '<label style="display:grid;gap:4px"><small>' + esc(label) + '</small><select class="in2" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>'; }
   function objPoints() { return OB.data ? OB.data.points : []; }
-  function openObj() { S.view = 'obj'; OB.trash = null; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.debts = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
+  function openObj() { S.view = 'obj'; OB.mat = null; OB.trash = null; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.debts = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
   function objLoad() {
     OB.busy = true;
     callTo('/objekty', { action: 'list' }).then(function (r) {
@@ -3144,6 +3144,12 @@ if (S.view === 'mkt') return renderMkt(el);
     if (f === 'dogovor') return objAct({ action: 'dogovor', tochka: OB.cur.name, amount: objVal('ob-sum') }, ui('Записано', 'Сабт шуд', 'Yozildi'));
   }
   function objClick(k) {
+    if (k === 'back' && OB.mat) { if (OB.mat.busy || OB.mat.scan) return; OB.mat = null; return render(); }
+    if (k === 'mat-open') { OB.mat = { rows: [matBlank(), matBlank(), matBlank()], date: today(), err: '', busy: false, scan: false, batch: '' }; OB.form = null; OB.err = ''; OB.msg = ''; return render(); }
+    if (k === 'mat-add' && OB.mat) { OB.mat.rows.push(matBlank()); render(); var ni = $s('mt-n-' + (OB.mat.rows.length - 1)); if (ni) ni.focus(); return; }
+    if (k.indexOf('mat-del:') === 0 && OB.mat) { var di = Number(k.slice(8)); OB.mat.rows.splice(di, 1); if (!OB.mat.rows.length) OB.mat.rows.push(matBlank()); return render(); }
+    if (k === 'mat-save') return matSave();
+    if (k === 'mat-clear' && OB.mat) { OB.mat.rows = [matBlank(), matBlank(), matBlank()]; OB.mat.err = ''; return render(); }
     if (k === 'back') { if (OB.ph) OB.ph = null; else if (OB.rep) OB.rep = false; else if (OB.trash) OB.trash = null; else if (OB.debts) OB.debts = null; else if (OB.lich) OB.lich = null; else if (OB.cur && OB.sec) OB.sec = null; else OB.cur = null; OB.edit = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k.indexOf('sec:') === 0) { OB.sec = k.slice(4); OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; return render(); }
     if (k === 'trash-open') return openTrash();
@@ -3188,6 +3194,114 @@ if (S.view === 'mkt') return renderMkt(el);
   function objSecName(k) { return k === 'in' ? ui('Аванс', 'Пешпардохт', 'Avans') : k === 'master' ? ui('Мастера', 'Устоҳо', 'Ustalar') : ui('Материалы', 'Масолеҳ', 'Materiallar'); }
   function objSecIcon(k) { return k === 'in' ? '💵' : k === 'master' ? '👷' : '🧱'; }
   function objSecSum(p, k) { return k === 'in' ? Number(p.inn) || 0 : Number((p.by || {})[k]) || 0; }
+
+  /* ---------- Таблица покупок в «Материалы» (10.11.2026, кабинет Асрора Холова) ----------
+     Строки: что купил, количество, цена, сумма. Сумма строки = количество × цена (можно вписать свою). Внизу — итог и пояснение «что за что».
+     «Записать» кладёт каждую строку отдельной записью расхода «Материалы» (итог раздела считается сам).
+     Фото чека, накладной или рукописного списка читает ИИ (вебхук materialy-foto) и заполняет таблицу — строки можно поправить. */
+  function matBlank() { return { name: '', qty: '', unit: '', price: '', sum: '', manual: false }; }
+  function matNum(x) { var t = String(x == null ? '' : x).replace(',', '.').replace(/\s/g, ''); if (t === '') return NaN; var n = Number(t); return isFinite(n) ? n : NaN; }
+  function matRowSum(r) { var s2 = matNum(r.sum); if (r.manual && !isNaN(s2)) return s2; var q = matNum(r.qty), pr = matNum(r.price); if (!isNaN(q) && !isNaN(pr)) return Math.round(q * pr * 100) / 100; return isNaN(s2) ? 0 : s2; }
+  function matTotal() { return OB.mat.rows.reduce(function (a, r) { return a + (matRowSum(r) > 0 ? matRowSum(r) : 0); }, 0); }
+  function matNote(r) { var q = matNum(r.qty), pr = matNum(r.price), nm = String(r.name || '').trim() || ui('Без названия', 'Бе ном', 'Nomsiz'); return (nm + (!isNaN(q) ? ' · ' + String(r.qty).trim() + (r.unit ? ' ' + r.unit : '') + (!isNaN(pr) ? ' × ' + String(r.price).trim() : '') : '')).slice(0, 200); }
+  function matExplain() { var a = []; OB.mat.rows.forEach(function (r) { var v = matRowSum(r); if (v > 0) a.push((String(r.name || '').trim() || ui('Без названия', 'Бе ном', 'Nomsiz')) + ' ' + pkMoney(v)); }); return a.join(' · '); }
+  function matCount() { return OB.mat.rows.filter(function (r) { return matRowSum(r) > 0; }).length; }
+  function matView() {
+    var M = OB.mat, h = '', cell = 'width:100%;min-width:0;box-sizing:border-box;padding:8px 6px;font-size:15px', grid = 'display:grid;grid-template-columns:minmax(0,1fr) 54px 64px 78px 30px;gap:4px;align-items:center';
+    h += '<div style="margin:8px 0"><b>📋 ' + esc(ui('Таблица покупок', 'Ҷадвали харидҳо', 'Xaridlar jadvali')) + '</b><br><small style="opacity:.75">' + esc(ui('Впишите, что купили. Сумма строки считается сама (кол-во × цена) — можно вписать свою. Или сфотографируйте чек или список.', 'Чиро харидаед, нависед. Маблағи сатр худаш ҳисоб мешавад (миқдор × нарх). Ё чек ё рӯйхатро суратгирӣ кунед.', 'Nima sotib olganingizni yozing. Qator summasi oʻzi hisoblanadi (miqdor × narx). Yoki chek yoki roʻyxatni suratga oling.')) + '</small></div>';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">' +
+      '<label class="btn sec" style="position:relative;display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;cursor:pointer">📷 ' + esc(ui('Фото чека / списка', 'Акси чек / рӯйхат', 'Chek / roʻyxat surati')) + '<input type="file" id="mt-foto-in" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0"></label>' +
+      '<label class="btn sec" style="position:relative;display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;cursor:pointer">🖼️ ' + esc(ui('Из галереи', 'Аз галерея', 'Galereyadan')) + '<input type="file" id="mt-foto-gal" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"></label></div>';
+    if (M.scan) h += '<p role="status" style="margin:8px 0;color:#1f8a4c">⏳ ' + esc(ui('Читаю фото… это может занять до минуты', 'Акс хонда истодааст… то як дақиқа мумкин', 'Rasm oʻqilmoqda… bir daqiqagacha vaqt ketishi mumkin')) + '</p>';
+    h += (M.err ? '<p role="alert" style="color:#c0392b;margin:8px 0">' + esc(M.err) + '</p>' : '');
+    h += objMsgs();
+    h += '<div style="' + grid + ';margin-top:6px;font-size:12px;opacity:.7"><span>' + esc(ui('Что купил', 'Чӣ харидам', 'Nima sotib oldim')) + '</span><span>' + esc(ui('Кол-во', 'Миқдор', 'Miqdor')) + '</span><span>' + esc(ui('Цена', 'Нарх', 'Narx')) + '</span><span>' + esc(ui('Сумма', 'Маблағ', 'Summa')) + '</span><span></span></div>';
+    M.rows.forEach(function (r, i) {
+      var sv = r.manual ? r.sum : (matRowSum(r) > 0 ? String(matRowSum(r)) : '');
+      h += '<div style="' + grid + ';margin:4px 0">' +
+        '<input class="in2" id="mt-n-' + i + '" data-mat="' + i + ':name" maxlength="80" autocomplete="off" style="' + cell + '" value="' + esc(r.name) + '">' +
+        '<input class="in2" id="mt-q-' + i + '" data-mat="' + i + ':qty" inputmode="decimal" maxlength="9" autocomplete="off" style="' + cell + '" value="' + esc(r.qty) + '">' +
+        '<input class="in2" id="mt-p-' + i + '" data-mat="' + i + ':price" inputmode="decimal" maxlength="12" autocomplete="off" style="' + cell + '" value="' + esc(r.price) + '">' +
+        '<input class="in2" id="mt-s-' + i + '" data-mat="' + i + ':sum" inputmode="decimal" maxlength="12" autocomplete="off" style="' + cell + ';font-weight:700" value="' + esc(sv) + '">' +
+        '<button type="button" class="btn sec" data-obj="mat-del:' + i + '" aria-label="' + esc(ui('Убрать строку', 'Сатрро нест кун', 'Qatorni olib tashlash')) + '" style="height:34px;padding:0;min-width:0;font-size:14px"' + (M.busy ? ' disabled' : '') + '>✕</button></div>';
+    });
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">' + objBtn('mat-add', '+ ' + esc(ui('Строка', 'Сатр', 'Qator')), true, 'height:40px;padding:0 14px') + objBtn('mat-clear', esc(ui('Очистить', 'Тоза кардан', 'Tozalash')), true, 'height:40px;padding:0 14px') + '</div>';
+    h += '<div style="margin:10px 0;padding:12px;border-radius:14px;border:2px solid #F5A524;background:rgba(245,165,36,.10)"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>' + esc(ui('Итого за покупку', 'Ҷамъи харид', 'Xarid jami')) + '</b><b id="mt-total" style="font-size:22px">' + pkMoney(matTotal()) + '</b></div>' +
+      '<small id="mt-expl" style="display:block;margin-top:6px;opacity:.8;word-break:break-word">' + esc(matExplain()) + '</small></div>';
+    h += objIn('mt-date', ui('Дата покупки', 'Санаи харид', 'Xarid sanasi'), 'type="date"', M.date);
+    h += '<div style="display:grid;gap:8px;margin-top:10px">' + objBtn('mat-save', M.busy ? esc(ui('Записываю…', 'Сабт мешавад…', 'Yozilmoqda…')) : '✓ ' + esc(ui('Записать покупку', 'Харидро сабт кардан', 'Xaridni yozish')), false, 'height:50px;font-size:17px') + '</div>';
+    return h;
+  }
+  function matLive(t) {
+    var M = OB.mat, m = /^(\d+):(name|qty|price|sum)$/.exec(t.getAttribute('data-mat') || ''); if (!M || !m) return;
+    var i = Number(m[1]), f = m[2], r = M.rows[i]; if (!r) return;
+    r[f] = t.value;
+    if (f === 'sum') r.manual = String(t.value).trim() !== '';
+    else if (!r.manual) { var se = $s('mt-s-' + i); if (se) { var v = matRowSum(r); se.value = v > 0 ? String(v) : ''; } }
+    var te = $s('mt-total'); if (te) te.textContent = pkMoney(matTotal());
+    var xe = $s('mt-expl'); if (xe) xe.textContent = matExplain();
+  }
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.getAttribute || !OB.mat) return; if (t.id === 'mt-date') { OB.mat.date = t.value; return; } if (t.getAttribute('data-mat')) matLive(t); });
+  function matSave() {
+    var M = OB.mat; if (!M || M.busy || M.scan) return;
+    var rows = M.rows.filter(function (r) { return matRowSum(r) > 0; });
+    if (!rows.length) { M.err = ui('Впишите хотя бы одну покупку с суммой', 'Ҳадди ақал як харидро бо маблағ нависед', 'Kamida bitta xaridni summa bilan yozing'); return render(); }
+    if (!OB.cur || !OB.cur.name) return;
+    if (!M.batch) M.batch = oid();
+    var tot = matTotal(), nm = OB.cur.name, i = 0; M.busy = true; M.err = ''; render();
+    (function next() {
+      if (!OB.mat) return;
+      if (i >= rows.length) { OB.mat = null; OB.msg = ui('Покупка записана: ' + rows.length + ' строк, итого ' + pkMoney(tot), 'Харид сабт шуд: ' + rows.length + ' сатр, ҷамъ ' + pkMoney(tot), 'Xarid yozildi: ' + rows.length + ' qator, jami ' + pkMoney(tot)); objLoad(); return render(); }
+      var r = rows[i];
+      callTo('/objekty', { action: 'out', tochka: nm, statya: 'material', amount: String(matRowSum(r)), note: matNote(r), date: M.date || today(), oid: M.batch + '-' + i }).then(function (x) {
+        if (!OB.mat) return;
+        if (!x || !x.ok) { M.busy = false; M.err = ((x && x.error) || ui('не записано', 'сабт нашуд', 'yozilmadi')) + ' · ' + ui('Нажмите «Записать» ещё раз — уже записанные строки не задвоятся', 'Боз «Сабт»-ро пахш кунед — сатрҳои сабтшуда такрор намешаванд', '«Yozish»ni yana bosing — yozilgan qatorlar takrorlanmaydi'); return render(); }
+        i++; next();
+      });
+    })();
+  }
+  function matShrink(file, cb) {
+    var rd = new FileReader(); rd.onerror = function () { cb(''); };
+    rd.onload = function () {
+      var im = new Image(); im.onerror = function () { cb(''); };
+      im.onload = function () {
+        var k = Math.min(1, 1800 / Math.max(im.width, im.height)), w = Math.max(1, Math.round(im.width * k)), h = Math.max(1, Math.round(im.height * k)), c = document.createElement('canvas'); c.width = w; c.height = h;
+        var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(im, 0, 0, w, h);
+        var qs = [0.85, 0.75, 0.65, 0.55];
+        for (var i = 0; i < qs.length; i++) { var o = c.toDataURL('image/jpeg', qs[i]); if (o.length <= 2300000) return cb(o); }
+        cb('');
+      };
+      im.src = String(rd.result);
+    };
+    rd.readAsDataURL(file);
+  }
+  function matScan(file) {
+    var M = OB.mat; if (!M || M.scan || M.busy) return; M.scan = true; M.err = ''; render();
+    matShrink(file, function (data) {
+      if (!OB.mat) return;
+      if (!data) { M.scan = false; M.err = ui('Не удалось обработать фото, попробуйте ещё раз', 'Акс коркард нашуд, боз кӯшиш кунед', 'Rasmni qayta ishlab boʻlmadi, qayta urinib koʻring'); return render(); }
+      callTo('/materialy-foto', { foto: data }).then(function (r) {
+        if (!OB.mat) return;
+        M.scan = false;
+        if (!r || !r.ok || !r.items || !r.items.length) { M.err = ui('Не получилось прочитать фото. Сфотографируйте ближе и ровнее или впишите вручную.', 'Акс хонда нашуд. Наздиктар ва ҳамвортар суратгирӣ кунед ё дастӣ нависед.', 'Rasmni oʻqib boʻlmadi. Yaqinroq va tekisroq suratga oling yoki qoʻlda yozing.'); return render(); }
+        var fresh = r.items.map(function (it) {
+          var q = it.qty === '' || it.qty == null ? '' : String(it.qty), pr = it.price === '' || it.price == null ? '' : String(it.price), sm = it.sum === '' || it.sum == null ? '' : String(it.sum), row = { name: String(it.name || ''), qty: q, unit: String(it.unit || ''), price: pr, sum: sm, manual: false };
+          // сумма строки с чека важнее нашего подсчёта, если количество × цена не сходятся
+          if (sm !== '' && (isNaN(matNum(q)) || isNaN(matNum(pr)) || Math.abs(matNum(q) * matNum(pr) - matNum(sm)) > 0.01)) row.manual = true;
+          return row;
+        });
+        var keep = M.rows.filter(function (x) { return String(x.name).trim() || String(x.sum).trim() || String(x.qty).trim() || String(x.price).trim(); });
+        M.rows = keep.concat(fresh);
+        M.err = '';
+        OB.msg = ui('Прочитано строк: ' + fresh.length + '. Проверьте и поправьте, если что-то не так.', 'Сатрҳои хондашуда: ' + fresh.length + '. Санҷед ва агар лозим бошад, ислоҳ кунед.', 'Oʻqilgan qatorlar: ' + fresh.length + '. Tekshiring va kerak boʻlsa tuzating.');
+        render();
+      });
+    });
+  }
+  document.addEventListener('change', function (e) {
+    var t = e.target; if (!t || (t.id !== 'mt-foto-in' && t.id !== 'mt-foto-gal') || !t.files || !t.files[0]) return;
+    matScan(t.files[0]);
+  });
   function objSecEntries(list, k) {
     var rows = (list || []).filter(function (e) { return k === 'in' ? e.tip === 'prihod' : (e.tip === 'rashod' && e.statya === k); });
     if (!rows.length) return '<p style="opacity:.75">' + esc(ui('Записей пока нет.', 'Ҳоло сабт нест.', 'Hali yozuv yoʻq.')) + '</p>';
@@ -3429,7 +3543,8 @@ if (S.view === 'mkt') return renderMkt(el);
         objBtn('trash', OB.delAsk === 'pt-trash' ? '🗑 ' + esc(ui('Точно в корзину? Нажмите ещё раз', 'Ба сабад мегузорем? Боз пахш кунед', 'Savatga solamizmi? Yana bosing')) : '🗑 ' + esc(ui('Удалить объект (в корзину)', 'Нест кардани объект (ба сабад)', 'Obyektni oʻchirish (savatga)')), true, 'width:100%;height:46px;margin-top:10px;color:#c0392b' + (OB.delAsk === 'pt-trash' ? ';border-color:#c0392b;font-weight:700' : ''));
       el.innerHTML = h; return;
     }
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0"><span>' + esc(ui('Всего', 'Ҷамъ', 'Jami')) + ': <b>' + pkMoney(objSecSum(p, k)) + '</b></span>' + objBtn('f:sec', '+ ' + esc(ui('Добавить', 'Илова', 'Qoʻshish')), false, 'height:44px;padding:0 18px') + '</div>';
+    if (k === 'material' && OB.mat) { el.innerHTML = h + matView(); return; }
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0"><span>' + esc(ui('Всего', 'Ҷамъ', 'Jami')) + ': <b>' + pkMoney(objSecSum(p, k)) + '</b></span>' + (k === 'material' ? objBtn('mat-open', '📋 ' + esc(ui('Таблица покупок', 'Ҷадвали харидҳо', 'Xaridlar jadvali')), false, 'height:44px;padding:0 14px;margin-right:8px') : '') + objBtn('f:sec', '+ ' + esc(ui('Добавить', 'Илова', 'Qoʻshish')), false, 'height:44px;padding:0 18px') + '</div>';
     h += objMsgs() + objForm() + (k === 'master' ? objMasters(p) : '') + objSecEntries(p.entries, k) + objTotals(p);
     el.innerHTML = h;
   }
