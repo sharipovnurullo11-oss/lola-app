@@ -3474,7 +3474,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function aptFind(t) {
     var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '', foto: (k && k.foto) || '', shop: true, kolvo: (k && k.kolvo) || '' }; });
     (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '', kolvo: k.kolvo || '' }); });
-    r.sort(function (a, b) { var x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.name.localeCompare(b.name, 'ru'); });
+    /* Сначала препараты с фото/картинкой, потом без; внутри — сначала те, что начинаются с набранного, затем по алфавиту */
+    r.sort(function (a, b) { var f = a.foto ? 0 : 1, g = b.foto ? 0 : 1, x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return f - g || x - y || a.name.localeCompare(b.name, 'ru'); });
     return r;
   }
   // Справка из интернета (через свой сервер, ответ запоминается): спрашиваем у первых трёх найденных препаратов без описания, не чаще раза на название.
