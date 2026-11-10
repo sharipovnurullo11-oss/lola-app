@@ -3461,6 +3461,12 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function aptCSave(ps) { try { var k = aptCKey(); if (!k || !Array.isArray(ps) || !ps.length) return; localStorage.setItem(k, JSON.stringify({ t: Date.now(), p: ps.map(function (p) { return { kod: p.kod, name: p.name, shelf: p.shelf || '', bar: p.bar || [] }; }) })); } catch (e) {} }
   function aptLoad() {
     if (!SH.d && !AP.cp) { AP.cp = aptCRead(); if (AP.cp && S.view === 'apt') { var l0 = $s('apt-list'); if (l0) l0.innerHTML = aptList(); } }
+    /* Быстрый список (10.11.2026): название, полка, штрихкоды приходят за секунды из памяти сервера — показываем сразу, не дожидаясь полного ответа «magazin» */
+    if (!SH.d) callTo('/apteka-spisok', { action: 'list' }).then(function (r) {
+      if (!r || !r.ok || !Array.isArray(r.products) || !r.products.length || SH.d || S.view !== 'apt' || AP.form || AP.polki) return;
+      AP.cp = r.products; aptCSave(r.products);
+      var lf = $s('apt-list'); if (lf) lf.innerHTML = aptList();
+    });
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
       if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.cp = null; aptCSave(r.products); AP.err = ''; aptN = 0; }
       if (S.view !== 'apt') return;
