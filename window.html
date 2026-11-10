@@ -3215,16 +3215,24 @@ if (S.view === 'mkt') return renderMkt(el);
     if (M.scan) h += '<p role="status" style="margin:8px 0;color:#1f8a4c">⏳ ' + esc(ui('Читаю фото… это может занять до минуты', 'Акс хонда истодааст… то як дақиқа мумкин', 'Rasm oʻqilmoqda… bir daqiqagacha vaqt ketishi mumkin')) + '</p>';
     h += (M.err ? '<p role="alert" style="color:#c0392b;margin:8px 0">' + esc(M.err) + '</p>' : '');
     h += objMsgs();
-    h += '<div style="' + grid + ';margin-top:6px;font-size:12px;opacity:.7"><span>' + esc(ui('Что купил', 'Чӣ харидам', 'Nima sotib oldim')) + '</span><span>' + esc(ui('Кол-во', 'Миқдор', 'Miqdor')) + '</span><span>' + esc(ui('Цена', 'Нарх', 'Narx')) + '</span><span>' + esc(ui('Сумма', 'Маблағ', 'Summa')) + '</span><span></span></div>';
+    var ln = '1px solid rgba(128,128,128,.5)', cols = '28px minmax(0,1fr) 52px 62px 76px 30px';
+    var hc = 'box-sizing:border-box;padding:4px 2px;text-align:center;font-size:11px;font-weight:700;background:rgba(128,128,128,.2);border-right:' + ln + ';border-bottom:' + ln + ';overflow:hidden;white-space:nowrap;text-overflow:ellipsis';
+    var xc = 'width:100%;min-width:0;height:36px;box-sizing:border-box;padding:0 5px;font-size:15px;border:0;border-radius:0;background:transparent;color:inherit;outline-offset:-2px';
+    var rc = 'box-sizing:border-box;border-right:' + ln + ';border-bottom:' + ln + ';min-width:0';
+    var nc = 'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:rgba(128,128,128,.2);border-right:' + ln + ';border-bottom:' + ln;
+    h += '<div style="margin:8px 0;border:' + ln + ';border-bottom:0;border-right:0;border-radius:4px;overflow:hidden;background:rgba(128,128,128,.04)">';
+    h += '<div style="display:grid;grid-template-columns:' + cols + '"><span style="' + hc + '"></span><span style="' + hc + '">' + esc(ui('Что купил', 'Чӣ харидам', 'Nima sotib oldim')) + '</span><span style="' + hc + '">' + esc(ui('Кол-во', 'Миқдор', 'Miqdor')) + '</span><span style="' + hc + '">' + esc(ui('Цена', 'Нарх', 'Narx')) + '</span><span style="' + hc + '">' + esc(ui('Сумма', 'Маблағ', 'Summa')) + '</span><span style="' + hc + '"></span></div>';
     M.rows.forEach(function (r, i) {
       var sv = r.manual ? r.sum : (matRowSum(r) > 0 ? String(matRowSum(r)) : '');
-      h += '<div style="' + grid + ';margin:4px 0">' +
-        '<input class="in2" id="mt-n-' + i + '" data-mat="' + i + ':name" maxlength="80" autocomplete="off" style="' + cell + '" value="' + esc(r.name) + '">' +
-        '<input class="in2" id="mt-q-' + i + '" data-mat="' + i + ':qty" inputmode="decimal" maxlength="9" autocomplete="off" style="' + cell + '" value="' + esc(r.qty) + '">' +
-        '<input class="in2" id="mt-p-' + i + '" data-mat="' + i + ':price" inputmode="decimal" maxlength="12" autocomplete="off" style="' + cell + '" value="' + esc(r.price) + '">' +
-        '<input class="in2" id="mt-s-' + i + '" data-mat="' + i + ':sum" inputmode="decimal" maxlength="12" autocomplete="off" style="' + cell + ';font-weight:700" value="' + esc(sv) + '">' +
-        '<button type="button" class="btn sec" data-obj="mat-del:' + i + '" aria-label="' + esc(ui('Убрать строку', 'Сатрро нест кун', 'Qatorni olib tashlash')) + '" style="height:34px;padding:0;min-width:0;font-size:14px"' + (M.busy ? ' disabled' : '') + '>✕</button></div>';
+      h += '<div style="display:grid;grid-template-columns:' + cols + '"><span style="' + nc + '">' + (i + 1) + '</span>' +
+        '<span style="' + rc + '"><input id="mt-n-' + i + '" data-mat="' + i + ':name" maxlength="80" autocomplete="off" style="' + xc + '" value="' + esc(r.name) + '"></span>' +
+        '<span style="' + rc + '"><input id="mt-q-' + i + '" data-mat="' + i + ':qty" inputmode="decimal" maxlength="9" autocomplete="off" style="' + xc + ';text-align:right" value="' + esc(r.qty) + '"></span>' +
+        '<span style="' + rc + '"><input id="mt-p-' + i + '" data-mat="' + i + ':price" inputmode="decimal" maxlength="12" autocomplete="off" style="' + xc + ';text-align:right" value="' + esc(r.price) + '"></span>' +
+        '<span style="' + rc + '"><input id="mt-s-' + i + '" data-mat="' + i + ':sum" inputmode="decimal" maxlength="12" autocomplete="off" style="' + xc + ';text-align:right;font-weight:700" value="' + esc(sv) + '"></span>' +
+        '<span style="' + rc + ';display:flex"><button type="button" data-obj="mat-del:' + i + '" aria-label="' + esc(ui('Убрать строку', 'Сатрро нест кун', 'Qatorni olib tashlash')) + '" style="width:100%;height:36px;padding:0;border:0;background:transparent;color:inherit;opacity:.6;font-size:14px;cursor:pointer"' + (M.busy ? ' disabled' : '') + '>✕</button></span></div>';
     });
+    h += '<div style="display:grid;grid-template-columns:' + cols + '"><span style="' + nc + '"></span><span style="' + hc + ';text-align:right;font-size:13px;padding:8px 6px;grid-column:2 / 5">Σ ' + esc(ui('Итого', 'Ҷамъ', 'Jami')) + '</span><span id="mt-total2" style="' + hc + ';text-align:right;font-size:15px;padding:8px 5px;background:rgba(245,165,36,.25)">' + pkMoney(matTotal()) + '</span><span style="' + hc + '"></span></div>';
+    h += '</div>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">' + objBtn('mat-add', '+ ' + esc(ui('Строка', 'Сатр', 'Qator')), true, 'height:40px;padding:0 14px') + objBtn('mat-clear', esc(ui('Очистить', 'Тоза кардан', 'Tozalash')), true, 'height:40px;padding:0 14px') + '</div>';
     h += '<div style="margin:10px 0;padding:12px;border-radius:14px;border:2px solid #F5A524;background:rgba(245,165,36,.10)"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>' + esc(ui('Итого за покупку', 'Ҷамъи харид', 'Xarid jami')) + '</b><b id="mt-total" style="font-size:22px">' + pkMoney(matTotal()) + '</b></div>' +
       '<small id="mt-expl" style="display:block;margin-top:6px;opacity:.8;word-break:break-word">' + esc(matExplain()) + '</small></div>';
@@ -3238,7 +3246,7 @@ if (S.view === 'mkt') return renderMkt(el);
     r[f] = t.value;
     if (f === 'sum') r.manual = String(t.value).trim() !== '';
     else if (!r.manual) { var se = $s('mt-s-' + i); if (se) { var v = matRowSum(r); se.value = v > 0 ? String(v) : ''; } }
-    var te = $s('mt-total'); if (te) te.textContent = pkMoney(matTotal());
+    var te = $s('mt-total'); if (te) te.textContent = pkMoney(matTotal()); var t2 = $s('mt-total2'); if (t2) t2.textContent = pkMoney(matTotal());
     var xe = $s('mt-expl'); if (xe) xe.textContent = matExplain();
   }
   document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.getAttribute || !OB.mat) return; if (t.id === 'mt-date') { OB.mat.date = t.value; return; } if (t.getAttribute('data-mat')) matLive(t); });
