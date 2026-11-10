@@ -3455,9 +3455,14 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
   function openApt() { AP.card = false; AP.delAsk = ''; AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; aptN = 0; render(); aptLoad(); }
   var aptRetry = false, aptN = 0;
+  /* Быстрое открытие (10.11.2026): список препаратов (название, полка, штрихкоды) запоминается на этом телефоне; при открытии поиск работает сразу из памяти, а свежий список приходит с сервера и заменяет запомненный */
+  function aptCKey() { var k = shPolkiKey(); return k === 'ew_polki_' ? '' : k.replace('ew_polki_', 'ew_aptp_'); }
+  function aptCRead() { try { var k = aptCKey(); if (!k) return null; var j = JSON.parse(localStorage.getItem(k) || 'null'); if (j && Array.isArray(j.p) && j.p.length && j.t && Date.now() - j.t < 7 * 864e5) return j.p; } catch (e) {} return null; }
+  function aptCSave(ps) { try { var k = aptCKey(); if (!k || !Array.isArray(ps) || !ps.length) return; localStorage.setItem(k, JSON.stringify({ t: Date.now(), p: ps.map(function (p) { return { kod: p.kod, name: p.name, shelf: p.shelf || '', bar: p.bar || [] }; }) })); } catch (e) {} }
   function aptLoad() {
+    if (!SH.d && !AP.cp) { AP.cp = aptCRead(); if (AP.cp && S.view === 'apt') { var l0 = $s('apt-list'); if (l0) l0.innerHTML = aptList(); } }
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
-      if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.err = ''; aptN = 0; }
+      if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.cp = null; aptCSave(r.products); AP.err = ''; aptN = 0; }
       if (S.view !== 'apt') return;
       /* Кнопка «Полки» рисуется только когда данные загружены — если окно открылось раньше, перерисовываем */
       if (!AP.err && shPolkiOn() && !AP.form && !AP.polki && !AP.multi && !document.querySelector('[data-apt="polki"]')) { render(); return; }
@@ -3472,8 +3477,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
   function aptFind(t) {
-    var r = (SH.d.products || []).filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '', foto: (k && k.foto) || '', shop: true, kolvo: (k && k.kolvo) || '' }; });
-    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if ((SH.d.products || []).some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '', kolvo: k.kolvo || '' }); });
+    var prods = (SH.d && SH.d.products) || AP.cp || [];
+    var r = prods.filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '', foto: (k && k.foto) || '', shop: true, kolvo: (k && k.kolvo) || '' }; });
+    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if (prods.some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '', kolvo: k.kolvo || '' }); });
     /* Сначала препараты с фото/картинкой, потом без; внутри — сначала те, что начинаются с набранного, затем по алфавиту */
     r.sort(function (a, b) { var f = a.foto ? 0 : 1, g = b.foto ? 0 : 1, x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return f - g || x - y || a.name.localeCompare(b.name, 'ru'); });
     return r;
@@ -3497,7 +3503,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }, 700);
   }
   function aptList() {
-    if (!SH.d) return '<p style="opacity:.7">' + esc(TX('Загрузка…')) + '</p>';
+    if (!SH.d && !AP.cp) return '<p style="opacity:.7">' + esc(TX('Загрузка…')) + '</p>';
     var t = String(AP.q || '').trim().toLowerCase();
     if (!t) return '<p style="opacity:.7">' + esc(ui('Начните вводить название препарата', 'Номи доруро навишта сар кунед', 'Dori nomini yozishni boshlang')) + '</p>';
     var r = aptFind(t), like = false;
