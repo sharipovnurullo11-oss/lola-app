@@ -2887,7 +2887,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   }
 
   function render() {
-    var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop' || S.view === 'apt' || S.view === 'obj'), dbd = dl && dl.querySelector('.dbody'); if (dl) { var xb = dl.querySelector('[data-close]'); if (xb) xb.style.display = S.view === 'obj' ? 'none' : ''; dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; /* iPhone: верхняя строка («Назад» и название) не должна залезать под вырез/часы — опускаем её ниже (10.11.2026, Асрор: iPhone Pro) */ var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); dbd.style.paddingTop = (ios && full && (S.view === 'obj' || (S.view === 'apt' && !AP.polki))) ? 'calc(12px + max(env(safe-area-inset-top,0px),44px))' : ''; } } } catch (e) {}
+    var el = SELLER ? $s('kas-body') : $s('sp-body'); if (!el) return; try { var dl = el.closest('dialog'), full = !!(SELLER || S.view === 'shop' || S.view === 'apt' || S.view === 'obj'), dbd = dl && dl.querySelector('.dbody'); if (dl) { var xb = dl.querySelector('[data-close]'); if (xb) xb.style.display = S.view === 'obj' ? 'none' : ''; dl.style.width = full ? '100vw' : 'min(620px,calc(100vw - 16px))'; dl.style.maxWidth = full ? '100vw' : ''; dl.style.height = full ? '100dvh' : ''; dl.style.maxHeight = full ? '100dvh' : ''; dl.style.borderRadius = full ? '0' : ''; dl.style.overflowX = 'hidden'; dl.style.overscrollBehaviorX = 'none'; if (dbd) { dbd.style.overflowX = 'hidden'; dbd.style.maxWidth = '100%'; dbd.style.overscrollBehaviorX = 'none'; } if (dbd) { dbd.style.maxHeight = full ? '100dvh' : 'calc(100dvh - 24px)'; dbd.style.minHeight = full ? '100dvh' : ''; /* iPhone: верхняя строка («Назад» и название) не должна залезать под вырез/часы — опускаем её ниже (10.11.2026, Асрор: iPhone Pro) */ var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); dbd.style.paddingTop = (ios && full && (S.view === 'obj' || (S.view === 'apt' && !AP.polki))) ? 'calc(12px + max(env(safe-area-inset-top,0px),44px))' : ''; } } } catch (e) {}
     try { var obOn = !SELLER && S.view === 'obj'; el.classList.toggle('ob-v', obOn); var obDl = el.closest('dialog'), obBd = el.closest('.dbody'); if (obBd) obBd.style.background = obOn ? '#EEF1F6' : ''; if (obDl) obDl.style.background = obOn ? '#EEF1F6' : ''; } catch (e) {}
     if (SELLER) return PHARM ? renderApt(el) : renderShop(el);
     if (S.view === 'pa') return renderPa(el);
@@ -3209,6 +3209,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function matCount() { return OB.mat.rows.filter(function (r) { return matRowSum(r) > 0; }).length; }
   function matView() {
     var M = OB.mat, h = '', cell = 'width:100%;min-width:0;box-sizing:border-box;padding:8px 6px;font-size:15px', grid = 'display:grid;grid-template-columns:minmax(0,1fr) 54px 64px 78px 30px;gap:4px;align-items:center';
+    h += '<div style="max-width:100%;overflow-x:hidden">';
     h += '<div style="margin:8px 0"><b>📋 ' + esc(ui('Таблица покупок', 'Ҷадвали харидҳо', 'Xaridlar jadvali')) + '</b><br><small style="opacity:.75">' + esc(ui('Впишите, что купили. Сумма строки считается сама (кол-во × цена) — можно вписать свою. Или сфотографируйте чек или список.', 'Чиро харидаед, нависед. Маблағи сатр худаш ҳисоб мешавад (миқдор × нарх). Ё чек ё рӯйхатро суратгирӣ кунед.', 'Nima sotib olganingizni yozing. Qator summasi oʻzi hisoblanadi (miqdor × narx). Yoki chek yoki roʻyxatni suratga oling.')) + '</small></div>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">' +
       '<label class="btn sec" style="position:relative;display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;cursor:pointer">📷 ' + esc(ui('Фото чека / списка', 'Акси чек / рӯйхат', 'Chek / roʻyxat surati')) + '<input type="file" id="mt-foto-in" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0"></label>' +
@@ -3218,10 +3219,10 @@ if (S.view === 'mkt') return renderMkt(el);
     h += objMsgs();
     var ln = '1px solid rgba(128,128,128,.5)', cols = '28px minmax(0,1fr) 52px 62px 76px 30px';
     var hc = 'box-sizing:border-box;padding:4px 2px;text-align:center;font-size:11px;font-weight:700;background:rgba(128,128,128,.2);border-right:' + ln + ';border-bottom:' + ln + ';overflow:hidden;white-space:nowrap;text-overflow:ellipsis';
-    var xc = 'width:100%;min-width:0;height:36px;box-sizing:border-box;padding:0 5px;font-size:15px;border:0;border-radius:0;background:transparent;color:inherit;outline-offset:-2px';
+    var xc = 'width:100%;min-width:0;max-width:100%;height:36px;box-sizing:border-box;padding:0 5px;font-size:16px;touch-action:manipulation;border:0;border-radius:0;background:transparent;color:inherit;outline-offset:-2px';
     var rc = 'box-sizing:border-box;border-right:' + ln + ';border-bottom:' + ln + ';min-width:0';
     var nc = 'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:rgba(128,128,128,.2);border-right:' + ln + ';border-bottom:' + ln;
-    h += '<div style="margin:8px 0;border:' + ln + ';border-bottom:0;border-right:0;border-radius:4px;overflow:hidden;background:rgba(128,128,128,.04)">';
+    h += '<div style="margin:8px 0;border:' + ln + ';border-bottom:0;border-right:0;border-radius:4px;overflow:hidden;max-width:100%;box-sizing:border-box;background:rgba(128,128,128,.04)">';
     h += '<div style="display:grid;grid-template-columns:' + cols + '"><span style="' + hc + '"></span><span style="' + hc + '">' + esc(ui('Что купил', 'Чӣ харидам', 'Nima sotib oldim')) + '</span><span style="' + hc + '">' + esc(ui('Кол-во', 'Миқдор', 'Miqdor')) + '</span><span style="' + hc + '">' + esc(ui('Цена', 'Нарх', 'Narx')) + '</span><span style="' + hc + '">' + esc(ui('Сумма', 'Маблағ', 'Summa')) + '</span><span style="' + hc + '"></span></div>';
     M.rows.forEach(function (r, i) {
       var sv = r.manual ? r.sum : (matRowSum(r) > 0 ? String(matRowSum(r)) : '');
@@ -3239,7 +3240,7 @@ if (S.view === 'mkt') return renderMkt(el);
       '<small id="mt-expl" style="display:block;margin-top:6px;opacity:.8;word-break:break-word">' + esc(matExplain()) + '</small></div>';
     h += objIn('mt-date', ui('Дата покупки', 'Санаи харид', 'Xarid sanasi'), 'type="date"', M.date);
     h += '<div style="display:grid;gap:8px;margin-top:10px">' + objBtn('mat-save', M.busy ? esc(ui('Записываю…', 'Сабт мешавад…', 'Yozilmoqda…')) : '✓ ' + esc(ui('Записать покупку', 'Харидро сабт кардан', 'Xaridni yozish')), false, 'height:50px;font-size:17px') + '</div>';
-    return h;
+    return h + '</div>';
   }
   function matLive(t) {
     var M = OB.mat, m = /^(\d+):(name|qty|price|sum)$/.exec(t.getAttribute('data-mat') || ''); if (!M || !m) return;
