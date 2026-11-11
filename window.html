@@ -6224,8 +6224,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var pg = AP.pg || 0; if (pg > pages || (pg === OTH && !hasOther)) pg = 0; AP.pg = pg;
     var pager = '';
     if (!searching) {
-      var bt = function (i, lb) { return '<button type="button" class="btn' + (i === pg ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="flex:none;min-width:52px;min-height:46px;font-size:17px;padding:0 10px">' + lb + '</button>'; };
-      pager = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0">';
+      var bt = function (i, lb) { return '<button type="button" class="btn' + (i === pg ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="min-width:0;width:100%;min-height:44px;font-size:16px;padding:0">' + lb + '</button>'; };
+      pager = '<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;margin:8px 0">';
       for (var i = 0; i < pages; i++) pager += bt(i, String(i + 1));
       if (hasOther) pager += bt(OTH, '···');
       pager += '</div><small style="display:block;opacity:.7;margin-bottom:4px">' + esc(pg === OTH ? ui('Полки без номера', 'Рафҳои бе рақам', 'Raqamsiz javonlar') : ui('Полки ', 'Рафҳо ', 'Javonlar ') + (pg * PER + 1) + '–' + (pg * PER + PER)) + '</small>';
