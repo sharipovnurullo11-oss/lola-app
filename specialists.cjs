@@ -3649,11 +3649,31 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     });
     callTo('/polki-imena', { action: 'list' }).then(function (r) { if (r && r.ok && r.names) { AP.pn = r.names; if (S.view === 'apt' && !AP.polki && !AP.form) { var l2 = $s('apt-list'); if (l2 && SH.d) l2.innerHTML = aptList(); } if (S.view === 'apt' && AP.polki && !AP.form && !AP.pedit) { var pl = $s('apt-polki-list'); if (pl) pl.innerHTML = aptPolkiList(); } } });
     // Свой справочник препаратов (полка и описание, которые добавили вручную)
-    callTo('/spravochnik', { action: 'list' }).then(function (r) {
-      if (r && r.ok) { AP.kb = r.items || []; if (kbk) idbSet(kbk, { t: Date.now(), items: AP.kb, pn: AP.pn || {} }); } if (S.view !== 'apt' || AP.form) return;
+    callTo('/spravochnik', { action: 'list', lite: true }).then(function (r) {
+      if (r && r.ok) {
+        /* Лёгкий список (без фото): фото берём из памяти телефона, недостающие докачиваем отдельно */
+        var items = r.items || [];
+        if (r.lite) { var old = {}; (AP.kb || []).forEach(function (k) { old[String(k.name || '').trim().toLowerCase()] = k; }); items.forEach(function (it) { var o = old[String(it.name || '').trim().toLowerCase()]; it.foto = (it.fl > 0 && o && o.foto && o.foto.length === it.fl) ? o.foto : ''; }); }
+        AP.kb = items; if (kbk) idbSet(kbk, { t: Date.now(), items: AP.kb, pn: AP.pn || {} });
+        if (r.lite) aptFotoLoad(kbk);
+      } if (S.view !== 'apt' || AP.form) return;
       var l2 = $s('apt-list'); if (l2) l2.innerHTML = aptList();
       if (AP.polki && !AP.pedit) { var pl2 = $s('apt-polki-list'); if (pl2) pl2.innerHTML = aptPolkiList(); }
     });
+  }
+  /* Докачка фото по 15 штук: уже сохранённые на телефоне не качаются снова */
+  var aptFotoBusy = false;
+  function aptFotoLoad(kbk) {
+    if (aptFotoBusy) return; var need = (AP.kb || []).filter(function (k) { return k.fl > 0 && !k.foto; }); if (!need.length) return;
+    aptFotoBusy = true; var first = true, i = 0;
+    (function next() {
+      if (i >= need.length || S.view !== 'apt') { aptFotoBusy = false; if (kbk) idbSet(kbk, { t: Date.now(), items: AP.kb, pn: AP.pn || {} }); aptRefreshLists(); return; }
+      var part = need.slice(i, i + 15); i += 15;
+      callTo('/spravochnik', { action: 'foto', names: part.map(function (k) { return String(k.name || '').trim().toLowerCase(); }) }).then(function (r) {
+        if (r && r.ok && Array.isArray(r.fotos)) { var m = {}; r.fotos.forEach(function (x) { m[String(x.name || '').trim().toLowerCase()] = x.foto; }); part.forEach(function (k) { var f = m[String(k.name || '').trim().toLowerCase()]; if (f) k.foto = f; }); if (first) { first = false; aptRefreshLists(); } }
+        next();
+      }, function () { aptFotoBusy = false; });
+    })();
   }
   function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
   function aptFind(t) {
