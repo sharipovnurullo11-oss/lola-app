@@ -3644,6 +3644,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     callTo('/spravochnik', { action: 'list' }).then(function (r) {
       if (r && r.ok) AP.kb = r.items || []; if (S.view !== 'apt' || AP.form) return;
       var l2 = $s('apt-list'); if (l2) l2.innerHTML = aptList();
+      if (AP.polki && !AP.pedit) { var pl2 = $s('apt-polki-list'); if (pl2) pl2.innerHTML = aptPolkiList(); }
     });
   }
   function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
