@@ -3720,15 +3720,21 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     (AP.kb || []).forEach(function (k) { put(k.name, k.polka); });
     var keys = Object.keys(g).sort(function (a, b) { if (!a) return 1; if (!b) return -1; var x = parseFloat(a), y = parseFloat(b); if (!isNaN(x) && !isNaN(y) && x !== y) return x - y; return a.localeCompare(b, 'ru'); });
     if (!keys.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Ничего не найдено', 'Чизе ёфт нашуд', 'Hech narsa topilmadi')) + '</p>';
-    var PER = 6, pages = Math.max(1, Math.ceil(keys.length / PER)), pg = Math.min(Math.max(AP.pg || 0, 0), pages - 1); AP.pg = pg;
+    // страницы по 20 номеров полок: кнопка 1 = полки 1–20, 2 = 21–40 … минимум 10 кнопок (до 200 полок); «···» = полки без номера
+    var PER = 20, shelfNum = function (k) { var x = parseInt(k, 10); return String(x) === String(k).trim() && x > 0 ? x : 0; }, maxN = 0;
+    keys.forEach(function (k) { var x = shelfNum(k); if (x > maxN) maxN = x; });
+    var pages = Math.max(10, Math.ceil(maxN / PER)), hasOther = keys.some(function (k) { return !shelfNum(k); }), OTH = pages, searching = !!t;
+    var pg = AP.pg || 0; if (pg > pages || (pg === OTH && !hasOther)) pg = 0; AP.pg = pg;
     var pager = '';
-    if (pages > 1) {
-      var bt = function (i, lb, on) { return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="flex:none;min-width:48px;min-height:46px;font-size:17px;padding:0 12px">' + lb + '</button>'; };
-      pager = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0">' + (pg > 0 ? bt(pg - 1, '←', 0) : '');
-      for (var i = 0; i < pages; i++) pager += bt(i, String(i + 1), i === pg);
-      pager += (pg < pages - 1 ? bt(pg + 1, '→', 0) : '') + '</div>';
+    if (!searching) {
+      var bt = function (i, lb) { return '<button type="button" class="btn' + (i === pg ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="min-width:0;width:100%;min-height:44px;font-size:16px;padding:0">' + lb + '</button>'; };
+      pager = '<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;margin:8px 0">';
+      for (var i = 0; i < pages; i++) pager += bt(i, String(i + 1));
+      if (hasOther) pager += bt(OTH, '···');
+      pager += '</div><small style="display:block;opacity:.7;margin-bottom:4px">' + esc(pg === OTH ? ui('Полки без номера', 'Рафҳои бе рақам', 'Raqamsiz javonlar') : ui('Полки ', 'Рафҳо ', 'Javonlar ') + (pg * PER + 1) + '–' + (pg * PER + PER)) + '</small>';
     }
-    var pageKeys = keys.slice(pg * PER, pg * PER + PER), left = 100000;
+    var pageKeys = searching ? keys : keys.filter(function (k) { var x = shelfNum(k); return pg === OTH ? !x : x && Math.floor((x - 1) / PER) === pg; }), left = 100000;
+    if (!searching && !pageKeys.length) return pager + '<p style="margin:8px 0;opacity:.75">' + esc(ui('На этой странице полок нет', 'Дар ин саҳифа раф нест', 'Bu sahifada javon yoʻq')) + '</p>';
     return pager + pageKeys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
       if (!shown.length) return '';
