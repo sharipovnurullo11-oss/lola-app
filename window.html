@@ -2212,7 +2212,8 @@ $('ar-list').addEventListener('click', function(e){
       a.hidden = false; document.title = '⚠ ' + baseTitle;
     }, function () { alertBusy = false; });
   }
-  setInterval(pollAlert, 30000);
+  /* 12.11.2026: проверка «сотрудник отсутствует» раз в минуту, а не каждые 30 секунд — меньше нагрузки на n8n */
+  setInterval(pollAlert, 60000);
   setTimeout(pollAlert, 3000);
 
   /* Не трогаем остальной код окна: сами следим, вошёл ли сотрудник. */
