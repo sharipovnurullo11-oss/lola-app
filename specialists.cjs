@@ -3727,15 +3727,15 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var has = {}; keys.forEach(function (k) { var x = shelfNum(k); has[x ? Math.floor((x - 1) / PER) : OTH] = 1; });
     var pg = AP.pg; if (pg == null || pg > pages) { pg = 0; while (pg <= pages && !has[pg]) pg++; if (pg > pages) pg = 0; } AP.pg = pg;
     var pager = '';
-    if (!searching) {
+    if (false) {
       var bt = function (i, lb) { return '<button type="button" class="btn' + (i === pg ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="min-width:0;width:100%;min-height:44px;font-size:16px;padding:0' + (has[i] ? '' : ';opacity:.4') + '">' + lb + '</button>'; };
       pager = '<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;margin:8px 0">';
       for (var i = 0; i < pages; i++) pager += bt(i, String(i + 1));
       if (hasOther) pager += bt(OTH, '···');
       pager += '</div><small style="display:block;opacity:.7;margin-bottom:4px">' + esc(pg === OTH ? ui('Полки без номера', 'Рафҳои бе рақам', 'Raqamsiz javonlar') : ui('Полки ', 'Рафҳо ', 'Javonlar ') + (pg * PER + 1) + '–' + (pg * PER + PER)) + '</small>';
     }
-    var pageKeys = searching ? keys : keys.filter(function (k) { var x = shelfNum(k); return pg === OTH ? !x : x && Math.floor((x - 1) / PER) === pg; }), left = 100000;
-    if (!searching && !pageKeys.length) return pager + '<p style="margin:8px 0;opacity:.75">' + esc(ui('На этой странице полок нет', 'Дар ин саҳифа раф нест', 'Bu sahifada javon yoʻq')) + '</p>';
+    var pageKeys = keys, left = 100000;
+    if (!pageKeys.length) return pager + '<p style="margin:8px 0;opacity:.75">' + esc(ui('На этой странице полок нет', 'Дар ин саҳифа раф нест', 'Bu sahifada javon yoʻq')) + '</p>';
     return pager + pageKeys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
       if (!shown.length) return '';
