@@ -4040,6 +4040,9 @@ if (S.view === 'mkt') return renderMkt(el);
       '<p style="margin:0 0 8px;opacity:.8">' + esc(p.city || '') + (p.owner ? ' · ' + esc(TX('Владелец')) + ': ' + esc(p.owner) : '') + (phones ? ' · ' + esc(phones) : '') + '<br>🚗 ' + esc(pkVisit(p)) + '</p>' +
       (p.note ? '<p style="margin:0 0 8px">' + esc(p.note) + '</p>' : '') +
       '<div style="margin-bottom:8px">' + pkBadge(p.status) + '</div>' +
+      /* 12.11.2026: инструменты и «Добавить» — сразу под названием пункта, деньги ниже */
+      pkPhBlock() + (PK.form ? '' : (PK.add ? pkAddForm() : pkBtn('add-open', '➕ ' + esc(TX('Добавить инструмент')), true, 'width:100%;margin-top:8px'))) +
+      '<h3 style="margin:16px 0 6px">💰 ' + esc(TX('Деньги по пункту')) + '</h3>' +
       pkRow(TX('Доход (наша доля 80%)'), pkMoney(inc)) +
       pkRow(TX('Закупка'), pkMoney(p.purchase)) +
       pkRow(TX('Дорога'), pkMoney(p.road)) +
@@ -4053,9 +4056,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (PK.msg) h += '<p style="color:#1f8a4c;margin:10px 0 0">' + esc(PK.msg) + '</p>';
     if (PK.form) h += pkForm();
     else h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' + pkBtn('take', '💵 ' + esc(TX('Забрал деньги'))) + pkBtn('tour', '🚗 ' + esc(TX('Начать объезд')), true) + '</div>';
-    if (!PK.form) h += PK.add ? pkAddForm() : pkBtn('add-open', '➕ ' + esc(TX('Добавить инструмент')), true, 'width:100%;margin-top:8px');
     h += pkOlBlock();
-    h += pkPhBlock();
     h += '<h3 style="margin:16px 0 6px">' + esc(TX('По месяцам')) + '</h3>';
     h += months.length ? '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr>' +
       [TX('Месяц'), TX('Доход'), TX('Закупка'), TX('Дорога'), TX('Ремонт'), TX('Прибыль')].map(function (t, k) { return '<th style="padding:4px 6px;text-align:' + (k ? 'right' : 'left') + '">' + esc(t) + '</th>'; }).join('') + '</tr></thead><tbody>' +
@@ -4412,6 +4413,15 @@ if (S.view === 'mkt') return renderMkt(el);
     return (Array.isArray(list) ? list : []).map(function (p) { return (sr[p.srok] || TX(p.srok || '')) + ' — ' + pkNum(p.cena) + ' ' + TX('смн'); }).join(' · ');
   }
   function pkPriceMin(list) { var c = (Array.isArray(list) ? list : []).map(function (p) { return pkNum(p.cena); }).filter(function (x) { return x > 0; }); return c.length ? Math.min.apply(null, c) : 0; }
+  /* 12.11.2026: фото инструмента — сверху самые новые (по дате с временем), без даты — в конец */
+  function pkNewestFirst(list) {
+    return list.map(function (p, i) { return { p: p, i: i }; }).sort(function (x, y) {
+      var a = String(x.p && x.p.date || ''), b = String(y.p && y.p.date || '');
+      if (a === b) return x.i - y.i;
+      if (!a) return 1; if (!b) return -1;
+      return a < b ? 1 : -1;
+    }).map(function (o) { return o.p; });
+  }
   function pkToolOpen(i) {
     var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
     var pt = PK.pt = { point: PK.cur.name, tool: t.name, vid: pkKindOf(t).label, icon: pkKindOf(t).icon, card: { loading: true, firma: '', cena: '', kredit: '', msg: '', err: '', busy: false, id: '' }, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '', st: { status: t.status, status_text: t.status_text, out: t.out, month_income: t.month_income } }; PK.big = null; render();
@@ -4419,7 +4429,7 @@ if (S.view === 'mkt') return renderMkt(el);
       if (PK.pt !== pt) return;
       pt.loading = false;
       if (!r || !r.ok) pt.error = (r && r.error) || TX('не удалось загрузить');
-      else { pt.photos = Array.isArray(r.photos) ? r.photos : []; pt.total = pkNum(r.total) || pt.photos.length; if (Array.isArray(r.prices)) { pt.prices = r.prices; pt.kind = r.kind || ''; } if (r.status != null) pt.st = { status: r.status, status_text: r.status_text, out: r.out, month_income: r.month_income }; }
+      else { pt.photos = pkNewestFirst(Array.isArray(r.photos) ? r.photos : []); pt.total = pkNum(r.total) || pt.photos.length; if (Array.isArray(r.prices)) { pt.prices = r.prices; pt.kind = r.kind || ''; } if (r.status != null) pt.st = { status: r.status, status_text: r.status_text, out: r.out, month_income: r.month_income }; }
       if (S.view === 'prokat') render();
     });
     pkMovesLoad(pt); pkCardLoad(pt);
@@ -4596,7 +4606,7 @@ if (S.view === 'mkt') return renderMkt(el);
     h += PK.mv && PK.mv.ctx === 'pt' ? pkMoveForm() : '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:10px">' + pkBtn('mv-open', '🚚 ' + esc(TX('Перевезти')), true) + pkBtn('sell-open', '💰 ' + esc(TX('Продать')), true) + '</div>';
     h += pkMovesBlock(pt.moves);
     if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>');
-    h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, от первого к последнему')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
+    h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, сверху самые новые')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
     h += '<div style="display:grid;gap:12px">' + pt.photos.map(function (p, i) {
       var u = pkSafeUrl(p.url), sub = [p.src === 'объезд' ? TX('объезд') : '', p.state ? TX(p.state) : '', p.note || ''].filter(Boolean).join(' · ');
       return '<figure style="margin:0;border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden">' +
