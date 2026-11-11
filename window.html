@@ -3722,7 +3722,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkPhSave() { clearTimeout(pkPhTimer); pkPhTimer = setTimeout(function () { var m = {}; Object.keys(PK_SK_PH).forEach(function (n) { var e = PK_SK_PH[n]; if (e && e.url) m[n] = { date: e.date, url: e.url }; }); idbSet(pkCK() + ':ph', { m: m }); }, 1500); }
   function openFinOrProkat() {
-    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.pu = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     pkPhInit();
     idbGet(pkCK() + ':points').then(function (c) { if (c && Array.isArray(c.points) && PK.busy && S.view === 'prokat') { PK.points = c.points; PK.total = c.total == null ? null : c.total; render(); } });
     callTo('/prokat', { action: 'points' }).then(function (r) {
@@ -3757,6 +3757,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (PK.cur) return renderPkPoint(el);
     if (PK.sk) return renderPkSklad(el);
     if (PK.all) return renderPkAll(el);
+    if (PK.pu) return renderPkPickup(el);
     if (PK.cmp) return renderPkCmp(el);
     if (PK.buy) return renderPkBuy(el);
     if (!PK.folder) return renderPkHome(el);
@@ -3777,7 +3778,7 @@ if (S.view === 'mkt') return renderMkt(el);
       '<div style="display:grid;gap:8px">' + (shown.length ? shown.map(function (p) {
         var i = PK.points.indexOf(p), pr = pkNum(p.profit);
         return '<button type="button" class="btn sec" data-pk="p:' + i + '" style="display:flex;align-items:center;gap:10px;text-align:left;height:auto;padding:12px;width:100%">' +
-          '<span style="flex:1;min-width:0"><b style="display:block">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.city || '') + (p.months ? ' · ' + esc(TX('месяцев')) + ': ' + esc(p.months) : '') + '<br>' + esc(pkVisit(p)) + '</small></span>' +
+          '<span style="flex:1;min-width:0"><b style="display:block">' + esc(p.name) + '</b><small style="opacity:.75">' + esc(p.city || '') + (p.months ? ' · ' + esc(TX('месяцев')) + ': ' + esc(p.months) : '') + '<br>' + esc(pkVisit(p)) + '<br>💵 ' + esc(pkTake(p)) + '</small></span>' +
           '<span style="flex:none;text-align:right"><b style="display:block;color:' + (pr < 0 ? '#c0392b' : pr > 0 ? '#1f8a4c' : 'inherit') + '">' + pkMoney(pr) + '</b>' + pkBadge(p.status) +
             (pkNum(p.rent_owed) > 0 ? '<small style="display:block;margin-top:4px;color:#b26a00;font-weight:600;white-space:nowrap">' + esc(TX('к передаче')) + ': ' + pkMoney(p.rent_owed) + '</small>' : '') + '</span></button>';
       }).join('') : '<p style="opacity:.75">' + esc(TX('Нет пунктов')) + '</p>') + '</div>';
@@ -3786,6 +3787,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function renderPkHome(el) {
     var n = PK.total == null ? PK.points.length : PK.total;
     el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2>' + pkRemBlock() + '<div style="display:grid;gap:10px">' +
+      '<button type="button" class="btn" data-pk="pickup" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🚚</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Что забрать')) + '</b><small style="opacity:.85">' + esc(TX('Сломанные инструменты: откуда что забрать')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="folder" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">📍</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Пункты')) + '</b><small style="opacity:.75">' + esc(TX('Пункты проката строительных инструментов')) + '</small></span><span style="flex:none;font-size:15px;font-weight:700;padding:3px 10px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(n) + '</span></button>' +
       '<button type="button" class="btn sec" data-pk="sklad" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🏠</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Склад')) + '</b><small style="opacity:.75">' + esc(TX('Сломанные, в ремонте, на запчасти: фото и количество')) + '</small></span></button>' +
       '<button type="button" class="btn sec" data-pk="all" style="display:flex;align-items:center;gap:12px;text-align:left;height:auto;padding:14px;width:100%"><span style="font-size:28px;flex:none" aria-hidden="true">🧰</span><span style="flex:1;min-width:0"><b style="display:block;font-size:17px">' + esc(TX('Все инструменты')) + '</b><small style="opacity:.75">' + esc(TX('Перфораторы, болгарки, дрели и другие: где какой стоит')) + '</small></span></button>' +
@@ -4651,6 +4653,12 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Напоминания, сравнение пунктов, объезд ---------- */
   function pkDay(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(s || ''); }
+  // Когда Нурулло последний раз брал деньги с пункта (из списка пунктов).
+  function pkTake(p) {
+    if (!p || !p.last_take) return TX('деньги не брал');
+    var d = pkNum(p.take_days);
+    return TX('деньги взял') + ' ' + pkDay(p.last_take) + (d > 0 ? ' (' + d + ' ' + TX('дн. назад') + ')' : ' (' + TX('сегодня') + ')');
+  }
   function pkVisit(p) {
     if (!p || !p.last_visit) return TX('объезда не было');
     var d = pkNum(p.visit_days);
@@ -4685,6 +4693,32 @@ if (S.view === 'mkt') return renderMkt(el);
     return h + '</div>';
   }
   // Сравнение пунктов: сервер уже отсортировал от лучшего к худшему.
+  // «Что забрать» (12.11.2026): сломанные инструменты по пунктам, по последней отметке объезда. Список можно скопировать для таксиста.
+  function pkPickupOpen() {
+    var u = PK.pu = { loading: true, error: '', points: [], total: 0, msg: '' }; PK.ride = false; render();
+    callTo('/prokat', { action: 'pickup' }).then(function (r) {
+      if (PK.pu !== u) return;
+      u.loading = false;
+      if (!r || !r.ok) u.error = (r && r.error) || TX('не удалось загрузить'); else { u.points = Array.isArray(r.points) ? r.points : []; u.total = pkNum(r.total); }
+      if (S.view === 'prokat') render();
+    });
+  }
+  function pkPickupText(u) {
+    return u.points.map(function (g) {
+      return g.name + (g.city ? ' (' + g.city + ')' : '') + ':\n' + g.items.map(function (i) { return '— ' + i.name + (pkNum(i.qty) > 1 ? ' × ' + i.qty : '') + ' (' + TX('сломан') + ')'; }).join('\n');
+    }).join('\n\n');
+  }
+  function renderPkPickup(el) {
+    var u = PK.pu, h = pkBtn('home', '← ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">🚚 ' + esc(TX('Что забрать')) + '</h2>';
+    if (u.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
+    if (u.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(u.error) + '</p>' + pkBtn('pickup-retry', esc(TX('Ещё раз')), true));
+    if (!u.points.length) return void (el.innerHTML = h + '<p>' + esc(TX('Сломанных инструментов на пунктах не отмечено. Список строится по последней отметке объезда.')) + '</p>');
+    h += '<p style="margin:0 0 10px;opacity:.85">' + esc(TX('Всего забрать')) + ': <b>' + u.total + '</b></p><div style="display:grid;gap:10px">' + u.points.map(function (g) {
+      return '<div style="border:2px solid #c0392b;border-radius:12px;padding:10px"><b style="display:block;font-size:18px">' + esc(g.name) + '</b>' + (g.city ? '<small style="opacity:.75">' + esc(g.city) + '</small>' : '') +
+        g.items.map(function (i) { return '<div style="padding:6px 0;border-top:1px solid rgba(127,127,127,.25);margin-top:6px">🔧 <b>' + esc(i.name) + '</b>' + (pkNum(i.qty) > 1 ? ' × ' + esc(i.qty) : '') + ' <span style="color:#c0392b;font-weight:700">' + esc(TX('сломан')) + '</span>' + (i.note ? '<small style="display:block;opacity:.75">' + esc(i.note) + '</small>' : '') + '</div>'; }).join('') + '</div>';
+    }).join('') + '</div>' + pkBtn('pickup-copy', '📋 ' + esc(TX('Скопировать список')), false, 'width:100%;margin-top:12px') + (u.msg ? '<p role="status" style="margin-top:8px">' + esc(u.msg) + '</p>' : '');
+    el.innerHTML = h;
+  }
   function pkCmpOpen() {
     var c = PK.cmp = { loading: true, points: [], error: '', open: {} }; render();
     callTo('/prokat', { action: 'compare' }).then(function (r) {
@@ -4860,6 +4894,13 @@ if (S.view === 'mkt') return renderMkt(el);
     if (pkOlClick(k)) return;
     if (pkShClick(k)) return;
     if (k === 'cmp') return pkCmpOpen();
+    if (k === 'pickup' || k === 'pickup-retry') return pkPickupOpen();
+    if (k === 'pickup-copy') {
+      var pu = PK.pu; if (!pu) return;
+      var tx = pkPickupText(pu), okc = function () { pu.msg = TX('Скопировано'); render(); }, nok = function () { pu.msg = TX('Не получилось скопировать'); render(); };
+      try { if (navigator.clipboard && navigator.clipboard.writeText) return void navigator.clipboard.writeText(tx).then(okc, nok); } catch (e) {}
+      return nok();
+    }
     if (k.indexOf('ci:') === 0) { if (PK.cmp) { var ci = +k.slice(3); PK.cmp.open[ci] = !PK.cmp.open[ci]; render(); } return; }
     if (k === 'rem') { if (PK.rem) { PK.rem.open = !PK.rem.open; render(); } return; }
     if (k.indexOf('rp:') === 0) { var L = pkRemLists(), ra = k.split(':'), rx = L && L[{ v: 'visit', o: 'owed', b: 'broken' }[ra[1]]]; var it = rx && rx[+ra[2]]; if (it && it.name) { PK.folder = true; pkOpenPoint(it.name); } return; }
@@ -4867,7 +4908,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k.indexOf('p:') === 0) { var p = PK.points[+k.slice(2)]; if (p) pkOpenPoint(p.name); return; }
     if (k.indexOf('m:') === 0) { if (PK.form && PK_PAY[k.slice(2)]) { pkKeep(); PK.form.method = k.slice(2); render(); } return; }
     if (k === 'folder') { PK.folder = true; PK.ride = false; return render(); }
-    if (k === 'home') { PK.buy = null; PK.mv = null; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.ride = false; return render(); }
+    if (k === 'home') { PK.buy = null; PK.mv = null; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.pu = null; PK.ride = false; return render(); }
     if (k === 'sklad') return pkSkOpen();
     if (pkBuyClick(k)) return;
     if (k === 'push') return pushEnable();
