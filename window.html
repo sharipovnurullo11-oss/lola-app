@@ -6114,7 +6114,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
-  var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pg: 0, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
+  var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pg: null, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
   function openApt() { AP.card = false; AP.delAsk = ''; AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; aptN = 0; render(); aptLoad(); }
   var aptRetry = false, aptN = 0;
   /* Быстрое открытие (10.11.2026): список препаратов (название, полка, штрихкоды) запоминается на этом телефоне; при открытии поиск работает сразу из памяти, а свежий список приходит с сервера и заменяет запомненный */
@@ -6218,13 +6218,14 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     var keys = Object.keys(g).sort(function (a, b) { if (!a) return 1; if (!b) return -1; var x = parseFloat(a), y = parseFloat(b); if (!isNaN(x) && !isNaN(y) && x !== y) return x - y; return a.localeCompare(b, 'ru'); });
     if (!keys.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Ничего не найдено', 'Чизе ёфт нашуд', 'Hech narsa topilmadi')) + '</p>';
     // страницы по 20 номеров полок: кнопка 1 = полки 1–20, 2 = 21–40 … минимум 10 кнопок (до 200 полок); «···» = полки без номера
-    var PER = 20, shelfNum = function (k) { var x = parseInt(k, 10); return String(x) === String(k).trim() && x > 0 ? x : 0; }, maxN = 0;
+    var PER = 20, shelfNum = function (k) { var m = String(k).match(/\d+/), x = m ? parseInt(m[0], 10) : 0; return x > 0 ? x : 0; }, maxN = 0;
     keys.forEach(function (k) { var x = shelfNum(k); if (x > maxN) maxN = x; });
     var pages = Math.max(10, Math.ceil(maxN / PER)), hasOther = keys.some(function (k) { return !shelfNum(k); }), OTH = pages, searching = !!t;
-    var pg = AP.pg || 0; if (pg > pages || (pg === OTH && !hasOther)) pg = 0; AP.pg = pg;
+    var has = {}; keys.forEach(function (k) { var x = shelfNum(k); has[x ? Math.floor((x - 1) / PER) : OTH] = 1; });
+    var pg = AP.pg; if (pg == null || pg > pages) { pg = 0; while (pg <= pages && !has[pg]) pg++; if (pg > pages) pg = 0; } AP.pg = pg;
     var pager = '';
     if (!searching) {
-      var bt = function (i, lb) { return '<button type="button" class="btn' + (i === pg ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="min-width:0;width:100%;min-height:44px;font-size:16px;padding:0">' + lb + '</button>'; };
+      var bt = function (i, lb) { return '<button type="button" class="btn' + (i === pg ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="min-width:0;width:100%;min-height:44px;font-size:16px;padding:0' + (has[i] ? '' : ';opacity:.4') + '">' + lb + '</button>'; };
       pager = '<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;margin:8px 0">';
       for (var i = 0; i < pages; i++) pager += bt(i, String(i + 1));
       if (hasOther) pager += bt(OTH, '···');
@@ -7090,7 +7091,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); var rb2 = $s('sh-f-rollbox'); if (rb2) rb2.hidden = !(t.value === 'm' || t.value === 'kg'); }
     if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
     if (t.id === 'apt-f-name' && e.type === 'input') { var sg0 = $s('apt-f-sug'); if (sg0) sg0.innerHTML = (AP.form && AP.form.old) ? '' : aptSugHtml(t.value); return; }
-    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; AP.pg = 0; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
+    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; AP.pg = null; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
     if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; AP.msg = ''; var apl = $s('apt-list'); if (apl) apl.innerHTML = aptList(); return; }
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
