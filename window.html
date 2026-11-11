@@ -726,7 +726,7 @@ button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visib
 </div></dialog>
 
 <script>
-var API = 'https://n8n-ny7q.srv2033023.hstgr.cloud/webhook';
+var API = 'https://n8n.nurullo-sharipov.tech/webhook';
 var PAY_PHONE = '+992907521986';
 var BRAND = T('Ёвари Шахси');
 
@@ -1902,7 +1902,7 @@ $('ar-list').addEventListener('click', function(e){
   document.body.appendChild(b);
   document.getElementById('as-back').onclick = function () { location.hash = '#admin'; location.reload(); };
   var t = admTok();
-  fetch('https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'view', token: t, kod: AS_KOD }) })
+  fetch('https://n8n.nurullo-sharipov.tech/webhook/admin-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'view', token: t, kod: AS_KOD }) })
     .then(function (r) { if (r.status === 401) { admSave(''); location.hash = '#admin'; location.reload(); } })
     .catch(function () {});
 })();
@@ -2347,7 +2347,7 @@ function $s(id) { return document.getElementById(id); }
 /*admin:start*/
 (function (root) {
   if (String(root.location.hash || '') !== '#admin') return;
-  var API = 'https://n8n-ny7q.srv2033023.hstgr.cloud/webhook/admin-api';
+  var API = 'https://n8n.nurullo-sharipov.tech/webhook/admin-api';
   var API_RENAME = API.replace(/admin-api$/, 'admin-rename');
   var TOKEN = '', STEP = 'login', STATE = { q: '', filter: 'all', page: 1 }, CUR = null, TIMER = null;
   TOKEN = admTok();
