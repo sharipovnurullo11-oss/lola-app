@@ -3617,7 +3617,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Поиск препарата» (08.11.2026, только Асрор Холов): «Финансист аптеки» открывает сразу это окно. Набрал название, увидел полку, остаток и цену.
   // Управление (бухгалтерия, учёт магазина, кладовщик) — кнопка внизу окна. Данные те же, что у «Полок»; полку сервер присылает только его кабинету.
-  var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
+  var AP = { pn: {}, pedit: null, fbusy: false, polki: false, pg: 0, pq: '', q: '', err: '', kb: null, form: null, msg: '', info: {}, tried: {}, timer: 0 };
   function openApt() { AP.card = false; AP.delAsk = ''; AP.fbusy = false; S.view = 'apt'; S.fromFin = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.err = ''; AP.form = null; AP.msg = ''; aptN = 0; render(); aptLoad(); }
   var aptRetry = false, aptN = 0;
   /* Быстрое открытие (10.11.2026): список препаратов (название, полка, штрихкоды) запоминается на этом телефоне; при открытии поиск работает сразу из памяти, а свежий список приходит с сервера и заменяет запомненный */
@@ -3720,8 +3720,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     (AP.kb || []).forEach(function (k) { put(k.name, k.polka); });
     var keys = Object.keys(g).sort(function (a, b) { if (!a) return 1; if (!b) return -1; var x = parseFloat(a), y = parseFloat(b); if (!isNaN(x) && !isNaN(y) && x !== y) return x - y; return a.localeCompare(b, 'ru'); });
     if (!keys.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Ничего не найдено', 'Чизе ёфт нашуд', 'Hech narsa topilmadi')) + '</p>';
-    var left = 300;
-    return keys.map(function (k) {
+    var PER = 6, pages = Math.max(1, Math.ceil(keys.length / PER)), pg = Math.min(Math.max(AP.pg || 0, 0), pages - 1); AP.pg = pg;
+    var pager = '';
+    if (pages > 1) {
+      var bt = function (i, lb, on) { return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-apt="ppage" data-p="' + i + '" style="flex:none;min-width:48px;min-height:46px;font-size:17px;padding:0 12px">' + lb + '</button>'; };
+      pager = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0">' + (pg > 0 ? bt(pg - 1, '←', 0) : '');
+      for (var i = 0; i < pages; i++) pager += bt(i, String(i + 1), i === pg);
+      pager += (pg < pages - 1 ? bt(pg + 1, '→', 0) : '') + '</div>';
+    }
+    var pageKeys = keys.slice(pg * PER, pg * PER + PER), left = 100000;
+    return pager + pageKeys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
       if (!shown.length) return '';
       var pnm = k && AP.pn ? AP.pn[k] : '', head;
@@ -3730,7 +3738,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return head +
         shown.map(function (n) { var kf = aptKb(n), ft = kf && kf.foto; return '<div style="display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #e6e6e6">' + (ft ? '<img alt="" data-zoom="1" data-nm="' + esc(n) + '" src="' + ft + '" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none">' : '<span style="width:56px;height:56px;border-radius:10px;background:#eee;flex:none;display:flex;align-items:center;justify-content:center;font-size:22px">💊</span>') + '<button type="button" data-apt="popen" data-n="' + esc(n) + '" style="flex:1;min-width:0;font:inherit;font-size:18px;line-height:1.3;white-space:normal;text-align:left;background:none;border:0;color:inherit;cursor:pointer;padding:8px 0">' + esc(n) + '</button>' + (kf && !(SH.d && (SH.d.products || []).some(function (pp) { return String(pp.name).trim().toLowerCase() === String(n).trim().toLowerCase(); })) ? (AP.delAsk === n ? '<button type="button" class="btn" data-apt="pdel-yes" data-n="' + esc(n) + '" style="flex:none;min-height:40px;font-size:14px;padding:0 10px;background:#b3261e;color:#fff">' + esc(ui('Да, удалить', 'Бале, нест кардан', 'Ha, oʻchirish')) + '</button><button type="button" class="btn sec" data-apt="pdel-no" style="flex:none;min-height:40px;font-size:14px;padding:0 10px">' + esc(ui('Нет', 'Не', 'Yoʻq')) + '</button>' : '<button type="button" class="btn sec" data-apt="pdel" data-n="' + esc(n) + '" style="flex:none;min-height:40px;font-size:14px;padding:0 10px">🗑 ' + esc(ui('Удалить', 'Нест кардан', 'Oʻchirish')) + '</button>') : '') + '</div>'; }).join('') +
         (arr.length > shown.length ? '<small style="opacity:.7">' + esc(ui('Ещё ' + (arr.length - shown.length) + ' — уточните поиск', 'Боз ' + (arr.length - shown.length) + ' — ҷустуҷӯро дақиқ кунед', 'Yana ' + (arr.length - shown.length) + ' — qidiruvni aniqlang')) + '</small>' : '');
-    }).join('');
+    }).join('') + pager;
   }
   function renderAptPolki(el) {
     try { var dd = el.closest('dialog'); if (dd) dd.classList.add('nox'); } catch (e) {}
@@ -4579,7 +4587,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); var rb2 = $s('sh-f-rollbox'); if (rb2) rb2.hidden = !(t.value === 'm' || t.value === 'kg'); }
     if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
     if (t.id === 'apt-f-name' && e.type === 'input') { var sg0 = $s('apt-f-sug'); if (sg0) sg0.innerHTML = (AP.form && AP.form.old) ? '' : aptSugHtml(t.value); return; }
-    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
+    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; AP.pg = 0; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
     if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; AP.msg = ''; var apl = $s('apt-list'); if (apl) apl.innerHTML = aptList(); return; }
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
@@ -4833,6 +4841,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
 
     if (b.dataset.apt === 'exit-ask') { AP.exitAsk = true; render(); return; }
     if (b.dataset.apt === 'exit-no') { AP.exitAsk = false; render(); return; }
+    if (b.dataset.apt === 'ppage') { AP.pg = parseInt(b.dataset.p, 10) || 0; var apl = $s('apt-polki-list'); if (apl) { apl.innerHTML = aptPolkiList(); try { apl.scrollIntoView({ block: 'start' }); } catch (e) {} } return; }
     if (b.dataset.apt === 'polki-x') { AP.polki = false; AP.pq = ''; render(); return; }
     if (b.dataset.apt === 'multi') { var mi = $s('apt-multi-in'); if (mi && !(AP.multi && AP.multi.busy)) { mi.value = ''; mi.click(); } return; }
     if (b.dataset.apt === 'mcancel') { AP.multi = null; render(); return; }
