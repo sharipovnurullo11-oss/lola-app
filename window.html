@@ -3708,13 +3708,23 @@ if (S.view === 'mkt') return renderMkt(el);
   var PK_PAY = { cash: 'Наличные', ds: 'Душанбе Сити', alif: 'Алиф' };
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
   function pkMoney(x) { return money(cents(pkNum(x))); }
+  /* Память телефона для проката: точки, склад и фото открываются сразу, свежее приходит в фоне */
+  function pkCK() { var c = code(), v = String(c.code || c.sid || ''), h = 0; for (var i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) | 0; return 'pk:' + (c.sid ? 's' : 'c') + h; }
+  var pkPhInited = false, pkPhTimer = 0;
+  function pkPhInit() {
+    if (pkPhInited) return; pkPhInited = true;
+    idbGet(pkCK() + ':ph').then(function (c) { if (c && c.m) { var any = false; Object.keys(c.m).forEach(function (n) { if (!PK_SK_PH[n] && c.m[n] && c.m[n].url) { PK_SK_PH[n] = { date: c.m[n].date, url: c.m[n].url, busy: false }; any = true; } }); if (any && S.view === 'prokat' && PK.sk) render(); } });
+  }
+  function pkPhSave() { clearTimeout(pkPhTimer); pkPhTimer = setTimeout(function () { var m = {}; Object.keys(PK_SK_PH).forEach(function (n) { var e = PK_SK_PH[n]; if (e && e.url) m[n] = { date: e.date, url: e.url }; }); idbSet(pkCK() + ':ph', { m: m }); }, 1500); }
   function openFinOrProkat() {
     S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    pkPhInit();
+    idbGet(pkCK() + ':points').then(function (c) { if (c && Array.isArray(c.points) && PK.busy && S.view === 'prokat') { PK.points = c.points; PK.total = c.total == null ? null : c.total; render(); } });
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
       if (S.view !== 'prokat') return;
       if (!r || !r.ok) return openBuh();
-      PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; render(); pkRemLoad();
+      PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; idbSet(pkCK() + ':points', { points: PK.points, total: PK.total }); render(); pkRemLoad();
     });
   }
   function pkReload() {
@@ -3790,12 +3800,13 @@ if (S.view === 'mkt') return renderMkt(el);
     pkSkLoad();
   }
   function pkSkLoad() {
-    var sk = PK.sk;
+    var sk = PK.sk; pkPhInit();
+    idbGet(pkCK() + ':stock').then(function (c) { if (c && Array.isArray(c.kinds) && sk.loading && S.view === 'prokat' && PK.sk === sk) { sk.kinds = c.kinds; sk.history = c.history || []; sk.totals = c.totals || {}; sk.parts_total = pkNum(c.parts_total); sk.loading = false; render(); } });
     callTo('/prokat', { action: 'stock' }).then(function (r) {
       if (S.view !== 'prokat' || PK.sk !== sk) return;
       sk.loading = false;
-      if (!r || !r.ok) sk.error = (r && r.error) || TX('не удалось загрузить');
-      else { sk.error = ''; sk.kinds = Array.isArray(r.stock) ? r.stock : []; sk.history = Array.isArray(r.history) ? r.history : []; sk.totals = r.totals || {}; sk.parts_total = pkNum(r.parts_total); }
+      if (!r || !r.ok) { if (!(sk.kinds && sk.kinds.length)) sk.error = (r && r.error) || TX('не удалось загрузить'); }
+      else { sk.error = ''; sk.kinds = Array.isArray(r.stock) ? r.stock : []; sk.history = Array.isArray(r.history) ? r.history : []; sk.totals = r.totals || {}; sk.parts_total = pkNum(r.parts_total); idbSet(pkCK() + ':stock', { kinds: sk.kinds, history: sk.history, totals: sk.totals, parts_total: sk.parts_total }); }
       render();
     });
   }
@@ -3810,7 +3821,7 @@ if (S.view === 'mkt') return renderMkt(el);
     PK_SK_PH[g.name] = { date: g.photo_date, url: c ? c.url : '', busy: true };
     callTo('/prokat', { action: 'stock_photo_get', name: g.name }).then(function (r) {
       var e = PK_SK_PH[g.name]; e.busy = false;
-      if (r && r.ok && /^data:image\/jpeg;base64,/.test(r.photo || '')) e.url = r.photo; // при ошибке не повторяем до следующего нового фото
+      if (r && r.ok && /^data:image\/jpeg;base64,/.test(r.photo || '')) { e.url = r.photo; pkPhSave(); } // при ошибке не повторяем до следующего нового фото
       if (S.view === 'prokat' && PK.sk) render();
     });
     return c ? c.url || '' : '';
@@ -4325,11 +4336,13 @@ if (S.view === 'mkt') return renderMkt(el);
   // Фото-история: в окне пункта иконки инструментов, внутри — все фото инструмента по датам, от первого до последнего объезда.
   function pkPhLoad(name) {
     var ph = PK.ph = { name: name, loading: true, tools: [], error: '' }; if (!PK.cur || PK.cur.name !== name) PK.phG = '';
+    var pck = pkCK() + ':tools:' + name;
+    idbGet(pck).then(function (c) { if (c && Array.isArray(c.tools) && PK.ph === ph && ph.loading) { ph.tools = c.tools; ph.loading = false; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); } });
     callTo('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
       if (PK.ph !== ph) return;
       ph.loading = false;
-      if (!r || !r.ok) ph.error = (r && r.error) || TX('не удалось загрузить');
-      else ph.tools = Array.isArray(r.tools) ? r.tools : [];
+      if (!r || !r.ok) { if (!ph.tools.length) ph.error = (r && r.error) || TX('не удалось загрузить'); }
+      else { ph.tools = Array.isArray(r.tools) ? r.tools : []; ph.error = ''; idbSet(pck, { tools: ph.tools }); }
       if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render();
     });
   }
