@@ -18,7 +18,7 @@ ok('/punkt отдаёт страницу без входа и без куки');
 
 const csp = r.headers.get('content-security-policy');
 assert.match(csp, /default-src 'none'/);
-assert.match(csp, /connect-src https:\/\/n8n-ny7q\.srv2033023\.hstgr\.cloud\/webhook\/prokat-owner;/);
+assert.match(csp, /connect-src https:\/\/n8n\.nurullo-sharipov\.tech\/webhook\/prokat-owner;/);
 assert.ok(!/unsafe-inline/.test(csp));
 assert.match(csp, /img-src 'self' data: https:\/\/lh3\.googleusercontent\.com;/);
 assert.equal((csp.match(/https:\/\//g) || []).length, 2, 'в CSP только два внешних адреса: миниатюры и prokat-owner');
