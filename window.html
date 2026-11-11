@@ -4041,6 +4041,8 @@ if (S.view === 'mkt') return renderMkt(el);
     var inc = pkNum(p.income), pr = pkNum(p.profit);
     var months = Array.isArray(p.months) ? p.months : [], journal = Array.isArray(p.journal) ? p.journal : [], fills = Array.isArray(p.fills) ? p.fills : [];
     var phones = Array.isArray(p.phones) ? p.phones.join(', ') : (p.phones || '');
+    // WhatsApp есть/нет у каждого номера (проверено через n8n, результат лежит в таблице).
+    if (p.wa && typeof p.wa === 'object') phones = String(phones).split(/[;,]/).map(function (x) { x = x.trim(); var d = x.replace(/\D/g, ''); if (d.length === 9) d = '992' + d; return !x ? '' : x + (d in p.wa ? ' (' + (p.wa[d] ? 'WhatsApp ' + TX('есть') : 'WhatsApp ' + TX('нет')) + ')' : ''); }).filter(Boolean).join(', ');
     var h = back + '<h2 style="padding-right:36px;margin-bottom:4px">' + esc(p.name) + '</h2>' +
       '<p style="margin:0 0 8px;opacity:.8">' + esc(p.city || '') + (p.owner ? ' · ' + esc(TX('Владелец')) + ': ' + esc(p.owner) : '') + (phones ? ' · ' + esc(phones) : '') + '<br>🚗 ' + esc(pkVisit(p)) + '</p>' +
       (p.note ? '<p style="margin:0 0 8px">' + esc(p.note) + '</p>' : '') +
