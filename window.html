@@ -1010,7 +1010,7 @@ function av_pump(){
       AVRUN++;
       var p = k.split(':');
       fetch(API + '/avatar?kanal=' + p[0] + '&id=' + p[1] + '&code=' + encodeURIComponent(store('ew_cab')||'')).then(function(r){ return r.json(); }).then(function(j){
-        if (j && j.ok && j.b64) { var m = /^image\//.test(j.mime||'') ? j.mime : 'image/jpeg'; AV[k] = 'data:' + m + ';base64,' + j.b64; try { localStorage.setItem('ew_av_' + k, AV[k]); } catch(e){} } else { AV[k] = 0; }
+        if (j && j.ok && j.b64) { var m = /^image\//.test(j.mime||'') ? j.mime : 'image/jpeg'; AV[k] = 'data:' + m + ';base64,' + j.b64; try { localStorage.setItem('ew_av_' + k, AV[k]); } catch(e){} } else { AV[k] = 0; try { localStorage.setItem('ew_av0_' + k, String(Date.now())); } catch(e){} }
       }).catch(function(){ delete AVREQ[k]; }).then(function(){ AVRUN--; av_fill(); av_pump(); });
     })(AVQ.shift());
   }
@@ -1020,6 +1020,8 @@ function av_fill(){
   for (var i = 0; i < els.length; i++) {
     var k = els[i].getAttribute('data-avk'); if (!k) { av_apply(els[i], null); continue; }
     if (AV[k] === undefined) { try { var s = localStorage.getItem('ew_av_' + k); if (s) AV[k] = s; } catch(e){} }
+    /* 12.11.2026: если у контакта нет фото, повторно спрашиваем не чаще раза в сутки */
+    if (AV[k] === undefined) { try { var z = +localStorage.getItem('ew_av0_' + k); if (z && Date.now() - z < 86400000) AV[k] = 0; } catch(e){} }
     if (AV[k]) av_apply(els[i], AV[k]);
     else { av_apply(els[i], null); if (AV[k] === undefined && !AVREQ[k]) { AVREQ[k] = 1; AVQ.push(k); } }
   }
