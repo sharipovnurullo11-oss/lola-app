@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { openDb } from './db.js';
 import { pickLang, T } from './i18n.js';
 import * as V from './views.js';
@@ -26,6 +27,18 @@ const MAX_RECEIPT = 5 * 1024 * 1024, MAX_RECEIPTS_PER_USER = 10;
 const SESSION_TTL = 30 * 24 * 3600;
 const MAX_FAILS = 5, FAIL_WINDOW = 15 * 60;
 const PUBLIC = path.join(path.dirname(new URL(import.meta.url).pathname), 'public');
+// Сжатие ответов (brotli/gzip): страница «окна» ~1 МБ весит в 4–5 раз меньше; сжатый вариант считается один раз на версию
+const ZC = new Map();
+function zsend(req, res, headers, body) {
+  const ae = String(req.headers['accept-encoding'] || '');
+  const enc = /\bbr\b/.test(ae) ? 'br' : (/\bgzip\b/.test(ae) ? 'gzip' : '');
+  if (!enc || body.length < 1024) { res.writeHead(200, headers); return res.end(body); }
+  const key = enc + ':' + crypto.createHash('md5').update(body).digest('hex');
+  let z = ZC.get(key);
+  if (!z) { z = enc === 'br' ? zlib.brotliCompressSync(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } }) : zlib.gzipSync(body, { level: 6 }); if (ZC.size > 12) ZC.clear(); ZC.set(key, z); }
+  res.writeHead(200, { ...headers, 'Content-Encoding': enc, 'Vary': 'Accept-Encoding' });
+  return res.end(z);
+}
 let WINDOW_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'window.html'));
 // «Единое окно» обновляется само: раз в минуту забираем свежий window.html из GitHub (без пересборки сервера)
 const WINDOW_URL = process.env.WINDOW_URL || 'https://raw.githubusercontent.com/sharipovnurullo11-oss/lola-app/main/window.html';
@@ -154,18 +167,18 @@ export const server = http.createServer(async (req, res) => {
       const f = path.join(PUBLIC, p);
       if (fs.existsSync(f)) {
         const ext = path.extname(f);
-        res.writeHead(200, { ...SEC, 'Content-Type': MIME[ext], 'Cache-Control': p === '/sw.js' ? 'no-cache' : 'public, max-age=3600' });
-        return res.end(fs.readFileSync(f));
+        const sh = { ...SEC, 'Content-Type': MIME[ext], 'Cache-Control': p === '/sw.js' ? 'no-cache' : 'public, max-age=3600' };
+        return (ext === '.js' || ext === '.css' || ext === '.svg' || ext === '.webmanifest') ? zsend(req, res, sh, fs.readFileSync(f)) : (res.writeHead(200, sh), res.end(fs.readFileSync(f)));
       }
     }
 
     // «Единое окно» — статичная страница на n8n-вебхуках (свой CSP: инлайн-скрипт и запросы к n8n)
     if (req.method === 'GET' && (p === '/window' || p === '/w')) {
-      res.writeHead(200, {
+      const wh = {
         ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
         'Content-Security-Policy': "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://n8n.nurullo-sharipov.tech; frame-ancestors 'none'",
-      });
-      return res.end(WINDOW_HTML);
+      };
+      return zsend(req, res, wh, WINDOW_HTML);
     }
 
     // Токен владельца пункта приходит после # и до сервера не доходит; сервер отдаёт только страницу.
