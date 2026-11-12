@@ -4925,13 +4925,49 @@ if (S.view === 'mkt') return renderMkt(el);
     el.innerHTML = h;
   }
   function pkPickupOpen() {
-    var u = PK.pu = { loading: true, error: '', points: [], total: 0, msg: '' }; PK.ride = false; render();
+    var u = PK.pu = { loading: true, error: '', points: [], total: 0, msg: '' }; PK.ride = false; PK.big = null;
+    Object.keys(PK_TH).forEach(function (f) { if (Date.now() - PK_TH[f].t > 3000000) delete PK_TH[f]; }); /* ссылки на фото живут недолго: старше 50 минут не показываем, придут свежие */
+    render();
     callS('/prokat', { action: 'pickup' }).then(function (r) {
       if (PK.pu !== u) return;
       u.loading = false;
       if (!r || !r.ok) u.error = (r && r.error) || TX('не удалось загрузить'); else { u.points = Array.isArray(r.points) ? r.points : []; u.total = pkNum(r.total); }
+      pkPuThumbs(u);
       if (S.view === 'prokat') render();
     });
+  }
+  // Фото сломанного аппарата в «Что забрать» (13.11.2026): показываем то самое фото, под которым нажали «Сломан». Список отдаёт номер фото (fid), ссылку на миниатюру берём отдельным лёгким запросом thumbs_get — список появляется сразу, фото следом.
+  var PK_TH = {};
+  function pkPuUrl(i) { var e = i && i.fid ? PK_TH[String(i.fid)] : null; return e ? pkSafeUrl(e.url) : ''; }
+  function pkPuSmall(u) { return /=s\d+$/.test(u) ? u.replace(/=s\d+$/, '=s300') : u; }
+  function pkPuThumbs(u) {
+    var ids = [], now = Date.now();
+    u.points.forEach(function (g) { (g.items || []).forEach(function (i) { var f = i && i.fid ? String(i.fid) : ''; if (f && ids.indexOf(f) < 0) ids.push(f); }); });
+    var key = ids.join(',');
+    if (u.thKey === key) return;
+    u.thKey = key;
+    var need = ids.filter(function (f) { return !PK_TH[f] || now - PK_TH[f].t > 1800000; }); /* ссылка моложе 30 минут ещё работает: заново не просим, и картинка не мигает */
+    if (!need.length) { u.thDone = true; return; }
+    u.thDone = false;
+    var parts = []; for (var k = 0; k < need.length && k < 48; k += 12) parts.push(need.slice(k, k + 12));
+    (function next(n) {
+      if (PK.pu !== u || u.thKey !== key) return;
+      if (n >= parts.length) { u.thDone = true; if (S.view === 'prokat') render(); return; }
+      callTo('/prokat-foto', { action: 'thumbs_get', fids: parts[n] }).then(function (r) {
+        if (PK.pu !== u || u.thKey !== key) return;
+        if (r && r.ok && Array.isArray(r.photos)) r.photos.forEach(function (p) { if (p && p.id && pkSafeUrl(p.url)) PK_TH[String(p.id)] = { url: String(p.url), t: Date.now() }; });
+        next(n + 1);
+      });
+    })(0);
+  }
+  function pkPuItem(u, gi, i, ii) {
+    var txt = '🔧 <b>' + esc(i.name) + '</b>' + (pkNum(i.qty) > 1 ? ' × ' + esc(i.qty) : '') + ' <span style="color:#c0392b;font-weight:700">' + esc(TX('сломан')) + '</span>' + (i.note ? '<small style="display:block;opacity:.75">' + esc(i.note) + '</small>' : '');
+    var row = 'padding:6px 0;border-top:1px solid rgba(127,127,127,.25);margin-top:6px';
+    if (!i.fid) return '<div style="' + row + '">' + txt + '</div>';
+    var uu = pkPuUrl(i), box = 'flex:none;width:96px;height:96px;border-radius:10px;overflow:hidden;background:rgba(127,127,127,.15)';
+    var th = uu ? '<button type="button" data-pk="puth:' + gi + ':' + ii + '" aria-label="' + esc(TX('Открыть фото') + ': ' + i.name) + '" style="' + box + ';display:block;padding:0;border:0;cursor:pointer"><img src="' + esc(pkPuSmall(uu)) + '" alt="' + esc(i.name) + '" style="display:block;width:100%;height:100%;object-fit:cover"></button>' :
+      '<span aria-hidden="true" style="' + box + ';display:flex;align-items:center;justify-content:center;font-size:26px;opacity:.55">📷</span>';
+    return '<div style="' + row + ';display:flex;gap:10px;align-items:center">' + th + '<div style="flex:1;min-width:0">' + txt + (!uu && u.thDone ? '<small style="display:block;opacity:.75">' + esc(TX('фото не загрузилось')) + '</small>' : '') + '</div></div>';
   }
   function pkPickupText(u) {
     return u.points.map(function (g) {
@@ -4943,11 +4979,11 @@ if (S.view === 'mkt') return renderMkt(el);
     if (u.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
     if (u.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(u.error) + '</p>' + pkBtn('pickup-retry', esc(TX('Ещё раз')), true));
     if (!u.points.length) return void (el.innerHTML = h + '<p>' + esc(TX('Сломанных инструментов на пунктах не отмечено. Список строится по последней отметке объезда.')) + '</p>');
-    h += '<p style="margin:0 0 10px;opacity:.85">' + esc(TX('Всего забрать')) + ': <b>' + u.total + '</b></p><div style="display:grid;gap:10px">' + u.points.map(function (g) {
+    h += '<p style="margin:0 0 10px;opacity:.85">' + esc(TX('Всего забрать')) + ': <b>' + u.total + '</b></p><div style="display:grid;gap:10px">' + u.points.map(function (g, gi) {
       return '<div style="border:2px solid #c0392b;border-radius:12px;padding:10px"><b style="display:block;font-size:18px">' + esc(g.name) + '</b>' + (g.city ? '<small style="opacity:.75">' + esc(g.city) + '</small>' : '') +
-        g.items.map(function (i) { return '<div style="padding:6px 0;border-top:1px solid rgba(127,127,127,.25);margin-top:6px">🔧 <b>' + esc(i.name) + '</b>' + (pkNum(i.qty) > 1 ? ' × ' + esc(i.qty) : '') + ' <span style="color:#c0392b;font-weight:700">' + esc(TX('сломан')) + '</span>' + (i.note ? '<small style="display:block;opacity:.75">' + esc(i.note) + '</small>' : '') + '</div>'; }).join('') + '</div>';
+        g.items.map(function (i, ii) { return pkPuItem(u, gi, i, ii); }).join('') + '</div>';
     }).join('') + '</div>' + pkBtn('pickup-copy', '📋 ' + esc(TX('Скопировать список')), false, 'width:100%;margin-top:12px') + (u.msg ? '<p role="status" style="margin-top:8px">' + esc(u.msg) + '</p>' : '');
-    el.innerHTML = h;
+    el.innerHTML = h + pkBigPhoto();
   }
   function pkCmpOpen() {
     var c = PK.cmp = { loading: true, points: [], error: '', open: {} }; render();
@@ -5126,6 +5162,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'cmp') return pkCmpOpen();
     if (k === 'pickup' || k === 'pickup-retry') return pkPickupOpen();
     if (k === 'rented' || k === 'rented-retry') return pkRentedOpen();
+    if (k.indexOf('puth:') === 0) { var pa = k.slice(5).split(':'), pg = PK.pu && PK.pu.points[+pa[0]], pi = pg && pg.items && pg.items[+pa[1]], pz = pi ? pkPuUrl(pi) : ''; if (pz) { PK.big = { url: pz, name: pi.name + ' · ' + pg.name, date: '' }; render(); } return; }
     if (k === 'pickup-copy') {
       var pu = PK.pu; if (!pu) return;
       var tx = pkPickupText(pu), okc = function () { pu.msg = TX('Скопировано'); render(); }, nok = function () { pu.msg = TX('Не получилось скопировать'); render(); };
