@@ -886,6 +886,7 @@ function pz_post(action, c, ts){ var b = isStaff() ? { sid: store('ew_sid')||'',
 function noChats(){ try { if (isStaff()) return localStorage.getItem('ew_apt_staff') === '1'; /* 12.11.2026: сотрудник аптеки Асрора не пользуется чатами — их и аватарки не грузим (запоминается после первого входа) */ var c = String(store('ew_cab') || ''); return (c === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5' || (c !== '' && localStorage.getItem('ew_nochat_' + c) === '1')); } catch (e) { return false; } }
 function load_pauses(){
   if (MODE !== 'user' || noChats()) return;
+  var pz0 = Date.now(); if (pz0 - (PZ_LAST || 0) < 15000) return; PZ_LAST = pz0; /* 12.11.2026: список пауз не чаще раза в 15 секунд */
   pz_post('list').then(function(x){
     if (x.s === 200 && x.j && x.j.ok && Array.isArray(x.j.list)) { PAUSED = {}; x.j.list.forEach(function(k){ PAUSED[k] = 1; }); PZ_LOADED = true; var sn = x.j.seen || {}, ch = false; Object.keys(sn).forEach(function(k0){ var k = k0.replace('_', ':'), v = Number(sn[k0])||0; if (v > (SEEN[k]||0)) { SEEN[k] = v; ch = true; } }); if (ch) { lstore('ew_seen', JSON.stringify(SEEN)); } render_list(); }
   }).catch(function(){});
@@ -1132,17 +1133,23 @@ function load_all(){
   load_chats();
 }
 function tick_times(c){ if (MODE !== 'user') return; var m = c.messages || [], bs = $('msgs').querySelectorAll('.bub[data-i]'); for (var k = 0; k < bs.length; k++) { var x = m[+bs[k].getAttribute('data-i')], sm = bs[k].querySelector('small'); if (x && sm) sm.textContent = when_txt(x.v); } }
+var LC_BUSY = 0, LC_WHO = '', PZ_LAST = 0;
+function lc_who(){ try { return String(store('ew_sid') || store('ew_cab') || ''); } catch(e){ return ''; } }
 function load_chats(){
   if (MODE !== 'user' || noChats()) return;
+  var lc0 = Date.now(), lcw = lc_who(); if (LC_BUSY && LC_WHO === lcw && lc0 - LC_BUSY < 20000) return; /* 12.11.2026: пока прошлый запрос переписок не ответил, второй не шлём (сервер отвечает по очереди) */
+  LC_BUSY = lc0; LC_WHO = lcw; LCLAST = lc0;
   var creq = isStaff() ? post('/staff', { action:'chats', sid: store('ew_sid') || '' }) : post('/cabinet-chats', { code: store('ew_cab') || '' });
   creq.then(function(x){
+    if (LC_BUSY === lc0) LC_BUSY = 0;
+    if (lc_who() !== lcw) return; /* ответ для другого кабинета (успели выйти или сменить кабинет) не показываем */
     if (isStaff() && !(x.j && x.j.ok)) { logout(true); return; }
     if (isStaff()) { ORDERED = x.j.ordered || []; if (x.j.name) { store('ew_sname', x.j.name); } }
     CHATS = (x.j && x.j.chats) || [];
     render_list();
     load_pauses();
     if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (sg(f) === sg(CUR)) { CUR = f; try { tick_times(f); pz_show(f); } catch (e) {} } else { vstop(); open_chat(f, true); } } else CUR = f; } }
-  }).catch(function(){});
+  }).catch(function(){ if (LC_BUSY === lc0) LC_BUSY = 0; });
 }
 
 var PENDTIMER = null;
@@ -1743,7 +1750,7 @@ setInterval(function(){ if ($('m-staff').open && !document.hidden) load_staff();
 setInterval(function(){ if ($('m-staff').open && !document.hidden && SDATA) render_staff(); }, 30000);
 
 /* живое обновление: каждые 6 секунд и сразу при возвращении в приложение (телефон усыпляет таймеры в фоне) */
-var LCLAST = 0;
+var LCLAST = LCLAST || 0;
 /* Закрыли вкладку или браузер — смена сотрудника закрывается сразу (сигнал pause). Не дошёл сигнал — смену закроет автозакрытие через 1 минуту без активности. */
 function staff_pause(){ try { if (MODE !== 'user' || !isStaff()) return; var sid = store('ew_sid') || ''; if (!sid) return; var data = new URLSearchParams({ action: 'pause', sid: sid }); if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/staff', data))) { fetch(API + '/staff', { method: 'POST', body: data, keepalive: true }); } } catch (e) {} }
 window.addEventListener('pagehide', staff_pause);
