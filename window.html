@@ -1759,7 +1759,7 @@ var LCLAST = LCLAST || 0;
 function staff_pause(){ try { if (MODE !== 'user' || !isStaff()) return; var sid = store('ew_sid') || ''; if (!sid) return; var data = new URLSearchParams({ action: 'pause', sid: sid }); if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/staff', data))) { fetch(API + '/staff', { method: 'POST', body: data, keepalive: true }); } } catch (e) {} }
 window.addEventListener('pagehide', staff_pause);
 /* 12.11.2026: если список переписок на экране не виден (кабинет проката, финансист и т.д.), обновляем не каждые 6 секунд, а раз в минуту — иначе n8n зря перегружается (по 20 запросов в минуту с каждой открытой вкладки) */
-function live_refresh(){ if (document.hidden || MODE !== 'user') return; var n = Date.now(), ls = $('list'), ms = $('msgs'), gap = ((ls && ls.offsetParent) || (ms && ms.offsetParent) || CUR) ? 2500 : 55000; if (n - LCLAST < gap) return; LCLAST = n; load_chats(); }
+function live_refresh(){ if (document.hidden || MODE !== 'user') return; var n = Date.now(), ls = $('list'), ms = $('msgs'), gap = ((ls && ls.offsetParent) || (ms && ms.offsetParent) || CUR) ? 11000 : 55000; /* 12.11.2026: переписки на экране обновляем раз в 12 секунд, а не в 6 — сервер читает базу по очереди */ if (n - LCLAST < gap) return; LCLAST = n; load_chats(); }
 setInterval(live_refresh, 6000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) live_refresh(); });
 window.addEventListener('focus', live_refresh);
