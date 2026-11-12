@@ -838,6 +838,7 @@ function isStaff(){ return !!store('ew_sid'); }
 function gc_db(){ return new Promise(function(ok,no){ try { var q = indexedDB.open('ew-cache',1); q.onupgradeneeded = function(){ q.result.createObjectStore('kv'); }; q.onsuccess = function(){ ok(q.result); }; q.onerror = function(){ no(q.error); }; } catch(e){ no(e); } }); }
 function gc_key(n){ var v = '', h = 0; try { v = String((isStaff() ? store('ew_sid') : store('ew_cab')) || ''); } catch(e){} for (var i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) | 0; return 'gc:' + (isStaff() ? 's' : 'c') + h + ':' + n; }
 function gc_get(n, fn){ var k = gc_key(n); gc_db().then(function(db){ var r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = function(){ if (r.result && r.result.v) { try { fn(r.result.v); } catch(e){} } }; }).catch(function(){}); }
+function gc_clear(){ gc_db().then(function(db){ db.transaction('kv','readwrite').objectStore('kv').clear(); }).catch(function(){}); } /* при выходе стираем сохранённые копии с телефона */
 function gc_set(n, v){ var k = gc_key(n); try { if (JSON.stringify(v).length > 800000) return; } catch(e){ return; } gc_db().then(function(db){ db.transaction('kv','readwrite').objectStore('kv').put({ v: v, t: Date.now() }, k); }).catch(function(){}); }
 /* 07.11.2026, только кабинет Асрора Холова: в строках ввода виден текстовый курсор и оранжевая рамка при нажатии (раньше курсор был прозрачным из-за общего правила caret-color) */
 function asrorCaret(){ try { if (document.getElementById('asr-css') || String(AS_KOD || store('ew_cab') || '') !== 'kd6es8ycn5fa6gj43v7vlmw3nc0z5') return; var st = document.createElement('style'); st.id = 'asr-css'; st.textContent = 'input,textarea{caret-color:#111!important}input:focus,textarea:focus{outline:3px solid #f5a623!important;outline-offset:1px!important;border-color:#f5a623!important}'; document.head.appendChild(st); } catch (e) {} }
@@ -1133,20 +1134,23 @@ function load_all(){
   load_chats();
 }
 function tick_times(c){ if (MODE !== 'user') return; var m = c.messages || [], bs = $('msgs').querySelectorAll('.bub[data-i]'); for (var k = 0; k < bs.length; k++) { var x = m[+bs[k].getAttribute('data-i')], sm = bs[k].querySelector('small'); if (x && sm) sm.textContent = when_txt(x.v); } }
-var LC_BUSY = 0, LC_WHO = '', PZ_LAST = 0;
+var LC_BUSY = 0, LC_WHO = '', PZ_LAST = 0, LC_FRESH = '', LC_SAVED = 0;
+/* Копия списка переписок на телефоне: последние 30 сообщений каждого чата, сохраняем не чаще раза в минуту */
+function lc_keep(){ var n = Date.now(); if (n - LC_SAVED < 60000) return; LC_SAVED = n; try { gc_set('chats', { ordered: ORDERED || [], chats: CHATS.map(function(c){ var o = {}; for (var k in c) o[k] = c[k]; if (Array.isArray(c.messages) && c.messages.length > 30) o.messages = c.messages.slice(-30); return o; }) }); } catch(e){} }
 function lc_who(){ try { return String(store('ew_sid') || store('ew_cab') || ''); } catch(e){ return ''; } }
 function load_chats(){
   if (MODE !== 'user' || noChats()) return;
   var lc0 = Date.now(), lcw = lc_who(); if (LC_BUSY && LC_WHO === lcw && lc0 - LC_BUSY < 20000) return; /* 12.11.2026: пока прошлый запрос переписок не ответил, второй не шлём (сервер отвечает по очереди) */
   LC_BUSY = lc0; LC_WHO = lcw; LCLAST = lc0;
+  if (LC_FRESH !== lcw && !CHATS.length) gc_get('chats', function(v){ if (LC_FRESH === lcw || lc_who() !== lcw || MODE !== 'user' || CHATS.length || !v || !Array.isArray(v.chats)) return; if (isStaff()) ORDERED = v.ordered || []; CHATS = v.chats; render_list(); }); /* 12.11.2026: сначала показываем сохранённый список, свежий придёт следом */
   var creq = isStaff() ? post('/staff', { action:'chats', sid: store('ew_sid') || '' }) : post('/cabinet-chats', { code: store('ew_cab') || '' });
   creq.then(function(x){
     if (LC_BUSY === lc0) LC_BUSY = 0;
     if (lc_who() !== lcw) return; /* ответ для другого кабинета (успели выйти или сменить кабинет) не показываем */
     if (isStaff() && !(x.j && x.j.ok)) { logout(true); return; }
     if (isStaff()) { ORDERED = x.j.ordered || []; if (x.j.name) { store('ew_sname', x.j.name); } }
-    CHATS = (x.j && x.j.chats) || [];
-    render_list();
+    CHATS = (x.j && x.j.chats) || []; LC_FRESH = lcw;
+    render_list(); lc_keep();
     load_pauses();
     if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (sg(f) === sg(CUR)) { CUR = f; try { tick_times(f); pz_show(f); } catch (e) {} } else { vstop(); open_chat(f, true); } } else CUR = f; } }
   }).catch(function(){ if (LC_BUSY === lc0) LC_BUSY = 0; });
@@ -1175,7 +1179,7 @@ function enter_mode(){
   if (MODE === 'user') { CHATS = []; INFO.paidUntil = store('ew_paid') || ''; INFO.tarif = store('ew_tarif') || ''; render_top(); render_list(); load_all(); if (!isStaff()) owner_seen(); }
   else { CHATS = DEMO; render_top(); render_list(); }
 }
-function logout(quiet){ try { for (var i = localStorage.length - 1; i >= 0; i--) { var kk = localStorage.key(i); if (kk && kk.indexOf('ew_av_') === 0) localStorage.removeItem(kk); } } catch(e){} if (isStaff() && !quiet) { post('/staff', { action:'logout', sid: store('ew_sid') }).catch(function(){}); } store('ew_sid',null); store('ew_sname',null); ORDERED=[]; var ph = store('ew_login'); store('ew_cab',null); store('ew_paid',null); store('ew_tarif',null); if (lstore('ew_remember')==='1' && ph) lstore('ew_phone',ph); else lstore('ew_phone',null); store('ew_login',null); INFO = {channels:{},bot:'',paidUntil:'',tarif:''}; enter_mode(); }
+function logout(quiet){ try { gc_clear(); } catch(e){} LC_FRESH = ''; try { for (var i = localStorage.length - 1; i >= 0; i--) { var kk = localStorage.key(i); if (kk && kk.indexOf('ew_av_') === 0) localStorage.removeItem(kk); } } catch(e){} if (isStaff() && !quiet) { post('/staff', { action:'logout', sid: store('ew_sid') }).catch(function(){}); } store('ew_sid',null); store('ew_sname',null); ORDERED=[]; var ph = store('ew_login'); store('ew_cab',null); store('ew_paid',null); store('ew_tarif',null); if (lstore('ew_remember')==='1' && ph) lstore('ew_phone',ph); else lstore('ew_phone',null); store('ew_login',null); INFO = {channels:{},bot:'',paidUntil:'',tarif:''}; enter_mode(); }
 
 $('l-forgot').addEventListener('click', function(){ var ft = $('l-forgot-t'), open = ft.hidden; ft.hidden = !open; ft.style.display = open ? 'flex' : 'none'; $('l-forgot-m').textContent = forgot_text(); this.setAttribute('aria-expanded', open ? 'true' : 'false'); });
 $('l-forgot-go').addEventListener('click', function(){
