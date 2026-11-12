@@ -6320,8 +6320,11 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (kbk && !AP.kb) idbGet(kbk).then(function (c) { if (c && Array.isArray(c.items) && !AP.kb) { AP.kb = c.items; if (c.pn && !Object.keys(AP.pn || {}).length) AP.pn = c.pn; aptRefreshLists(); } });
     if (!SH.d && !AP.cp) { AP.cp = aptCRead(); if (AP.cp && S.view === 'apt') { var l0 = $s('apt-list'); if (l0) l0.innerHTML = aptList(); } }
     /* Быстрый список (10.11.2026): название, полка, штрихкоды приходят за секунды из памяти сервера — показываем сразу, не дожидаясь полного ответа «magazin» */
-    if (!SH.d) callTo('/apteka-spisok', { action: 'list' }).then(function (r) {
-      if (!r || !r.ok || !Array.isArray(r.products) || !r.products.length || SH.d || S.view !== 'apt' || AP.form || AP.polki) return;
+    /* 12.11.2026: в том же быстром ответе приходит и справочник (название, полка, описание, число; без фото) — сотрудник видит все препараты полок, не дожидаясь тяжёлого /spravochnik */
+    callTo('/apteka-spisok', { action: 'list' }).then(function (r) {
+      if (!r || !r.ok || S.view !== 'apt') return;
+      if (Array.isArray(r.kb) && r.kb.length && !AP.kbDone) { aptApplyKb(r.kb, true, kbk); if (!AP.form) { var lk = $s('apt-list'); if (lk && SH.d) lk.innerHTML = aptList(); if (AP.polki && !AP.pedit) { var pk = $s('apt-polki-list'); if (pk) pk.innerHTML = aptPolkiList(); } } }
+      if (!Array.isArray(r.products) || !r.products.length || SH.d || AP.form || AP.polki) return;
       AP.cp = r.products; aptCSave(r.products);
       var lf = $s('apt-list'); if (lf) lf.innerHTML = aptList();
     });
@@ -6335,16 +6338,16 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     callTo('/polki-imena', { action: 'list' }).then(function (r) { if (r && r.ok && r.names) { AP.pn = r.names; if (S.view === 'apt' && !AP.polki && !AP.form) { var l2 = $s('apt-list'); if (l2 && SH.d) l2.innerHTML = aptList(); } if (S.view === 'apt' && AP.polki && !AP.form && !AP.pedit) { var pl = $s('apt-polki-list'); if (pl) pl.innerHTML = aptPolkiList(); } } });
     // Свой справочник препаратов (полка и описание, которые добавили вручную)
     callTo('/spravochnik', { action: 'list', lite: true }).then(function (r) {
-      if (r && r.ok) {
-        /* Лёгкий список (без фото): фото берём из памяти телефона, недостающие докачиваем отдельно */
-        var items = r.items || [];
-        if (r.lite) { var old = {}; (AP.kb || []).forEach(function (k) { old[String(k.name || '').trim().toLowerCase()] = k; }); items.forEach(function (it) { var o = old[String(it.name || '').trim().toLowerCase()]; it.foto = (it.fl > 0 && o && o.foto && o.foto.length === it.fl) ? o.foto : ''; }); }
-        AP.kb = items; if (kbk) idbSet(kbk, { t: Date.now(), items: AP.kb, pn: AP.pn || {} });
-        if (r.lite) aptFotoLoad(kbk);
-      } if (S.view !== 'apt' || AP.form) return;
+      if (r && r.ok) { AP.kbDone = true; aptApplyKb(r.items || [], !!r.lite, kbk); } if (S.view !== 'apt' || AP.form) return;
       var l2 = $s('apt-list'); if (l2) l2.innerHTML = aptList();
       if (AP.polki && !AP.pedit) { var pl2 = $s('apt-polki-list'); if (pl2) pl2.innerHTML = aptPolkiList(); }
     });
+  }
+  /* Принять справочник: фото берём из памяти телефона, недостающие докачиваем отдельно */
+  function aptApplyKb(items, lite, kbk) {
+    if (lite) { var old = {}; (AP.kb || []).forEach(function (k) { old[String(k.name || '').trim().toLowerCase()] = k; }); items.forEach(function (it) { var o = old[String(it.name || '').trim().toLowerCase()]; it.foto = (it.fl > 0 && o && o.foto && o.foto.length === it.fl) ? o.foto : ''; }); }
+    AP.kb = items; if (kbk) idbSet(kbk, { t: Date.now(), items: AP.kb, pn: AP.pn || {} });
+    if (lite) aptFotoLoad(kbk);
   }
   /* Докачка фото по 15 штук: уже сохранённые на телефоне не качаются снова */
   var aptFotoBusy = false;
@@ -6430,7 +6433,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (t) { if (isNum) { var mm = sh.match(/\d+/); if (!mm || parseInt(mm[0], 10) !== numQ) return; } else if (l.indexOf(t) < 0 && sh.toLowerCase().indexOf(t) < 0) return; } /* набрали число — показываем именно эту полку (50 — это полка 50, а не «500 мг» и полка 150) */
       seen[l] = 1; (g[sh] = g[sh] || []).push(n);
     }
-    ((SH.d && SH.d.products) || []).forEach(function (p) { var k = aptKb(p.name); put(p.name, String(p.shelf || '').trim() || (k && k.polka)); });
+    ((SH.d && SH.d.products) || AP.cp || []).forEach(function (p) { var k = aptKb(p.name); put(p.name, String(p.shelf || '').trim() || (k && k.polka)); });
     (AP.kb || []).forEach(function (k) { put(k.name, k.polka); });
     var keys = Object.keys(g).sort(function (a, b) { if (!a) return 1; if (!b) return -1; var x = parseFloat(a), y = parseFloat(b); if (!isNaN(x) && !isNaN(y) && x !== y) return x - y; return a.localeCompare(b, 'ru'); });
     if (!keys.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Ничего не найдено', 'Чизе ёфт нашуд', 'Hech narsa topilmadi')) + '</p>';
