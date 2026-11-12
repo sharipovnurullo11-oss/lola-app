@@ -1144,43 +1144,106 @@ function lc_base_set(w, b){ LC_BASEW = w; LC_BASE = b; try { localStorage.setIte
 function lc_keep(){ var n = Date.now(); if (n - LC_SAVED < 60000) return; LC_SAVED = n; try { gc_set('chats', { ordered: ORDERED || [], chats: CHATS.map(function(c){ var o = {}; for (var k in c) o[k] = c[k]; if (Array.isArray(c.messages) && c.messages.length > 30) o.messages = c.messages.slice(-30); return o; }) }); } catch(e){} }
 function lc_who(){ try { return String(store('ew_sid') || store('ew_cab') || ''); } catch(e){ return ''; } }
 var LC_HIST = {};
-/* 12.11.2026: сервер отдаёт по 40 последних сообщений на переписку; ранние подгружаем по кнопке только для открытой переписки */
+/* 12.11.2026: в списке сервер отдаёт по 100 последних сообщений на переписку; ранние подгружаем по кнопке только для открытой переписки */
 function more_load(){
   var c = CUR; if (!c || !c.more || c.moreBusy || isStaff() || MODE !== 'user') return;
   var key = c.kanal + ':' + c.id, b = $('msgs'); c.moreBusy = true;
+  var mbt = function(t){ var e = b.querySelector('.moreh'); if (e) e.textContent = t; }; mbt('…');
   post('/cabinet-chats', { code: store('ew_cab') || '', only: key, limit: 500 }).then(function(x){
     c.moreBusy = false;
     var r = x && x.j && x.j.ok && x.j.chats && x.j.chats[0], cc = CUR;
-    if (!r || !Array.isArray(r.messages) || !cc || cc.kanal + ':' + cc.id !== key) return;
+    if (!r || !Array.isArray(r.messages) || !cc || cc.kanal + ':' + cc.id !== key) { mbt(T('Показать ранние сообщения')); return; }
     var h0 = b.scrollHeight, y0 = b.scrollTop;
     cc.messages = r.messages; cc.more = !!r.more; LC_HIST[key] = { m: r.messages.slice(), more: cc.more };
     open_chat(cc, true); b.scrollTop = y0 + (b.scrollHeight - h0);
-  }).catch(function(){ c.moreBusy = false; });
+  }).catch(function(){ c.moreBusy = false; mbt(T('Показать ранние сообщения')); });
+}
+/* 12.11.2026: «дельта». Лёгкая проверка сама приносит новые строки (rows — сообщения, jr — журнал Ассистента), и мы дописываем их в уже загруженный список так же, как сервер собирает его при полной загрузке. Все переписки заново не скачиваем. Возвращает false, когда надёжнее перечитать всё целиком. Раз в 3 минуты список всё равно сверяется полной загрузкой. */
+var LC_DV = '', LC_TICKT = 0;
+function lc_kmap(k){ var s = String(k).toLowerCase(); if (s.indexOf('instagram') >= 0) return 'instagram'; if (s.indexOf('messenger') >= 0) return 'messenger'; if (s.indexOf('facebook') >= 0) return 'facebook'; if (s.indexOf('whatsapp') >= 0) return 'whatsapp'; if (s.indexOf('telegram') >= 0) return 'telegram'; return null; }
+function lc_name(u){ for (var i = 0; i < CHATS.length; i++) { var c = CHATS[i]; if (String(c.id).replace(/^[lc]:/, '') === String(u) && c.imya && !/^Клиент /.test(c.imya)) return c.imya; } return ''; }
+function lc_vis(){ var wk = $('work'); return wk.classList.contains('hasdlg') && (wk.classList.contains('open') || !!(window.matchMedia && window.matchMedia('(min-width:860px)').matches)); }
+function lc_tick(){ var n = Date.now(); if (n - LC_TICKT < 60000) return; LC_TICKT = n; try { if (CUR && MODE === 'user' && lc_vis()) { tick_times(CUR); pz_show(CUR); } } catch (e) {} }
+function lc_delta(rows, jr){
+  var by = {}, touched = [], i, c;
+  for (i = 0; i < CHATS.length; i++) by[CHATS[i].kanal + ':' + CHATS[i].id] = CHATS[i];
+  var tch = function(x){ if (touched.indexOf(x) < 0) touched.push(x); };
+  var has = function(x, d, v, t){ var m = x.messages; for (var k = m.length - 1; k >= 0; k--) if (m[k].d === d && m[k].v === v && m[k].t === t) return true; return false; };
+  var trm = function(t){ return String(t).trim(); };
+  var nm = function(u, name){ for (var k = 0; k < CHATS.length; k++) { var x = CHATS[k]; if (x.ro && String(x.id).replace(/^[lc]:/, '') === String(u) && /^Клиент /.test(String(x.imya || ''))) { x.imya = name; tch(x); } } }; /* вместо заглушки «Клиент 1234» ставим имя, как только оно стало известно */
+  for (i = 0; i < rows.length; i++) {
+    var r = rows[i]; if (!r || !r.k || r.c === undefined || r.c === null || r.c === '') continue;
+    c = by[r.k + ':' + r.c];
+    if (!c) {
+      if (by[r.k + ':l:' + r.c]) return false; /* у этого клиента была только переписка с Ассистентом: сервер объединит её с новой, поэтому читаем всё целиком */
+      c = { id: r.c, kanal: r.k, imya: r.n || '', last: '', time: '', messages: [], comment: r.k === 'facebook' };
+      CHATS.push(c); by[r.k + ':' + r.c] = c;
+    }
+    if (!Array.isArray(c.messages)) c.messages = [];
+    if (has(c, r.d, r.v, r.t)) continue;
+    if (r.d === 'out') for (var q = c.messages.length - 1; q >= 0; q--) { var o = c.messages[q]; if (o.j && o.d === 'out' && trm(o.t) === trm(r.t)) { c.messages.splice(q, 1); break; } } /* этот ответ уже пришёл из журнала Ассистента: оставляем одну запись */
+    if (r.n) { c.imya = r.n; nm(r.c, r.n); }
+    c.messages.push({ d: r.d, a: r.a, t: r.t, v: r.v }); tch(c);
+  }
+  for (i = 0; i < jr.length; i++) {
+    var g = jr[i]; if (!g || !g.k || !g.u) continue;
+    var kn = lc_kmap(g.k); if (!kn) continue;
+    var com = /коммент/i.test(String(g.k)), tw = com ? null : by[kn + ':' + g.u];
+    if (tw && !tw.ro) {
+      if (!Array.isArray(tw.messages)) tw.messages = [];
+      var gr = g.r ? trm(g.r) : '', dup = false;
+      if (gr) { for (var z = 0; z < tw.messages.length; z++) if (tw.messages[z].d === 'out' && trm(tw.messages[z].t) === gr) { dup = true; break; } if (!dup) { tw.messages.push({ d: 'out', a: 'ai', t: String(g.r), v: g.v, j: 1 }); tch(tw); } }
+      continue;
+    }
+    var id = (com ? 'c:' : 'l:') + g.u; c = by[kn + ':' + id];
+    if (!c) { c = { id: id, kanal: kn, imya: g.n || lc_name(g.u) || ('Клиент ' + String(g.u).slice(-4)), last: '', time: '', messages: [], ro: true, comment: com }; CHATS.push(c); by[kn + ':' + id] = c; }
+    if (!Array.isArray(c.messages)) c.messages = [];
+    if (g.n) nm(g.u, g.n);
+    if (g.q && !has(c, 'in', g.v, String(g.q))) { c.messages.push({ d: 'in', a: 'client', t: String(g.q), v: g.v }); tch(c); }
+    if (g.r && !has(c, 'out', g.v, String(g.r))) { c.messages.push({ d: 'out', a: 'ai', t: String(g.r), v: g.v }); tch(c); }
+  }
+  if (!touched.length) return true;
+  touched.forEach(function(x){ x.messages.sort(function(a, b){ return Date.parse(a.v) - Date.parse(b.v); }); var lm = x.messages[x.messages.length - 1]; if (lm) { x.last = lm.t; x.time = lm.v; } });
+  CHATS.sort(function(a, b){ return Date.parse(b.time) - Date.parse(a.time); });
+  render_list(); lc_keep();
+  if (CUR && touched.indexOf(CUR) >= 0 && lc_vis()) { vstop(); open_chat(CUR, true); LC_TICKT = Date.now(); }
+  return true;
 }
 function load_chats(){
   if (MODE !== 'user' || noChats()) return;
   var lc0 = Date.now(), lcw = lc_who(); if (LC_BUSY && LC_WHO === lcw && lc0 - LC_BUSY < 20000) return; /* 12.11.2026: пока прошлый запрос переписок не ответил, второй не шлём (сервер отвечает по очереди) */
   LC_BUSY = lc0; LC_WHO = lcw; LCLAST = lc0;
   if (LC_FRESH !== lcw && !CHATS.length) gc_get('chats', function(v){ if (LC_FRESH === lcw || lc_who() !== lcw || MODE !== 'user' || CHATS.length || !v || !Array.isArray(v.chats)) return; if (isStaff()) ORDERED = v.ordered || []; CHATS = v.chats; render_list(); }); /* 12.11.2026: сначала показываем сохранённый список, свежий придёт следом */
-  /* 12.11.2026: владелец кабинета между полными загрузками спрашивает сервер только «есть ли новое» (лёгкий запрос cabinet-chats-check); все переписки читаем, когда что-то изменилось, и раз в минуту для сверки. Если лёгкий запрос не ответил — работаем как раньше. */
-  if (LC_FRESH === lcw && lc0 - LC_FULLT < 60000) {
+  /* 12.11.2026: владелец кабинета между полными загрузками спрашивает сервер только «есть ли новое» (лёгкий запрос cabinet-chats-check). Новые сообщения сервер присылает прямо в ответе («дельта»), и мы дописываем их в список; все переписки читаем целиком раз в 3 минуты для сверки (без дельты — раз в минуту и при каждом изменении, как раньше). Если лёгкий запрос не ответил — работаем как раньше. */
+  if (LC_FRESH === lcw && lc0 - LC_FULLT < (LC_DV === lcw ? 180000 : 60000)) {
     var bs = lc_base_get(lcw) || { m: 0, j: 0, a: -1, s: '' };
     /* сотрудник присылает ключ смены: лёгкий запрос заодно отмечает, что он в сети (как раньше это делал полный запрос) */
-    post('/cabinet-chats-check', isStaff() ? { sid: store('ew_sid') || '', m: bs.m } : { code: store('ew_cab') || '', m: bs.m, j: bs.j }).then(function(x){
+    post('/cabinet-chats-check', isStaff() ? { sid: store('ew_sid') || '', m: bs.m } : { code: store('ew_cab') || '', m: bs.m, j: bs.j, d: 1 }).then(function(x){
       if (lc_who() !== lcw) { if (LC_BUSY === lc0) LC_BUSY = 0; return; }
       var r = x && x.j;
       if (!r || !r.ok || typeof r.m !== 'number' || typeof r.j !== 'number') return lc_full(lc0, lcw);
       var ch = r.m > bs.m || r.j > bs.j || r.a !== bs.a || String(r.s || '') !== String(bs.s || '');
-      lc_base_set(lcw, { m: r.m, j: r.j, a: r.a, s: String(r.s || '') });
-      if (ch) return lc_full(lc0, lcw);
-      if (LC_BUSY === lc0) LC_BUSY = 0;
-      load_pauses();
+      var nb = { m: r.m, j: r.j, a: r.a, s: String(r.s || '') };
+      if (isStaff() || r.dv !== 1) { /* сотрудник (или сервер без дельты): прежний порядок */
+        lc_base_set(lcw, nb);
+        if (ch) return lc_full(lc0, lcw);
+        if (LC_BUSY === lc0) LC_BUSY = 0;
+        load_pauses();
+        return;
+      }
+      LC_DV = lcw;
+      if (!ch) { if (LC_BUSY === lc0) LC_BUSY = 0; load_pauses(); lc_tick(); return; }
+      if (r.a === bs.a && Array.isArray(r.rows) && Array.isArray(r.jr)) {
+        var okd = false; try { okd = lc_delta(r.rows, r.jr); } catch (e) { okd = false; }
+        if (okd) { lc_base_set(lcw, nb); if (LC_BUSY === lc0) LC_BUSY = 0; load_pauses(); lc_tick(); return; }
+      }
+      lc_full(lc0, lcw, nb); /* номера строк запоминаем только после удачной полной загрузки */
     }).catch(function(){ lc_full(lc0, lcw); });
     return;
   }
   lc_full(lc0, lcw);
 }
-function lc_full(lc0, lcw){
+function lc_full(lc0, lcw, pend){
   var creq = isStaff() ? post('/staff', { action:'chats', sid: store('ew_sid') || '' }) : post('/cabinet-chats', { code: store('ew_cab') || '' });
   creq.then(function(x){
     if (LC_BUSY === lc0) LC_BUSY = 0;
@@ -1190,7 +1253,9 @@ function lc_full(lc0, lcw){
     if (LC_FRESH !== lcw) LC_HIST = {};
     CHATS = (x.j && x.j.chats) || [];
     if (!isStaff()) CHATS.forEach(function(c){ var h = LC_HIST[c.kanal + ':' + c.id]; if (!h || !c.messages || !c.messages.length) return; var f0 = Date.parse(c.messages[0].v), old = h.m.filter(function(m){ return Date.parse(m.v) < f0; }); if (old.length) { c.messages = old.concat(c.messages); c.more = h.more; } });
-    LC_FRESH = lcw; LC_FULLT = Date.now();
+    LC_FRESH = lcw; LC_FULLT = Date.now(); LC_TICKT = LC_FULLT;
+    /* 12.11.2026: сервер вместе со списком отдаёт номера последних строк, которые в него вошли (base): от них лёгкая проверка присылает только новое */
+    if (!isStaff()) { var xb = x.j && x.j.base; if (xb && typeof xb.m === 'number' && typeof xb.j === 'number') lc_base_set(lcw, { m: Math.max(xb.m, pend ? pend.m : 0), j: Math.max(xb.j, pend ? pend.j : 0), a: typeof xb.a === 'number' ? xb.a : (pend ? pend.a : -1), s: '' }); else if (pend) lc_base_set(lcw, pend); }
     render_list(); lc_keep();
     load_pauses();
     if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (sg(f) === sg(CUR)) { CUR = f; try { tick_times(f); pz_show(f); } catch (e) {} } else { vstop(); open_chat(f, true); } } else CUR = f; } }
