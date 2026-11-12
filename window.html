@@ -824,7 +824,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-chats-check','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -1134,7 +1134,10 @@ function load_all(){
   load_chats();
 }
 function tick_times(c){ if (MODE !== 'user') return; var m = c.messages || [], bs = $('msgs').querySelectorAll('.bub[data-i]'); for (var k = 0; k < bs.length; k++) { var x = m[+bs[k].getAttribute('data-i')], sm = bs[k].querySelector('small'); if (x && sm) sm.textContent = when_txt(x.v); } }
-var LC_BUSY = 0, LC_WHO = '', PZ_LAST = 0, LC_FRESH = '', LC_SAVED = 0;
+var LC_BUSY = 0, LC_WHO = '', PZ_LAST = 0, LC_FRESH = '', LC_SAVED = 0, LC_FULLT = 0, LC_BASE = null, LC_BASEW = null;
+function lc_base_key(w){ var h = 0; for (var i = 0; i < w.length; i++) h = (h * 31 + w.charCodeAt(i)) | 0; return 'ew_lcb_' + h; }
+function lc_base_get(w){ if (LC_BASEW === w) return LC_BASE; LC_BASEW = w; LC_BASE = null; try { var v = JSON.parse(localStorage.getItem(lc_base_key(w)) || 'null'); if (v && typeof v.m === 'number' && typeof v.j === 'number') LC_BASE = v; } catch(e){} return LC_BASE; }
+function lc_base_set(w, b){ LC_BASEW = w; LC_BASE = b; try { localStorage.setItem(lc_base_key(w), JSON.stringify(b)); } catch(e){} }
 /* Копия списка переписок на телефоне: последние 30 сообщений каждого чата, сохраняем не чаще раза в минуту */
 function lc_keep(){ var n = Date.now(); if (n - LC_SAVED < 60000) return; LC_SAVED = n; try { gc_set('chats', { ordered: ORDERED || [], chats: CHATS.map(function(c){ var o = {}; for (var k in c) o[k] = c[k]; if (Array.isArray(c.messages) && c.messages.length > 30) o.messages = c.messages.slice(-30); return o; }) }); } catch(e){} }
 function lc_who(){ try { return String(store('ew_sid') || store('ew_cab') || ''); } catch(e){ return ''; } }
@@ -1143,13 +1146,31 @@ function load_chats(){
   var lc0 = Date.now(), lcw = lc_who(); if (LC_BUSY && LC_WHO === lcw && lc0 - LC_BUSY < 20000) return; /* 12.11.2026: пока прошлый запрос переписок не ответил, второй не шлём (сервер отвечает по очереди) */
   LC_BUSY = lc0; LC_WHO = lcw; LCLAST = lc0;
   if (LC_FRESH !== lcw && !CHATS.length) gc_get('chats', function(v){ if (LC_FRESH === lcw || lc_who() !== lcw || MODE !== 'user' || CHATS.length || !v || !Array.isArray(v.chats)) return; if (isStaff()) ORDERED = v.ordered || []; CHATS = v.chats; render_list(); }); /* 12.11.2026: сначала показываем сохранённый список, свежий придёт следом */
+  /* 12.11.2026: владелец кабинета между полными загрузками спрашивает сервер только «есть ли новое» (лёгкий запрос cabinet-chats-check); все переписки читаем, когда что-то изменилось, и раз в минуту для сверки. Если лёгкий запрос не ответил — работаем как раньше. */
+  if (!isStaff() && LC_FRESH === lcw && lc0 - LC_FULLT < 60000) {
+    var bs = lc_base_get(lcw) || { m: 0, j: 0, a: -1 };
+    post('/cabinet-chats-check', { code: store('ew_cab') || '', m: bs.m, j: bs.j }).then(function(x){
+      if (lc_who() !== lcw) { if (LC_BUSY === lc0) LC_BUSY = 0; return; }
+      var r = x && x.j;
+      if (!r || !r.ok || typeof r.m !== 'number' || typeof r.j !== 'number') return lc_full(lc0, lcw);
+      var ch = r.m > bs.m || r.j > bs.j || r.a !== bs.a;
+      lc_base_set(lcw, { m: r.m, j: r.j, a: r.a });
+      if (ch) return lc_full(lc0, lcw);
+      if (LC_BUSY === lc0) LC_BUSY = 0;
+      load_pauses();
+    }).catch(function(){ lc_full(lc0, lcw); });
+    return;
+  }
+  lc_full(lc0, lcw);
+}
+function lc_full(lc0, lcw){
   var creq = isStaff() ? post('/staff', { action:'chats', sid: store('ew_sid') || '' }) : post('/cabinet-chats', { code: store('ew_cab') || '' });
   creq.then(function(x){
     if (LC_BUSY === lc0) LC_BUSY = 0;
     if (lc_who() !== lcw) return; /* ответ для другого кабинета (успели выйти или сменить кабинет) не показываем */
     if (isStaff() && !(x.j && x.j.ok)) { logout(true); return; }
     if (isStaff()) { ORDERED = x.j.ordered || []; if (x.j.name) { store('ew_sname', x.j.name); } }
-    CHATS = (x.j && x.j.chats) || []; LC_FRESH = lcw;
+    CHATS = (x.j && x.j.chats) || []; LC_FRESH = lcw; LC_FULLT = Date.now();
     render_list(); lc_keep();
     load_pauses();
     if (CUR) { var f = CHATS.filter(function(c){ return c.id===CUR.id && c.kanal===CUR.kanal; })[0]; if (f) { var wk = $('work'), vis = wk.classList.contains('open') || (window.matchMedia && window.matchMedia('(min-width:860px)').matches); if (wk.classList.contains('hasdlg') && vis) { var sg = function(c){ var m = c.messages||[]; return m.length + '|' + (m.length ? m[m.length-1].v + m[m.length-1].t : ''); }; if (sg(f) === sg(CUR)) { CUR = f; try { tick_times(f); pz_show(f); } catch (e) {} } else { vstop(); open_chat(f, true); } } else CUR = f; } }
