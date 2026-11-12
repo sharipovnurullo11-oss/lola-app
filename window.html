@@ -4648,7 +4648,7 @@ if (S.view === 'mkt') return renderMkt(el);
       if (pt.arch) h += '<div style="display:grid;gap:10px;margin-top:10px">' + gone.map(function (i) {
         var p = pt.photos[i], u = pkSafeUrl(p.url);
         return '<figure style="margin:0;border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden;opacity:.75">' + (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(pt.tool + ', ' + pkDay(p.date)) + '" style="display:block;width:100%;max-height:260px;object-fit:contain;background:rgba(127,127,127,.12)">' : '') +
-          '<figcaption style="padding:8px 10px"><b>📅 ' + esc(p.date ? pkDay(p.date) : TX('дата неизвестна')) + '</b><small style="display:block;opacity:.8">' + esc(TX('Этого аппарата на пункте уже нет')) + '</small>' + (pt.un && pt.un.i === i ? pkUnitBlock(pt, p, i) : pkBtn('un:' + i + ':работает', esc(TX('Вернуть из архива')), true, 'margin-top:6px')) + '</figcaption></figure>';
+          '<figcaption style="padding:8px 10px"><b>📅 ' + esc(p.date ? pkDay(p.date) : TX('дата неизвестна')) + '</b><small style="display:block;opacity:.8">' + esc(p.where === 'склад' ? TX('Ушёл на склад') : TX('Этого аппарата на пункте уже нет')) + '</small>' + (pt.un && pt.un.i === i ? pkUnitBlock(pt, p, i) : pkBtn('un:' + i + ':работает', esc(TX('Вернуть из архива')), true, 'margin-top:6px')) + '</figcaption></figure>';
       }).join('') + '</div>';
       h += '</div>';
     }
@@ -4658,10 +4658,11 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkUnitBlock(pt, p, i) {
     var U = pt.un;
     if (U && U.i === i) {
-      var txt = U.st === 'сломан' ? 'Отметить, что именно этот аппарат сломан?' : U.st === 'нет' ? 'Этого аппарата на пункте уже нет? Фото уйдёт в архив.' : 'Отметить, что этот аппарат снова работает?';
+      var txt = U.st === 'сломан' ? 'Отметить, что именно этот аппарат сломан?' : U.st === 'нет' ? 'Этого аппарата на пункте уже нет. Где он? Фото уйдёт в архив.' : 'Отметить, что этот аппарат снова работает?';
       return '<div style="margin-top:8px;padding:10px;border-radius:10px;border:2px solid #c0392b"><b style="display:block;margin-bottom:8px">' + esc(TX(txt)) + '</b>' +
         (U.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(U.err) + '</p>' : '') +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + pkBtn('un-yes', esc(TX(U.busy ? 'Сохраняю…' : 'Да')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Нет')), true) + '</div></div>';
+        (U.st === 'нет' ? '<div style="display:grid;gap:8px">' + pkBtn('un-sklad', '🏠 ' + esc(TX(U.busy ? 'Сохраняю…' : 'Он на складе (сломан)')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-yes', esc(TX('Его вообще нет')), true, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Отмена')), true) + '</div>' :
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + pkBtn('un-yes', esc(TX(U.busy ? 'Сохраняю…' : 'Да')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Нет')), true) + '</div>') + '</div>';
     }
     if (p.unit === 'сломан') return '<div style="margin-top:8px"><span style="display:block;color:#c0392b;font-weight:700;margin-bottom:6px">🔧 ' + esc(TX('Этот аппарат сломан — он в кнопке «Что забрать»')) + '</span>' + pkBtn('un:' + i + ':работает', esc(TX('Снова работает')), true) + '</div>';
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">' + pkBtn('un:' + i + ':сломан', '🔧 ' + esc(TX('Сломан')), true) + pkBtn('un:' + i + ':нет', esc(TX('Его нет')), true) + '</div>';
@@ -4670,13 +4671,21 @@ if (S.view === 'mkt') return renderMkt(el);
     var pt = PK.pt, U = pt && pt.un; if (!U || U.busy) return;
     var p = pt.photos[U.i]; if (!p) return;
     U.busy = true; U.err = ''; render();
-    callTo('/prokat-foto', { action: 'unit', name: pt.point, fid: p.id, tool: pt.tool, state: U.st }).then(function (r) {
+    callTo('/prokat-foto', { action: 'unit', name: pt.point, fid: p.id, tool: pt.tool, state: U.st, where: U.where || '' }).then(function (r) {
       if (PK.pt !== pt || pt.un !== U) return;
       U.busy = false;
       if (!r || !r.ok) { U.err = (r && r.error) || TX('Не получилось сохранить, попробуйте ещё раз'); return render(); }
-      p.unit = U.st === 'работает' ? '' : U.st; pt.un = null; PK.pu = null;
+      p.unit = U.st === 'работает' ? '' : U.st; p.where = U.where || ''; pt.un = null; PK.pu = null;
       pt.msg = U.st === 'сломан' ? TX('Отмечено: этот аппарат сломан. Он теперь в кнопке «Что забрать».') : U.st === 'нет' ? TX('Фото убрано в архив.') : TX('Отмечено: аппарат работает.');
       render();
+      if (U.st === 'нет' && U.where === 'склад') {
+        // Аппарат уехал на склад: +1 сломанный на складе, в записи видно, с какого пункта.
+        callTo('/prokat', { action: 'stock_move', name: pt.tool, delta: 1, state: 'сломан', note: 'с пункта ' + pt.point, id: oid() }).then(function (r2) {
+          if (PK.pt !== pt) return;
+          pt.msg = r2 && r2.ok ? TX('Фото в архиве. Аппарат добавлен на склад как сломанный, записано, с какого пункта.') : TX('Фото в архиве, но на склад добавить не получилось. Добавьте на Складе вручную.');
+          if (S.view === 'prokat') render();
+        });
+      }
     });
   }
   function pkBigPhoto() {
@@ -5007,6 +5016,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'pt-back') { PK.pt = null; PK.mv = null; PK.big = null; return render(); }
     if (k === 'pt-retry') { if (PK.pt) { var ti = PK.ph ? PK.ph.tools.map(function (t) { return t.name; }).indexOf(PK.pt.tool) : -1; PK.pt = null; if (ti >= 0) pkToolOpen(ti); else render(); } return; }
     if (k.indexOf('un:') === 0) { var up = k.split(':'); if (PK.pt && PK.pt.photos[+up[1]] && !(PK.pt.un && PK.pt.un.busy)) { PK.pt.un = { i: +up[1], st: up[2], busy: false, err: '' }; PK.pt.msg = ''; render(); } return; }
+    if (k === 'un-sklad') { if (PK.pt && PK.pt.un && !PK.pt.un.busy) PK.pt.un.where = 'склад'; return pkUnitSave(); }
     if (k === 'un-yes') return pkUnitSave();
     if (k === 'un-no') { if (PK.pt && PK.pt.un && !PK.pt.un.busy) { PK.pt.un = null; render(); } return; }
     if (k === 'arch-toggle') { if (PK.pt) { PK.pt.arch = !PK.pt.arch; render(); } return; }
