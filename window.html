@@ -6373,11 +6373,22 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       }, function () { aptFotoBusy = false; });
     })();
   }
-  function aptKb(name) { var n = String(name || '').trim().toLowerCase(), f = null; (AP.kb || []).forEach(function (k) { if (!f && String(k.name || '').trim().toLowerCase() === n) f = k; }); return f; }
+  /* 12.11.2026: поиск и «Полки» тормозили — на каждую букву для каждого из ~5000 препаратов справочник просматривался заново. Теперь индексы строятся один раз и пересчитываются, только если список изменился. */
+  var APX = { kb: null, kbN: -1, km: null, ps: null, psSrc: null, psN: -1 };
+  function aptKb(name) {
+    var kb = AP.kb || [];
+    if (APX.kb !== kb || APX.kbN !== kb.length) { var m = {}; kb.forEach(function (k) { var l = String(k.name || '').trim().toLowerCase(); if (!m[l]) m[l] = k; }); APX.km = m; APX.kb = kb; APX.kbN = kb.length; }
+    return APX.km[String(name || '').trim().toLowerCase()] || null;
+  }
+  function aptNameSet(prods) {
+    if (APX.psSrc !== prods || APX.psN !== prods.length) { var m = {}; prods.forEach(function (p) { m[String(p.name || '').trim().toLowerCase()] = 1; }); APX.ps = m; APX.psSrc = prods; APX.psN = prods.length; }
+    return APX.ps;
+  }
+  function aptInShop(n) { return !!aptNameSet((SH.d && SH.d.products) || [])[String(n).trim().toLowerCase()]; }
   function aptFind(t) {
     var prods = (SH.d && SH.d.products) || AP.cp || [];
     var r = prods.filter(function (p) { return p.name.toLowerCase().indexOf(t) >= 0 || p.kod.toLowerCase().indexOf(t) === 0 || shHasBar(p, t); }).map(function (p) { var k = aptKb(p.name); return { name: p.name, shelf: String(p.shelf || '').trim() || (k && String(k.polka || '').trim()) || '', text: (k && k.text) || AP.info[String(p.name).trim().toLowerCase()] || '', foto: (k && k.foto) || '', shop: true, kolvo: (k && k.kolvo) || '' }; });
-    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if (prods.some(function (p) { return p.name.trim().toLowerCase() === l.trim(); })) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '', kolvo: k.kolvo || '' }); });
+    (AP.kb || []).forEach(function (k) { var nm = String(k.name || ''), l = nm.toLowerCase(); if (l.indexOf(t) < 0) return; if (aptNameSet(prods)[l.trim()]) return; r.push({ name: nm, shelf: String(k.polka || '').trim(), text: k.text || AP.info[l.trim()] || '', foto: k.foto || '', kolvo: k.kolvo || '' }); });
     /* Сначала препараты с фото/картинкой, потом без; внутри — сначала те, что начинаются с набранного, затем по алфавиту */
     r.sort(function (a, b) { var f = a.foto ? 0 : 1, g = b.foto ? 0 : 1, x = a.name.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.name.toLowerCase().indexOf(t) === 0 ? 0 : 1; return f - g || x - y || a.name.localeCompare(b.name, 'ru'); });
     return r;
@@ -6408,13 +6419,13 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     // Не нашли точно (опечатка или голос услышал чуть иначе): ищем по началу слова, отбрасывая 1–2 последние буквы.
     for (var cut = 1; !r.length && cut <= 2 && t.length - cut >= 4; cut++) { r = aptFind(t.slice(0, t.length - cut)); like = r.length > 0; }
     if (!r.length) return '<p style="margin:8px 0;opacity:.75">' + esc(ui('Такого препарата нет. Проверьте название.', 'Чунин дору нест. Номро санҷед.', 'Bunday dori yoʻq. Nomini tekshiring.')) + '</p>';
-    aptAsk(r);
-    return (like ? '<p style="margin:8px 0;opacity:.8">' + esc(ui('Точно такого нет. Похожие:', 'Айнан чунин нест. Монанд:', 'Aynan shunday yoʻq. Oʻxshashlari:')) + '</p>' : '') + r.slice(0, 30).map(function (p) {
+    aptAsk(r); var LIM = t.length < 3 ? 12 : 30;
+    return (like ? '<p style="margin:8px 0;opacity:.8">' + esc(ui('Точно такого нет. Похожие:', 'Айнан чунин нест. Монанд:', 'Aynan shunday yoʻq. Oʻxshashlari:')) + '</p>' : '') + r.slice(0, LIM).map(function (p) {
       var sh = String(p.shelf || '').trim();
       return '<div style="padding:12px 14px;margin:8px 0;border:1px solid #e0e0e0;border-radius:14px;background:#fff;color:#111">' +
         '<div style="display:flex;gap:12px;align-items:flex-start">' + (p.foto ? '<img alt="" loading="lazy" decoding="async" data-zoom="1" data-nm="' + esc(p.name) + '" src="' + p.foto + '" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex:none">' : '') + '<b style="flex:1;min-width:0;font-size:20px;line-height:1.25;white-space:normal">' + esc(p.name) + '</b></div>' +
         '<span style="display:inline-block;margin:6px 0;padding:4px 12px;border-radius:10px;font-size:20px;' + (sh ? 'background:#fff4d6;color:#7a5200;font-weight:700' : 'background:#eee;color:#666;font-size:15px') + '">📍 ' + esc(sh ? ui('Полка ', 'Раф ', 'Javon ') + sh + ((AP.pn && AP.pn[sh]) ? ' — ' + AP.pn[sh] : '') : ui('Полка не указана', 'Раф нишон дода нашудааст', 'Javon koʻrsatilmagan')) + '</span>' + (p.text ? '<p style="margin:4px 0 0;font-size:16px;line-height:1.4;white-space:normal">' + esc(p.text) + '</p><small style="opacity:.6">' + esc(ui('Справочно, не замена совету врача', 'Маълумот барои огоҳӣ, на ивази маслиҳати духтур', 'Maʼlumot uchun, shifokor maslahatini oʻrnini bosmaydi')) + '</small>' : '') + '<div style="margin-top:8px"><button type="button" class="btn sec" data-apt="edit" data-n="' + esc(p.name) + '" style="min-height:36px;font-size:14px;padding:0 12px">✏️ ' + esc(ui('Изменить', 'Тағйир додан', 'Oʻzgartirish')) + '</button></div></div>';
-    }).join('') + (r.length > 30 ? '<small style="opacity:.7">' + esc(ui('Показаны первые 30 — уточните название', 'Аввалин 30 нишон дода шуд — номро дақиқ кунед', 'Dastlabki 30 ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
+    }).join('') + (r.length > LIM ? '<small style="opacity:.7">' + esc(ui('Показаны первые ' + LIM + ' — уточните название', 'Аввалин ' + LIM + ' нишон дода шуд — номро дақиқ кунед', 'Dastlabki ' + LIM + ' ta koʻrsatildi — nomini aniqlang')) + '</small>' : '');
   }
   // Голосовой ввод названия препарата (распознавание речи самого браузера; на телефоне, планшете и компьютере, где оно есть)
   var APM = null;
@@ -6461,7 +6472,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (hasOther) pager += bt(OTH, '···');
       pager += '</div><small style="display:block;opacity:.7;margin-bottom:4px">' + esc(pg === OTH ? ui('Полки без номера', 'Рафҳои бе рақам', 'Raqamsiz javonlar') : ui('Полки ', 'Рафҳо ', 'Javonlar ') + (pg * PER + 1) + '–' + (pg * PER + PER)) + '</small>';
     }
-    var pageKeys = keys, left = 100000;
+    var pageKeys = keys, total = 0; keys.forEach(function (k) { total += g[k].length; }); var left = !t ? 150 : (t.length < 3 && !isNum ? 100 : 100000), cap = left;
     if (!pageKeys.length) return pager + '<p style="margin:8px 0;opacity:.75">' + esc(ui('На этой странице полок нет', 'Дар ин саҳифа раф нест', 'Bu sahifada javon yoʻq')) + '</p>';
     return pager + pageKeys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
@@ -6470,9 +6481,9 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (k && AP.pedit === k) head = '<div style="margin:14px 0 4px;display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><input class="in2" id="apt-pn-in" maxlength="80" value="' + esc(pnm || '') + '" placeholder="' + esc(ui('Название полки, например: для пищеварения', 'Номи раф, масалан: барои ҳазм', 'Javon nomi, masalan: hazm uchun')) + '" style="width:100%;height:48px;font-size:17px;box-sizing:border-box"></div><button type="button" class="btn" data-apt="pn-ok" data-k="' + esc(k) + '" style="flex:none;min-height:48px;padding:0 14px">✓</button><button type="button" class="btn sec" data-apt="pn-x" style="flex:none;min-height:48px;padding:0 14px">×</button></div>';
       else head = '<div data-pn="' + esc(k) + '" style="margin:14px 0 4px;font-weight:700;font-size:20px;' + (k ? 'cursor:pointer;user-select:none' : '') + '">📍 ' + esc(k ? ui('Полка ', 'Раф ', 'Javon ') + k : ui('Без полки', 'Бе раф', 'Javonsiz')) + (pnm ? ' — <span style="color:#7a5200">' + esc(pnm) + '</span>' : '') + ' <small style="font-weight:400;opacity:.7">· ' + arr.length + '</small></div>';
       return head +
-        shown.map(function (n) { var kf = aptKb(n), ft = kf && kf.foto; return '<div style="display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #e6e6e6">' + (ft ? '<img alt="" loading="lazy" decoding="async" data-zoom="1" data-nm="' + esc(n) + '" src="' + ft + '" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none">' : '<span style="width:56px;height:56px;border-radius:10px;background:#eee;flex:none;display:flex;align-items:center;justify-content:center;font-size:22px">💊</span>') + '<button type="button" data-apt="popen" data-n="' + esc(n) + '" style="flex:1;min-width:0;font:inherit;font-size:18px;line-height:1.3;white-space:normal;text-align:left;background:none;border:0;color:inherit;cursor:pointer;padding:8px 0">' + esc(n) + '</button>' + (kf && !(SH.d && (SH.d.products || []).some(function (pp) { return String(pp.name).trim().toLowerCase() === String(n).trim().toLowerCase(); })) ? (AP.delAsk === n ? '<button type="button" class="btn" data-apt="pdel-yes" data-n="' + esc(n) + '" style="flex:none;min-height:40px;font-size:14px;padding:0 10px;background:#b3261e;color:#fff">' + esc(ui('Да, удалить', 'Бале, нест кардан', 'Ha, oʻchirish')) + '</button><button type="button" class="btn sec" data-apt="pdel-no" style="flex:none;min-height:40px;font-size:14px;padding:0 10px">' + esc(ui('Нет', 'Не', 'Yoʻq')) + '</button>' : '<button type="button" class="btn sec" data-apt="pdel" data-n="' + esc(n) + '" style="flex:none;min-height:40px;font-size:14px;padding:0 10px">🗑 ' + esc(ui('Удалить', 'Нест кардан', 'Oʻchirish')) + '</button>') : '') + '</div>'; }).join('') +
+        shown.map(function (n) { var kf = aptKb(n), ft = kf && kf.foto; return '<div style="display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #e6e6e6">' + (ft ? '<img alt="" loading="lazy" decoding="async" data-zoom="1" data-nm="' + esc(n) + '" src="' + ft + '" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none">' : '<span style="width:56px;height:56px;border-radius:10px;background:#eee;flex:none;display:flex;align-items:center;justify-content:center;font-size:22px">💊</span>') + '<button type="button" data-apt="popen" data-n="' + esc(n) + '" style="flex:1;min-width:0;font:inherit;font-size:18px;line-height:1.3;white-space:normal;text-align:left;background:none;border:0;color:inherit;cursor:pointer;padding:8px 0">' + esc(n) + '</button>' + (kf && !(SH.d && aptInShop(n)) ? (AP.delAsk === n ? '<button type="button" class="btn" data-apt="pdel-yes" data-n="' + esc(n) + '" style="flex:none;min-height:40px;font-size:14px;padding:0 10px;background:#b3261e;color:#fff">' + esc(ui('Да, удалить', 'Бале, нест кардан', 'Ha, oʻchirish')) + '</button><button type="button" class="btn sec" data-apt="pdel-no" style="flex:none;min-height:40px;font-size:14px;padding:0 10px">' + esc(ui('Нет', 'Не', 'Yoʻq')) + '</button>' : '<button type="button" class="btn sec" data-apt="pdel" data-n="' + esc(n) + '" style="flex:none;min-height:40px;font-size:14px;padding:0 10px">🗑 ' + esc(ui('Удалить', 'Нест кардан', 'Oʻchirish')) + '</button>') : '') + '</div>'; }).join('') +
         (arr.length > shown.length ? '<small style="opacity:.7">' + esc(ui('Ещё ' + (arr.length - shown.length) + ' — уточните поиск', 'Боз ' + (arr.length - shown.length) + ' — ҷустуҷӯро дақиқ кунед', 'Yana ' + (arr.length - shown.length) + ' — qidiruvni aniqlang')) + '</small>' : '');
-    }).join('') + pager;
+    }).join('') + (total > cap ? '<small style="display:block;opacity:.7;margin:10px 0">' + esc(ui('Показаны первые ' + cap + ' — введите номер полки или название препарата', 'Аввалин ' + cap + ' нишон дода шуд — рақами раф ё номи доруро нависед', 'Dastlabki ' + cap + ' ta koʻrsatildi — javon raqami yoki dori nomini yozing')) + '</small>' : '') + pager;
   }
   function renderAptPolki(el) {
     try { var dd = el.closest('dialog'); if (dd) dd.classList.add('nox'); } catch (e) {}
@@ -7322,8 +7333,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (e.type === 'input' && t.id === 'sh-f-unit') { var pb2 = $s('sh-f-perbox'), pl2 = $s('sh-f-perl'); if (pb2) pb2.hidden = t.value === 'sht'; if (pl2) pl2.textContent = shPerLabel(t.value); var rb2 = $s('sh-f-rollbox'); if (rb2) rb2.hidden = !(t.value === 'm' || t.value === 'kg'); }
     if (t.id === 'sh-b-q' && e.type === 'input' && SH.bind) { SH.bind.q = t.value; var bh = $s('sh-bhints'); if (bh) bh.innerHTML = shBindHints(); return; }
     if (t.id === 'apt-f-name' && e.type === 'input') { var sg0 = $s('apt-f-sug'); if (sg0) sg0.innerHTML = (AP.form && AP.form.old) ? '' : aptSugHtml(t.value); return; }
-    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; AP.pg = null; var apq = $s('apt-polki-list'); if (apq) apq.innerHTML = aptPolkiList(); return; }
-    if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; AP.msg = ''; var apl = $s('apt-list'); if (apl) apl.innerHTML = aptList(); return; }
+    if (t.id === 'apt-polki-q' && e.type === 'input') { AP.pq = t.value; AP.pg = null; clearTimeout(AP.pqt); AP.pqt = setTimeout(function () { var apq = $s('apt-polki-list'); if (apq && AP.polki && !AP.pedit) apq.innerHTML = aptPolkiList(); }, 150); return; }
+    if (t.id === 'apt-q' && e.type === 'input') { AP.q = t.value; AP.msg = ''; clearTimeout(AP.qt); AP.qt = setTimeout(function () { var apl = $s('apt-list'); if (apl && S.view === 'apt' && !AP.form && !AP.polki) apl.innerHTML = aptList(); }, 150); return; } /* 12.11.2026: не перерисовываем список на каждую букву — 150 мс после последней */
     if (t.id === 'sh-polki-q' && e.type === 'input') { SH.pq = t.value; var plb = $s('sh-polki-list'); if (plb) plb.innerHTML = shPolkiList(); return; }
     if (t.id === 'sh-pcode' && e.type === 'input') { SH.pcode = t.value; var pb = $s('sh-phints'); if (pb) pb.innerHTML = shPHints(); return; }
     if (t.id === 'shx-who' && e.type === 'input') { SH.who = t.value; var wb = $s('sh-whohint'); if (wb) wb.innerHTML = shWhoHtml(); return; }
