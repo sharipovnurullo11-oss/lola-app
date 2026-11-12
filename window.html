@@ -6424,10 +6424,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   }
   // «Полки» в окне «Поиск препарата» (08.11.2026, поручение №658, только Асрор Холов): по номеру полки видно, какие препараты на ней лежат. Цену и остаток не показываем.
   function aptPolkiList() {
-    var t = String(AP.pq || '').trim().toLowerCase(), g = {}, seen = {};
+    var t = String(AP.pq || '').trim().toLowerCase(), g = {}, seen = {}, isNum = /^\d+$/.test(t), numQ = isNum ? parseInt(t, 10) : 0;
     function put(name, shelf) {
-      var n = String(name || '').trim(), l = n.toLowerCase(), sh = String(shelf || '').trim(); if (!n || seen[l]) return;
-      if (t && l.indexOf(t) < 0 && sh.toLowerCase().indexOf(t) < 0) return;
+      var n = String(name || '').trim(), l = n.toLowerCase(), sh = String(shelf || '').trim(); if (!n || !sh || seen[l]) return; /* 12.11.2026: препараты без полки здесь не показываем — они ищутся в главном окне поиска */
+      if (t) { if (isNum) { var mm = sh.match(/\d+/); if (!mm || parseInt(mm[0], 10) !== numQ) return; } else if (l.indexOf(t) < 0 && sh.toLowerCase().indexOf(t) < 0) return; } /* набрали число — показываем именно эту полку (50 — это полка 50, а не «500 мг» и полка 150) */
       seen[l] = 1; (g[sh] = g[sh] || []).push(n);
     }
     ((SH.d && SH.d.products) || []).forEach(function (p) { var k = aptKb(p.name); put(p.name, String(p.shelf || '').trim() || (k && k.polka)); });
