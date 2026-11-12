@@ -4926,7 +4926,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkTake(p) {
     if (!p || !p.last_take) return TX('деньги не брал');
     var d = pkNum(p.take_days);
-    return TX('деньги взял') + ' ' + pkDay(p.last_take) + (d > 0 ? ' (' + d + ' ' + TX('дн. назад') + ')' : ' (' + TX('сегодня') + ')');
+    return TX('деньги взял') + ' ' + pkDay(p.last_take) + (pkNum(p.last_take_amount) > 0 ? ' — ' + pkMoney(p.last_take_amount) + ' ' + TX('смн') : '') + (d > 0 ? ' (' + d + ' ' + TX('дн. назад') + ')' : ' (' + TX('сегодня') + ')');
   }
   function pkVisit(p) {
     if (!p || !p.last_visit) return TX('объезда не было');
