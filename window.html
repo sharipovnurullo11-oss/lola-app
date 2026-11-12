@@ -4634,12 +4634,48 @@ if (S.view === 'mkt') return renderMkt(el);
     if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>');
     h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, сверху самые новые')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
     h += '<div style="display:grid;gap:12px">' + pt.photos.map(function (p, i) {
+      if (p.unit === 'нет') return '';
       var u = pkSafeUrl(p.url), sub = [p.src === 'объезд' ? TX('объезд') : '', p.state ? TX(p.state) : '', p.note || ''].filter(Boolean).join(' · ');
       return '<figure style="margin:0;border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden">' +
         (u ? '<button type="button" data-pk="pth:' + i + '" style="display:block;width:100%;padding:0;border:0;background:none;cursor:pointer"><img src="' + esc(u) + '" loading="lazy" alt="' + esc(pt.tool + ', ' + pkDay(p.date)) + '" style="display:block;width:100%;max-height:420px;object-fit:contain;background:rgba(127,127,127,.12)"></button>' : '<span style="display:block;padding:24px;text-align:center;opacity:.7">' + esc(TX('фото не загрузилось')) + '</span>') +
-        '<figcaption style="padding:8px 10px"><b style="font-size:17px">📅 ' + esc(p.date ? pkDay(p.date) : TX('дата неизвестна')) + '</b>' + (sub ? '<small style="display:block;opacity:.8">' + esc(sub) + '</small>' : '') + pkRelabel(pt, p, i) + '</figcaption></figure>';
+        '<figcaption style="padding:8px 10px"><b style="font-size:17px">📅 ' + esc(p.date ? pkDay(p.date) : TX('дата неизвестна')) + '</b>' + (sub ? '<small style="display:block;opacity:.8">' + esc(sub) + '</small>' : '') + pkRelabel(pt, p, i) + pkUnitBlock(pt, p, i) + '</figcaption></figure>';
     }).join('') + '</div>';
+    var gone = pt.photos.map(function (p, i) { return p.unit === 'нет' ? i : -1; }).filter(function (i) { return i >= 0; });
+    if (gone.length) {
+      h += '<div style="margin-top:14px"><button type="button" data-pk="arch-toggle" aria-expanded="' + !!pt.arch + '" style="width:100%;text-align:left;padding:10px;border:1px solid rgba(127,127,127,.35);border-radius:10px;background:none;color:inherit;font:inherit;cursor:pointer">' + (pt.arch ? '▾ ' : '▸ ') + '🗄 ' + esc(TX('Архив: аппаратов уже нет')) + ' (' + gone.length + ')</button>';
+      if (pt.arch) h += '<div style="display:grid;gap:10px;margin-top:10px">' + gone.map(function (i) {
+        var p = pt.photos[i], u = pkSafeUrl(p.url);
+        return '<figure style="margin:0;border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden;opacity:.75">' + (u ? '<img src="' + esc(u) + '" loading="lazy" alt="' + esc(pt.tool + ', ' + pkDay(p.date)) + '" style="display:block;width:100%;max-height:260px;object-fit:contain;background:rgba(127,127,127,.12)">' : '') +
+          '<figcaption style="padding:8px 10px"><b>📅 ' + esc(p.date ? pkDay(p.date) : TX('дата неизвестна')) + '</b><small style="display:block;opacity:.8">' + esc(TX('Этого аппарата на пункте уже нет')) + '</small>' + (pt.un && pt.un.i === i ? pkUnitBlock(pt, p, i) : pkBtn('un:' + i + ':работает', esc(TX('Вернуть из архива')), true, 'margin-top:6px')) + '</figcaption></figure>';
+      }).join('') + '</div>';
+      h += '</div>';
+    }
     el.innerHTML = h + pkBigPhoto();
+  }
+  // Отдельный аппарат на фото (12.11.2026): «Сломан» — этот аппарат попадает в «Что забрать»; «Его нет» — фото уходит в архив внизу карточки; «Снова работает» / «Вернуть» отменяют отметку.
+  function pkUnitBlock(pt, p, i) {
+    var U = pt.un;
+    if (U && U.i === i) {
+      var txt = U.st === 'сломан' ? 'Отметить, что именно этот аппарат сломан?' : U.st === 'нет' ? 'Этого аппарата на пункте уже нет? Фото уйдёт в архив.' : 'Отметить, что этот аппарат снова работает?';
+      return '<div style="margin-top:8px;padding:10px;border-radius:10px;border:2px solid #c0392b"><b style="display:block;margin-bottom:8px">' + esc(TX(txt)) + '</b>' +
+        (U.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(U.err) + '</p>' : '') +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + pkBtn('un-yes', esc(TX(U.busy ? 'Сохраняю…' : 'Да')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Нет')), true) + '</div></div>';
+    }
+    if (p.unit === 'сломан') return '<div style="margin-top:8px"><span style="display:block;color:#c0392b;font-weight:700;margin-bottom:6px">🔧 ' + esc(TX('Этот аппарат сломан — он в кнопке «Что забрать»')) + '</span>' + pkBtn('un:' + i + ':работает', esc(TX('Снова работает')), true) + '</div>';
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">' + pkBtn('un:' + i + ':сломан', '🔧 ' + esc(TX('Сломан')), true) + pkBtn('un:' + i + ':нет', esc(TX('Его нет')), true) + '</div>';
+  }
+  function pkUnitSave() {
+    var pt = PK.pt, U = pt && pt.un; if (!U || U.busy) return;
+    var p = pt.photos[U.i]; if (!p) return;
+    U.busy = true; U.err = ''; render();
+    callTo('/prokat-foto', { action: 'unit', name: pt.point, fid: p.id, tool: pt.tool, state: U.st }).then(function (r) {
+      if (PK.pt !== pt || pt.un !== U) return;
+      U.busy = false;
+      if (!r || !r.ok) { U.err = (r && r.error) || TX('Не получилось сохранить, попробуйте ещё раз'); return render(); }
+      p.unit = U.st === 'работает' ? '' : U.st; pt.un = null; PK.pu = null;
+      pt.msg = U.st === 'сломан' ? TX('Отмечено: этот аппарат сломан. Он теперь в кнопке «Что забрать».') : U.st === 'нет' ? TX('Фото убрано в архив.') : TX('Отмечено: аппарат работает.');
+      render();
+    });
   }
   function pkBigPhoto() {
     var p = PK.big, u = p && pkSafeUrl(p.url); if (!u) return '';
@@ -4726,7 +4762,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkPickupText(u) {
     return u.points.map(function (g) {
-      return g.name + (g.city ? ' (' + g.city + ')' : '') + ':\n' + g.items.map(function (i) { return '— ' + i.name + (pkNum(i.qty) > 1 ? ' × ' + i.qty : '') + ' (' + TX('сломан') + ')'; }).join('\n');
+      return g.name + (g.city ? ' (' + g.city + ')' : '') + ':\n' + g.items.map(function (i) { return '— ' + i.name + (pkNum(i.qty) > 1 ? ' × ' + i.qty : '') + ' (' + TX('сломан') + (i.unit ? ', ' + TX('один аппарат') : '') + ')'; }).join('\n');
     }).join('\n\n');
   }
   function renderPkPickup(el) {
@@ -4941,6 +4977,10 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'cd-save') { pkCardSave(); return; }
     if (k === 'pt-back') { PK.pt = null; PK.mv = null; PK.big = null; return render(); }
     if (k === 'pt-retry') { if (PK.pt) { var ti = PK.ph ? PK.ph.tools.map(function (t) { return t.name; }).indexOf(PK.pt.tool) : -1; PK.pt = null; if (ti >= 0) pkToolOpen(ti); else render(); } return; }
+    if (k.indexOf('un:') === 0) { var up = k.split(':'); if (PK.pt && PK.pt.photos[+up[1]] && !(PK.pt.un && PK.pt.un.busy)) { PK.pt.un = { i: +up[1], st: up[2], busy: false, err: '' }; PK.pt.msg = ''; render(); } return; }
+    if (k === 'un-yes') return pkUnitSave();
+    if (k === 'un-no') { if (PK.pt && PK.pt.un && !PK.pt.un.busy) { PK.pt.un = null; render(); } return; }
+    if (k === 'arch-toggle') { if (PK.pt) { PK.pt.arch = !PK.pt.arch; render(); } return; }
     if (k.indexOf('rl:') === 0) { if (PK.pt) { PK.pt.rl = { i: +k.slice(3), to: '', name: '', busy: false, err: '' }; PK.pt.msg = ''; render(); } return; }
     if (k.indexOf('rlp:') === 0) { var R = PK.pt && PK.pt.rl, nm = pkRelabelNames()[+k.slice(4)]; if (R && nm && !R.busy) { var ri = $s('pk-rl-new'); R.name = ''; if (ri) ri.value = ''; R.to = nm; R.err = ''; render(); } return; }
     if (k === 'rl-save') return pkRelabelSave();
