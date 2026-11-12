@@ -2547,7 +2547,7 @@ function $s(id) { return document.getElementById(id); }
   function money(c) { var neg = c < 0; c = Math.abs(c); var s = String(Math.floor(c / 100)).replace(/\B(?=(\d{3})+$)/g, ' '), r = c % 100; return (neg ? '−' : '') + s + (r ? ',' + pad(r) : ''); }
   function oid() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function sellerView() { return SELLER || staffNow(); }
-  var PREVIEW = false, PREV_TAB = '', PREV_FIN = false;
+  var PREVIEW = false, PREV_TAB = '', PREV_FIN = false, PREV_APT = false;
   function staffNow() { try { return !!isStaff(); } catch (e) { return false; } }
   function code() { var b = {}; try { if (staffNow()) b.sid = store('ew_sid') || ''; else b.code = store('ew_cab') || ''; } catch (e) {} return b; }
   function callTo(path, body) {
@@ -6571,6 +6571,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       (AP.msg ? '<p role="status" style="color:#1f8a4c;margin:8px 0 0">' + esc(AP.msg) + '</p>' : '') +
       (AP.err ? '<p role="alert" style="color:#b3261e">' + esc(AP.err) + '</p>' : '') +
       ('<p style="margin:10px 0 0"><button type="button" class="btn" data-apt="new" style="min-height:48px;font-size:17px;width:100%">➕ ' + esc(ui('Добавить новый препарат', 'Доруи нав илова кардан', 'Yangi dori qoʻshish')) + '</button></p>') +
+      (!PHARM && shPolkiOn() ? '<p style="margin:8px 0 0"><button type="button" class="btn sec" data-apt="asstaff" style="min-height:44px;font-size:15px;width:100%">👁 ' + esc(ui('Как видит сотрудник', 'Корманд чӣ тавр мебинад', 'Xodim qanday koʻradi')) + '</button></p>' : '') +
       '<input type="file" id="apt-cfoto-in" accept="image/*" capture="environment" hidden>' +
       '<div id="apt-list" style="margin-top:6px">' + aptList() + '</div>' +
       (AP.card ? '<p style="margin-top:auto;padding-top:72px;margin-bottom:0"><button type="button" class="btn sec" data-apt="cback" style="min-height:48px;font-size:17px;width:100%">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button></p>' : PHARM ? '<p style="margin-top:auto;padding-top:72px;margin-bottom:0;text-align:left"><button type="button" class="btn sec" data-apt="exit-ask" style="min-height:36px;font-size:13px;padding:0 12px;width:auto;opacity:.8">' + esc(ui('Выйти', 'Баромадан', 'Chiqish')) + '</button></p>' + (AP.exitAsk ? '<div role="dialog" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:Canvas;color:CanvasText;border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center"><p style="font-size:19px;margin:0 0 16px">' + esc(ui('Вы действительно хотите выйти?', 'Шумо воқеан баромадан мехоҳед?', 'Rostdan ham chiqmoqchimisiz?')) + '</p><div style="display:grid;gap:10px"><button type="button" class="btn" data-shop="selout" style="min-height:48px;font-size:17px">' + esc(ui('Да, выйти', 'Бале, баромадан', 'Ha, chiqish')) + '</button><button type="button" class="btn sec" data-apt="exit-no" style="min-height:48px;font-size:17px">' + esc(ui('Нет, остаться', 'Не, мондан', 'Yoʻq, qolish')) + '</button></div></div></div>' : '') : '<p style="margin-top:auto;padding-top:72px;margin-bottom:0"><button type="button" class="btn sec" data-apt="manage" style="min-height:48px;font-size:16px;width:100%">💼 ' + esc(ui('Финансист: бухгалтерия, касса, кладовщик', 'Мутахассиси молия: ҳисобдорӣ, касса, анбордор', 'Moliyachi: buxgalteriya, kassa, omborchi')) + '</button></p>' + '<p style="margin-top:8px"><button type="button" class="btn sec" data-apt="team" style="min-height:48px;font-size:16px;width:100%">👥 ' + esc(ui('Сотрудники аптеки: добавить', 'Кормандони дорухона: илова', 'Dorixona xodimlari: qoʻshish')) + '</button></p>') + '</div>';
@@ -7148,7 +7149,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shopClick(b) {
     var a = b.dataset.shop, k = b.dataset.k;
     if (a === 'preview' || a === 'previewk') { KEEPER = a === 'previewk'; PREVIEW = true; PREV_TAB = SH.tab; var md = $s('m-spec'); if (md && md.open) md.close(); if (shPolkiOn()) { KEEPER = false; setPharm(); return; } /* аптека Асрора: продавец видит только поиск и добавление препарата */ setSeller(true); return; }
-    if (a === 'selout') { if (PREVIEW) { PREVIEW = false; setSeller(false); S.view = PREV_FIN ? 'fin' : 'shop'; PREV_FIN = false; SH.tab = PREV_TAB || 'kassa'; SH.cart = []; SH.pay = ''; SH.d = null; render(); open_dlg('m-spec'); shLoad(); return; } if (typeof window.logout === 'function') window.logout(); return; }
+    if (a === 'selout') { if (PREVIEW && PREV_APT) { PREVIEW = false; PREV_APT = false; setSeller(false); S.view = 'apt'; AP.exitAsk = false; AP.polki = false; AP.pq = ''; AP.q = ''; AP.form = null; SH.d = null; render(); open_dlg('m-spec'); aptLoad(); return; } if (PREVIEW) { PREVIEW = false; setSeller(false); S.view = PREV_FIN ? 'fin' : 'shop'; PREV_FIN = false; SH.tab = PREV_TAB || 'kassa'; SH.cart = []; SH.pay = ''; SH.d = null; render(); open_dlg('m-spec'); shLoad(); return; } if (typeof window.logout === 'function') window.logout(); return; }
     if (SELLER && !KEEPER && ['tab', 'fnew', 'fedit', 'rcv', 'rok', 'pdel', 'pay-open', 'pok', 'void', 'mprev', 'mnext', 'fcancel', 'save', 'rcancel'].indexOf(a) >= 0) return;
     if (KEEPER && ['tab', 'fedit', 'pdel', 'pay-open', 'pok', 'void', 'mprev', 'mnext', 'sell', 'add', 'put', 'plus', 'minus', 'rm', 'pay', 'dolgopen', 'paynow', 'who', 'preview', 'previewk'].indexOf(a) >= 0) return;
     if (a === 'tab') { SH.polki = false; SH.low = ''; SH.pcode = ''; SH.tab = k; SH.err = ''; SH.ok = ''; SH.form = null; SH.rcv = null; SH.payf = null; SH.delAsk = ''; SH.voidAsk = ''; SH.found = null; SH.code = ''; if (k === 'anal') { anLoad(); return; } return render(); }
@@ -7563,6 +7564,8 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       return;
     }
 
+    /* 12.11.2026: владелец и админ (#as=) открывают окно сотрудника-аптекаря «как есть» — смотреть и решать проблемы на месте. Выход вернёт в обычное окно. */
+    if (b.dataset.apt === 'asstaff') { if (!shPolkiOn() || PHARM) return; KEEPER = false; PREVIEW = true; PREV_APT = true; var mdp = $s('m-spec'); if (mdp && mdp.open) mdp.close(); AP.polki = false; AP.pq = ''; AP.q = ''; AP.form = null; AP.multi = null; setPharm(); return; }
     if (b.dataset.apt === 'exit-ask') { AP.exitAsk = true; render(); return; }
     if (b.dataset.apt === 'exit-no') { AP.exitAsk = false; render(); return; }
     if (b.dataset.apt === 'ppage') { AP.pg = parseInt(b.dataset.p, 10) || 0; var apl = $s('apt-polki-list'); if (apl) { apl.innerHTML = aptPolkiList(); try { apl.scrollIntoView({ block: 'start' }); } catch (e) {} } return; }
