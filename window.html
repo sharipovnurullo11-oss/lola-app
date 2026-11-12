@@ -834,6 +834,11 @@ function list_when(v){ var d=new Date(v); if (isNaN(d)) return String(v||''); va
 var TAB = 'msg', MODE = 'guest', CHATS = DEMO, CUR = null, INFO = { channels:{}, bot:'', paidUntil:'', tarif:'' };
 
 function isStaff(){ return !!store('ew_sid'); }
+/* Память телефона для мелких окон (12.11.2026): сначала показываем сохранённое, свежее приходит следом */
+function gc_db(){ return new Promise(function(ok,no){ try { var q = indexedDB.open('ew-cache',1); q.onupgradeneeded = function(){ q.result.createObjectStore('kv'); }; q.onsuccess = function(){ ok(q.result); }; q.onerror = function(){ no(q.error); }; } catch(e){ no(e); } }); }
+function gc_key(n){ var v = '', h = 0; try { v = String((isStaff() ? store('ew_sid') : store('ew_cab')) || ''); } catch(e){} for (var i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) | 0; return 'gc:' + (isStaff() ? 's' : 'c') + h + ':' + n; }
+function gc_get(n, fn){ var k = gc_key(n); gc_db().then(function(db){ var r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = function(){ if (r.result && r.result.v) { try { fn(r.result.v); } catch(e){} } }; }).catch(function(){}); }
+function gc_set(n, v){ var k = gc_key(n); try { if (JSON.stringify(v).length > 800000) return; } catch(e){ return; } gc_db().then(function(db){ db.transaction('kv','readwrite').objectStore('kv').put({ v: v, t: Date.now() }, k); }).catch(function(){}); }
 /* 07.11.2026, только кабинет Асрора Холова: в строках ввода виден текстовый курсор и оранжевая рамка при нажатии (раньше курсор был прозрачным из-за общего правила caret-color) */
 function asrorCaret(){ try { if (document.getElementById('asr-css') || String(AS_KOD || store('ew_cab') || '') !== 'kd6es8ycn5fa6gj43v7vlmw3nc0z5') return; var st = document.createElement('style'); st.id = 'asr-css'; st.textContent = 'input,textarea{caret-color:#111!important}input:focus,textarea:focus{outline:3px solid #f5a623!important;outline-offset:1px!important;border-color:#f5a623!important}'; document.head.appendChild(st); } catch (e) {} }
 asrorCaret(); setInterval(asrorCaret, 2000);
@@ -1235,18 +1240,24 @@ $('exp-out').addEventListener('click', function(){ $('m-exp').close(); logout();
 /* База знаний и развитие агента */
 function kb_post(a){ var b = isStaff() ? { sid: store('ew_sid')||'' } : { code: store('ew_cab')||'' }; for (var k in a) b[k] = a[k]; return post('/kb', b).then(function(x){ return x.j || {}; }); }
 function kb_date(v){ var d = new Date(v); return isNaN(d) ? '' : ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+hm(v); }
-function kb_load(){
-  var box = $('kb-list'); box.textContent = T('Загрузка…');
+function kb_load(warm){
+  var box = $('kb-list'), fresh = false, shown = false; box.textContent = T('Загрузка…');
+  if (warm) gc_get('kb', function(j){ if (!fresh) { shown = true; kb_show(j); } });
   kb_post({ action:'list' }).then(function(j){
-    if (!j.ok) { box.textContent = j.error || T('Не удалось загрузить'); return; }
+    fresh = true;
+    if (!j.ok) { if (!shown) box.textContent = j.error || T('Не удалось загрузить'); return; }
+    gc_set('kb', j); kb_show(j);
+  }).catch(function(){ fresh = true; if (!shown) box.textContent = T('Нет связи'); });
+}
+function kb_show(j){
+    var box = $('kb-list');
     var it = j.items || [];
     if (!it.length) { box.textContent = T('Пока пусто. Добавьте первую запись выше.'); return; }
     box.innerHTML = it.map(function(r){ return '<div class="kbi"><div class="h"><b>' + esc(r.q || (r.tip === 'развитие' ? T('О вас и вашем деле') : T('Без вопроса'))) + '</b><button class="del" type="button" data-id="' + esc(r.id) + T('" aria-label="Удалить">×</button></div><div>') + esc(r.a) + '</div><small>' + esc(r.who || '') + ' · ' + esc(kb_date(r.t)) + '</small></div>'; }).join('');
     box.querySelectorAll('.del').forEach(function(b){ b.addEventListener('click', function(){ if (!confirm(T('Удалить запись из базы знаний?'))) return; b.disabled = true; kb_post({ action:'delete', id: b.getAttribute('data-id') }).then(function(j){ if (!j.ok) { showErr('kb-err', j.error || T('Не удалось удалить')); b.disabled = false; } else kb_load(); }).catch(function(){ showErr('kb-err',T('Нет связи')); b.disabled = false; }); }); });
-  }).catch(function(){ box.textContent = T('Нет связи'); });
 }
 var KBFIX = null;
-function open_kb(q){ KBFIX = null; $('kb-send').hidden = true; $('kb-sendnote').hidden = true; showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(); }
+function open_kb(q){ KBFIX = null; $('kb-send').hidden = true; $('kb-sendnote').hidden = true; showErr('kb-err',''); $('kb-q').value = q || ''; $('kb-a').value = ''; open_dlg('m-kb'); kb_load(1); }
 function last_in(c){ var m = (c && c.messages) || []; for (var i = m.length - 1; i >= 0; i--) if (m[i].d === 'in' && m[i].t) return String(m[i].t); return ''; }
 $('m-kbbtn').addEventListener('click', function(){ $('m-menu').close(); open_kb(''); });
 (function(){ var lt = 0, lb = null;
@@ -1308,13 +1319,19 @@ var SL_MN = [T('янв'),T('фев'),T('мар'),T('апр'),T('мая'),T('ию
 function sl_post(a){ var b = isStaff() ? { sid: store('ew_sid')||'' } : { code: store('ew_cab')||'' }; for (var k in a) b[k] = a[k]; return post('/slots', b).then(function(x){ return x.j || {}; }); }
 function sl_iso(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
 function sl_start(){ var p = (SL.today || sl_iso(new Date())).split('-'); var d = new Date(+p[0], +p[1]-1, +p[2] + SL.off*7); return d; }
-function sl_load(){
-  sl_post({ action:'list' }).then(function(j){
-    if (!j.ok) { $('sl-hint').textContent = j.error || T('Не удалось загрузить'); return; }
+function sl_load(warm){
+  var fresh = false, shown = false;
+  function put(j){
     SL.role = j.role; SL.today = j.today; SL.slots = {}; SL.gl = {};
     (j.slots || []).forEach(function(r){ SL.slots[r.d+' '+r.t] = r.s; if (r.g && r.s === 'busy') SL.gl[r.d+' '+r.t] = 1; });
     sl_render();
-  }).catch(function(){ $('sl-hint').textContent = T('Нет связи, попробуйте ещё раз'); });
+  }
+  if (warm) gc_get('slots', function(j){ if (!fresh && $('m-slots').open) { shown = true; put(j); } });
+  sl_post({ action:'list' }).then(function(j){
+    fresh = true;
+    if (!j.ok) { if (!shown) $('sl-hint').textContent = j.error || T('Не удалось загрузить'); return; }
+    gc_set('slots', j); put(j);
+  }).catch(function(){ fresh = true; if (!shown) $('sl-hint').textContent = T('Нет связи, попробуйте ещё раз'); });
 }
 function sl_render(){
   var owner = SL.role === 'owner', st = sl_start();
@@ -1338,7 +1355,7 @@ function sl_set(d, times, status, back){
   sl_post({ action:'set', data:d, times:times, status:status }).then(function(j){ if (!j.ok) throw new Error(j.error || T('Не сохранилось')); })
   .catch(function(e){ showErr('sl-err', (e && e.message) || T('Нет связи')); back(); sl_render(); });
 }
-$('b-slots').addEventListener('click', function(){ SL.off = 0; $('sl-hint').textContent = T('Загрузка…'); $('sl-days').innerHTML = ''; showErr('sl-err',''); open_dlg('m-slots'); sl_load(); });
+$('b-slots').addEventListener('click', function(){ SL.off = 0; $('sl-hint').textContent = T('Загрузка…'); $('sl-days').innerHTML = ''; showErr('sl-err',''); open_dlg('m-slots'); sl_load(1); });
 $('sl-prev').addEventListener('click', function(){ if (SL.off > 0) { SL.off--; sl_render(); } });
 $('sl-next').addEventListener('click', function(){ if (SL.off < 8) { SL.off++; sl_render(); } });
 $('sl-days').addEventListener('click', function(e){
@@ -1622,10 +1639,13 @@ var SDAYS = 1, SDATA = null, TEAM_SCOPE = '';
 function fmtMin(m){ var h = Math.floor(m/60), mm = m%60; return (h ? h + T(' ч ') : '') + mm + T(' мин'); }
 function fmtT(v){ if (!v) return '—'; var d = new Date(v); if (isNaN(d)) return '—'; var t = hm(v); return SDAYS > 1 ? ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+t : t; }
 function chIcons(list){ return (list||[]).map(function(id){ var c = chan(id); return c ? '<span class="chi" title="' + esc(c.name) + '">' + c.svg + '</span>' : ''; }).join('') || '—'; }
-function load_staff(){
-  post('/staff', { action:'staff_list', code: store('ew_cab')||'', days: SDAYS }).then(function(x){
-    if (x.j && x.j.ok) { SDATA = x.j; var sv = Date.parse(x.j.now); SOFF = isNaN(sv) ? 0 : sv - Date.now(); render_staff(); render_devs(x.j.devices); }
-  }).catch(function(){});
+function load_staff(warm){
+  var fresh = false, d0 = SDAYS;
+  if (warm && !SDATA) gc_get('staff:' + d0, function(j){ if (!fresh && !SDATA && SDAYS === d0 && $('m-staff').open) { SDATA = j; render_staff(); render_devs(j.devices); } });
+  post('/staff', { action:'staff_list', code: store('ew_cab')||'', days: d0 }).then(function(x){
+    fresh = true;
+    if (x.j && x.j.ok) { gc_set('staff:' + d0, x.j); if (SDAYS !== d0) return; SDATA = x.j; var sv = Date.parse(x.j.now); SOFF = isNaN(sv) ? 0 : sv - Date.now(); render_staff(); render_devs(x.j.devices); }
+  }).catch(function(){ fresh = true; });
 }
 var SOFF = 0;
 function snow(){ return Date.now() + SOFF; }
@@ -1704,7 +1724,7 @@ function team_scope_ui(){
   if (fin) sel.value = TEAM_SCOPE; else if (aptOk) sel.value = 'apteka';
   ['s-dlgh','s-dlgs','s-pres'].forEach(function(id){ var e = $(id); if (e) e.hidden = fin; });
 }
-function open_team(sc){ TEAM_SCOPE = (sc === 'prodavec' || sc === 'kladovshchik' || sc === 'apteka') ? sc : ''; team_scope_ui(); var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff();}
+function open_team(sc){ TEAM_SCOPE = (sc === 'prodavec' || sc === 'kladovshchik' || sc === 'apteka') ? sc : ''; team_scope_ui(); var mm=$('m-menu'); if (mm.open) mm.close(); $('s-new').hidden = true; showErr('s-err',''); SDATA = null; $('s-list').innerHTML = T('<p>Загрузка…</p>'); open_dlg('m-staff'); load_staff(1);}
 window.open_team = open_team;
 $('b-team').addEventListener('click', function(){ open_team(''); });
 document.querySelectorAll('#s-days button').forEach(function(b){ b.addEventListener('click', function(){ SDAYS = +b.getAttribute('data-d'); document.querySelectorAll('#s-days button').forEach(function(x){ x.classList.toggle('on', x===b); }); load_staff(); }); });
@@ -1865,14 +1885,18 @@ $('del-ok').addEventListener('click', function(){
   }).catch(function(){ showErr('del-err',T('Нет связи. Попробуйте ещё раз.')); b.disabled = false; });
 });
 $('b-menu').addEventListener('click', function(){ $('m-archbtn').hidden = isStaff(); });
-$('m-archbtn').addEventListener('click', function(){ $('m-menu').close(); $('ar-q').value = ''; showErr('ar-err',''); open_dlg('m-arch'); ar_load(); });
+$('m-archbtn').addEventListener('click', function(){ $('m-menu').close(); $('ar-q').value = ''; showErr('ar-err',''); open_dlg('m-arch'); ar_load(1); });
 $('ar-q').addEventListener('input', function(){ clearTimeout(AR.t); AR.t = setTimeout(ar_load, 350); });
-function ar_load(){
+function ar_load(warm){
+  var q0 = $('ar-q').value, fresh = false, shown = false;
   $('ar-list').innerHTML = T('<p>Загрузка…</p>'); showErr('ar-err','');
-  ar_post({ action:'list', q:$('ar-q').value }).then(function(j){
-    if (!j.ok) { $('ar-list').innerHTML = ''; showErr('ar-err', j.error || T('Не удалось загрузить архив')); return; }
+  if (warm && !q0) gc_get('arch', function(j){ if (!fresh && $('m-arch').open && !$('ar-q').value) { shown = true; AR.items = j.items || []; ar_render(); } });
+  ar_post({ action:'list', q:q0 }).then(function(j){
+    fresh = true;
+    if (!j.ok) { if (shown) return; $('ar-list').innerHTML = ''; showErr('ar-err', j.error || T('Не удалось загрузить архив')); return; }
+    if (!q0) gc_set('arch', j);
     AR.items = j.items || []; ar_render();
-  }).catch(function(){ $('ar-list').innerHTML = ''; showErr('ar-err',T('Нет связи')); });
+  }).catch(function(){ fresh = true; if (shown) return; $('ar-list').innerHTML = ''; showErr('ar-err',T('Нет связи')); });
 }
 function ar_render(){
   if (!AR.items.length) { $('ar-list').innerHTML = '<p>' + ($('ar-q').value ? T('Ничего не найдено.') : T('Архив пуст.')) + '</p>'; return; }
