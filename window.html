@@ -2621,13 +2621,21 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   function openStaffKassa() { ensure(); openShop(); open_dlg('m-spec'); }
   var STK = null, STKbusy = false;
   var STK = null, STKbusy = false;
+  /* Быстрый вход сотрудника аптеки (12.11.2026): роль узнаём лёгким запросом «apteka-spisok» (ответ из памяти сервера, секунды), а не тяжёлым «magazin» (вся таблица, 1 МБ, ~8 с — на iPhone он иногда обрывался и показывал «нет связи»). Если кабинет не аптека Асрора или лёгкий ответ не пришёл — как раньше, через «magazin». */
+  function staffProbe() {
+    var heavy = function () { callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && (r.role === 'pharmacist' || ((r.role === 'seller' || r.role === 'storekeeper') && r.polki))) { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); };
+    callTo('/apteka-spisok', { action: 'list' }).then(function (r) {
+      if (r && r.ok && r.polki && Array.isArray(r.products)) { STK = true; STKbusy = false; setPharm(); staffBtn(); return; }
+      heavy();
+    });
+  }
   function staffBtn() {
     var on = false; try { on = mode() === 'user' && staffNow(); } catch (e) {}
     // Кнопка нужна только сотрудникам кабинета, где включён учёт магазина: спрашиваем сервер один раз.
-    if (on && STK === null && !STKbusy) { STKbusy = true; callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && (r.role === 'pharmacist' || ((r.role === 'seller' || r.role === 'storekeeper') && r.polki))) { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); }
+    if (on && STK === null && !STKbusy) { STKbusy = true; staffProbe(); }
     on = on && STK === true;
     // Кнопка нужна только сотрудникам кабинета, где включён учёт магазина (Шамсуло): спрашиваем сервер один раз.
-    if (on && STK === null && !STKbusy) { STKbusy = true; callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && (r.role === 'pharmacist' || ((r.role === 'seller' || r.role === 'storekeeper') && r.polki))) { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); }
+    if (on && STK === null && !STKbusy) { STKbusy = true; staffProbe(); }
     on = on && STK === true && !SELLER;
     var b = $s('sp-kassa-btn');
     if (!b && on) {
@@ -6318,7 +6326,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       var lf = $s('apt-list'); if (lf) lf.innerHTML = aptList();
     });
     callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
-      if (!r.ok) { AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.cp = null; aptCSave(r.products); AP.err = ''; aptN = 0; if (shk) idbSet(shk, { t: Date.now(), d: r }); }
+      if (!r.ok) { if (!(PHARM && AP.cp)) AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.cp = null; aptCSave(r.products); AP.err = ''; aptN = 0; if (shk) idbSet(shk, { t: Date.now(), d: r }); }
       if (S.view !== 'apt') return;
       /* Кнопка «Полки» рисуется только когда данные загружены — если окно открылось раньше, перерисовываем */
       if (!AP.err && shPolkiOn() && !AP.form && !AP.polki && !AP.multi && !document.querySelector('[data-apt="polki"]')) { render(); return; }
