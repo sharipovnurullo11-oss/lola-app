@@ -2553,6 +2553,7 @@ function $s(id) { return document.getElementById(id); }
   function code() { var b = {}; try { if (staffNow()) b.sid = store('ew_sid') || ''; else b.code = store('ew_cab') || ''; } catch (e) {} return b; }
   function callTo(path, body) {
     var b = code(); for (var k in body) b[k] = body[k];
+    if (!SW_READ[body && body.action]) SW_W = Date.now(); /* любая запись: сохранённые копии старше неё не показываем */
     return post(path, b).then(function (x) { return (x && x.j) || { ok: false, error: TX('нет связи') }; }, function () { return { ok: false, error: TX('нет связи') }; });
   }
   function call(body) { return callTo('/buhgalter', body); }
@@ -2988,20 +2989,24 @@ if (S.view === 'mkt') return renderMkt(el);
   function objPoints() { return OB.data ? OB.data.points : []; }
   function openObj() { S.view = 'obj'; OB.mat = null; OB.trash = null; OB.ph = null; OB.foto = ''; OB.fbusy = false; OB.rep = false; OB.lich = null; OB.debts = null; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; objLoad(); render(); }
   function objLoad() {
-    OB.busy = true;
+    OB.busy = true; var got = false;
+    if (!OB.data) swGet('obj', function (v) { if (!got && !OB.data && S.view === 'obj') { OB.data = v; render(); } });
     callTo('/objekty', { action: 'list' }).then(function (r) {
-      OB.busy = false; if (S.view !== 'obj') return;
-      if (!r || !r.ok) { OB.err = (r && r.error) || TX('не удалось загрузить'); return render(); }
-      OB.data = r; if (OB.cur) objOpenPoint(OB.cur.name, true); else render();
+      OB.busy = false; got = true; if (S.view !== 'obj') return;
+      if (!r || !r.ok) { if (OB.data) return render(); OB.err = (r && r.error) || TX('не удалось загрузить'); return render(); }
+      OB.data = r; swSave('obj', r); if (OB.cur) objOpenPoint(OB.cur.name, true); else render();
     });
   }
   function objOpenPoint(name, quiet) {
     if (!quiet) { OB.sec = null; OB.rep = false; }
     OB.cur = { name: name, loading: !quiet }; OB.form = null; OB.err = ''; OB.delAsk = null; if (!quiet) render();
+    var gotP = false;
+    if (!quiet) swGet('op:' + name, function (v) { if (!gotP && S.view === 'obj' && OB.cur && OB.cur.name === name && OB.cur.loading) { OB.cur = v; render(); } });
     callTo('/objekty', { action: 'point', name: name }).then(function (r) {
+      gotP = true;
       if (S.view !== 'obj' || !OB.cur || OB.cur.name !== name) return;
-      if (!r || !r.ok) { OB.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render(); }
-      OB.cur = r.point; render();
+      if (!r || !r.ok) { if (OB.cur && !OB.cur.loading && !OB.cur.error) return render(); OB.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render(); }
+      OB.cur = r.point; swSave('op:' + name, r.point); render();
     });
   }
   // Номер записи (oid) держим до удачного ответа: при обрыве связи повтор не создаёт вторую запись.
@@ -3523,9 +3528,11 @@ if (S.view === 'mkt') return renderMkt(el);
   // Корзина объектов: удалённый объект уходит сюда со всеми записями, в итоги не входит; его можно вернуть или удалить навсегда.
   function openTrash() { OB.trash = { loading: true }; OB.cur = null; OB.sec = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; trashLoad(); render(); }
   function trashLoad() {
+    var g3 = false; swGet('trash', function (v) { if (!g3 && S.view === 'obj' && OB.trash && OB.trash.loading) { OB.trash = v; render(); } });
     callTo('/objekty', { action: 'trash_list' }).then(function (r) {
-      if (S.view !== 'obj' || !OB.trash) return;
-      OB.trash = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; render();
+      g3 = true; if (S.view !== 'obj' || !OB.trash) return;
+      if ((!r || !r.ok) && !OB.trash.loading && !OB.trash.error) return render();
+      OB.trash = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; if (r && r.ok) swSave('trash', r); render();
     });
   }
   function renderTrash(el) {
@@ -3546,9 +3553,11 @@ if (S.view === 'mkt') return renderMkt(el);
   // Долги: кому ещё должны мы (мастера по объектам) и кто должен нам (заказчик, если задан договор).
   function openDebts() {
     OB.debts = { loading: true }; OB.lich = null; OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; render();
+    var g1 = false; swGet('debts', function (v) { if (!g1 && S.view === 'obj' && OB.debts && OB.debts.loading) { OB.debts = v; render(); } });
     callTo('/objekty', { action: 'debts' }).then(function (r) {
-      if (S.view !== 'obj' || !OB.debts) return;
-      OB.debts = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; render();
+      g1 = true; if (S.view !== 'obj' || !OB.debts) return;
+      if ((!r || !r.ok) && OB.debts && !OB.debts.loading && !OB.debts.error) return render();
+      OB.debts = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; if (r && r.ok) swSave('debts', r); render();
     });
   }
   function renderDebts(el) {
@@ -3572,10 +3581,11 @@ if (S.view === 'mkt') return renderMkt(el);
   // Личные деньги Асрора: отдельная кнопка, свои записи (tip=lichnoe), с объектами не смешиваются.
   function openLich() { OB.lich = { loading: true }; OB.cur = null; OB.form = null; OB.err = ''; OB.msg = ''; OB.delAsk = null; lichLoad(); render(); }
   function lichLoad() {
-    OB.busy = true;
+    OB.busy = true; var g2 = false; swGet('lich', function (v) { if (!g2 && S.view === 'obj' && OB.lich && OB.lich.loading) { OB.lich = v; render(); } });
     callTo('/objekty', { action: 'lich_list' }).then(function (r) {
-      OB.busy = false; if (S.view !== 'obj' || !OB.lich) return;
-      OB.lich = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; render();
+      g2 = true; OB.busy = false; if (S.view !== 'obj' || !OB.lich) return;
+      if ((!r || !r.ok) && !OB.lich.loading && !OB.lich.error) return render();
+      OB.lich = (!r || !r.ok) ? { error: (r && r.error) || TX('не удалось загрузить') } : r; if (r && r.ok) swSave('lich', r); render();
     });
   }
   function lichEntries(list) {
@@ -3724,6 +3734,25 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkNum(x) { var n = Number(x); return isFinite(n) ? n : 0; }
   function pkMoney(x) { return money(cents(pkNum(x))); }
   /* Память телефона для проката: точки, склад и фото открываются сразу, свежее приходит в фоне */
+  /* Память телефона: открываем сохранённое сразу, свежее приходит в фоне (12.11.2026) */
+  var SW_W = 0, SW_READ = {}; 'ping list point points stock payback payback_all buy_prices share_get owner_link tools tool moves all reminders rented pickup compare tour_point status analysis_status inv_list stats get foto_get chek_get stock_photo_get debts lich_list trash_list info foto export find_photo route nlist profile ask explain chat'.split(' ').forEach(function (a) { SW_READ[a] = 1; });
+  function swKey(n) { return pkCK() + ':sw:' + n; }
+  function swGet(n, ok) { idbGet(swKey(n)).then(function (c) { if (c && c.v && c.t > SW_W) ok(c.v); }); }
+  function swSave(n, v) { idbSet(swKey(n), { v: v, t: Date.now() }); }
+  /* Как callTo, но сначала отдаёт сохранённый на телефоне ответ (если есть), потом свежий. Только для чтения. */
+  function callS(path, body) {
+    var key = swKey('c:' + path + ':' + JSON.stringify(body));
+    return { then: function (fn) {
+      var fresh = false, shown = false;
+      idbGet(key).then(function (c) { if (!fresh && c && c.v && c.t > SW_W) { shown = true; try { fn(c.v); } catch (e) {} } });
+      return callTo(path, body).then(function (r) {
+        fresh = true;
+        if (r && r.ok) { try { var j = JSON.stringify(r); if (j.length < 1500000) idbSet(key, { v: r, t: Date.now() }); } catch (e) {} }
+        else if (shown) return;
+        return fn(r);
+      });
+    } };
+  }
   function pkCK() { var c = code(), v = String(c.code || c.sid || ''), h = 0; for (var i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) | 0; return 'pk:' + (c.sid ? 's' : 'c') + h; }
   var pkPhInited = false, pkPhTimer = 0;
   function pkPhInit() {
@@ -3732,13 +3761,13 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkPhSave() { clearTimeout(pkPhTimer); pkPhTimer = setTimeout(function () { var m = {}; Object.keys(PK_SK_PH).forEach(function (n) { var e = PK_SK_PH[n]; if (e && e.url) m[n] = { date: e.date, url: e.url }; }); idbSet(pkCK() + ':ph', { m: m }); }, 1500); }
   function openFinOrProkat() {
-    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.pu = null; PK.rn = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
+    S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.pu = null; PK.rn = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.warm = false; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     pkPhInit();
-    idbGet(pkCK() + ':points').then(function (c) { if (c && Array.isArray(c.points) && PK.busy && S.view === 'prokat') { PK.points = c.points; PK.total = c.total == null ? null : c.total; render(); } });
+    idbGet(pkCK() + ':points').then(function (c) { if (c && Array.isArray(c.points) && PK.busy && S.view === 'prokat') { PK.points = c.points; PK.total = c.total == null ? null : c.total; PK.warm = true; render(); } });
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
       if (S.view !== 'prokat') return;
-      if (!r || !r.ok) return openBuh();
+      if (!r || !r.ok) { if (PK.warm) return render(); return openBuh(); }
       PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; idbSet(pkCK() + ':points', { points: PK.points, total: PK.total }); try { localStorage.setItem('ew_nochat_' + String(store('ew_cab') || ''), '1'); } catch (e) {} /* 12.11.2026: кабинет проката не грузит чаты и аватарки при входе */ render(); pkRemLoad();
     });
   }
@@ -3750,7 +3779,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkOpenPoint(name) {
     PK.cur = { name: name, loading: true }; PK.add = null; PK.ol = null; pkShLoad(name); pkPbLoad(name); PK.pt = null; PK.big = null; pkPhLoad(name); PK.err = ''; PK.msg = ''; PK.form = null; PK.ride = false; render();
-    callTo('/prokat', { action: 'point', name: name }).then(function (r) {
+    callS('/prokat', { action: 'point', name: name }).then(function (r) {
       if (S.view !== 'prokat' || !PK.cur || PK.cur.name !== name) return;
       if (!r || !r.ok || !r.point) { PK.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render(); }
       PK.cur = r.point; render();
@@ -3761,7 +3790,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkRow(label, val, bold) { return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>' + esc(label) + '</span><span style="white-space:nowrap' + (bold ? ';font-weight:700' : '') + '">' + val + '</span></div>'; }
   function pkBtn(k, text, sec, style) { return '<button type="button" class="btn' + (sec ? ' sec' : '') + '" data-pk="' + esc(k) + '"' + (style ? ' style="' + style + '"' : '') + '>' + text + '</button>'; }
   function renderProkat(el) {
-    if (PK.busy) { el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
+    if (PK.busy && !PK.warm) { el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (PK.tour) return renderPkTour(el);
     if (PK.pt) return renderPkToolHist(el);
     if (PK.cur) return renderPkPoint(el);
@@ -4193,7 +4222,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // Окупаемость в карточке пункта: стоимость инструментов по закупочным ценам против того, что пункт уже принёс.
   function pkPbLoad(name) {
     var pb = PK.pb = { name: name, loading: true, data: null };
-    callTo('/prokat', { action: 'payback', name: name }).then(function (r) { if (PK.pb !== pb) return; pb.loading = false; pb.data = r && r.ok ? r : null; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); });
+    callS('/prokat', { action: 'payback', name: name }).then(function (r) { if (PK.pb !== pb) return; pb.loading = false; pb.data = r && r.ok ? r : null; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); });
   }
   function pkPbBlock() {
     var pb = PK.pb; if (!pb || !PK.cur || pb.name !== PK.cur.name || pb.loading || !pb.data) return '';
@@ -4210,7 +4239,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkPct(x) { return String(Math.round(pkNum(x) * 10) / 10).replace('.', ',') + '%'; }
   function pkShLoad(name) {
     var sh = PK.sh = { name: name, loading: true, error: '', pct: null, def: null, own: false, form: null, msg: '' };
-    callTo('/prokat', { action: 'share_get', name: name }).then(function (r) { pkShGot(sh, r); });
+    callS('/prokat', { action: 'share_get', name: name }).then(function (r) { pkShGot(sh, r); });
   }
   function pkShGot(sh, r) {
     if (PK.sh !== sh) return;
@@ -4272,7 +4301,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkOlLoad() {
     var name = PK.cur && PK.cur.name; if (!name) return;
     var ol = PK.ol = { name: name, loading: true, link: '', owner: '', since: '', pin: '', locked: false, pf: null, error: '', ask: false, busy: false, id: '', msg: '' }; render();
-    callTo('/prokat', { action: 'owner_link', name: name }).then(function (r) {
+    callS('/prokat', { action: 'owner_link', name: name }).then(function (r) {
       if (PK.ol !== ol) return;
       ol.loading = false;
       if (!r || !r.ok) ol.error = (r && r.error) || TX('не удалось загрузить');
@@ -4444,7 +4473,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkToolOpen(i) {
     var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
     var pt = PK.pt = { point: PK.cur.name, tool: t.name, vid: pkKindOf(t).label, icon: pkKindOf(t).icon, card: { loading: true, firma: '', cena: '', kredit: '', msg: '', err: '', busy: false, id: '' }, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '', st: { status: t.status, status_text: t.status_text, out: t.out, month_income: t.month_income } }; PK.big = null; render();
-    callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
+    callS('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
       if (PK.pt !== pt) return;
       pt.loading = false;
       if (!r || !r.ok) pt.error = (r && r.error) || TX('не удалось загрузить');
@@ -4514,7 +4543,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Перевозки: пункт → пункт, пункт ↔ склад ---------- */
   function pkMovesLoad(pt) {
-    callTo('/prokat', { action: 'moves', name: pt.point, tool: pt.tool }).then(function (r) {
+    callS('/prokat', { action: 'moves', name: pt.point, tool: pt.tool }).then(function (r) {
       if (PK.pt !== pt) return;
       pt.moves = r && r.ok && Array.isArray(r.moves) ? r.moves : [];
       if (S.view === 'prokat') render();
@@ -4707,7 +4736,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkAllOpen() {
     var all = PK.all = { loading: true, total: 0, groups: [], error: '', open: {} }; PK.ride = false; render();
-    callTo('/prokat-foto', { action: 'all' }).then(function (r) {
+    callS('/prokat-foto', { action: 'all' }).then(function (r) {
       if (PK.all !== all) return;
       all.loading = false;
       if (!r || !r.ok) all.error = (r && r.error) || TX('не удалось загрузить');
@@ -4745,7 +4774,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // Напоминания: давно не было объезда, владелец должен передать деньги, инструмент долго сломан.
   function pkRemLoad() {
     var rem = PK.rem = { loading: true, data: null, open: PK.rem ? PK.rem.open : false };
-    callTo('/prokat', { action: 'reminders' }).then(function (r) {
+    callS('/prokat', { action: 'reminders' }).then(function (r) {
       if (PK.rem !== rem) return;
       rem.loading = false; rem.data = r && r.ok ? r : null;
       if (S.view === 'prokat') render();
@@ -4775,7 +4804,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // «Сейчас в аренде» (12.11.2026): все аренды со статусом «в аренде» по пунктам — что выдано, с какого дня, на сколько, просрочено ли.
   function pkRentedOpen() {
     var u = PK.rn = { loading: true, error: '', points: [], total: 0 }; PK.ride = false; render();
-    callTo('/prokat', { action: 'rented' }).then(function (r) {
+    callS('/prokat', { action: 'rented' }).then(function (r) {
       if (PK.rn !== u) return;
       u.loading = false;
       if (!r || !r.ok) u.error = (r && r.error) || TX('не удалось загрузить'); else { u.points = Array.isArray(r.points) ? r.points : []; u.total = pkNum(r.total); }
@@ -4800,7 +4829,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkPickupOpen() {
     var u = PK.pu = { loading: true, error: '', points: [], total: 0, msg: '' }; PK.ride = false; render();
-    callTo('/prokat', { action: 'pickup' }).then(function (r) {
+    callS('/prokat', { action: 'pickup' }).then(function (r) {
       if (PK.pu !== u) return;
       u.loading = false;
       if (!r || !r.ok) u.error = (r && r.error) || TX('не удалось загрузить'); else { u.points = Array.isArray(r.points) ? r.points : []; u.total = pkNum(r.total); }
@@ -4825,7 +4854,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkCmpOpen() {
     var c = PK.cmp = { loading: true, points: [], error: '', open: {} }; render();
-    callTo('/prokat', { action: 'compare' }).then(function (r) {
+    callS('/prokat', { action: 'compare' }).then(function (r) {
       if (PK.cmp !== c) return;
       c.loading = false;
       if (!r || !r.ok) c.error = (r && r.error) || TX('не удалось загрузить'); else c.points = Array.isArray(r.points) ? r.points : [];
@@ -5053,7 +5082,7 @@ if (S.view === 'mkt') return renderMkt(el);
   var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0 };
   function openSmm() {
     S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; anStop(); render();
-    callTo('/smm', { action: 'status' }).then(function (r) {
+    callS('/smm', { action: 'status' }).then(function (r) {
       SM.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
       if (S.view === 'smm') render();
     });
@@ -5641,7 +5670,7 @@ function mkLoad() { try { var v = JSON.parse(lstore(mkKey()) || 'null'); if (Arr
 function mkSave() { try { lstore(mkKey(), JSON.stringify(MK.msgs.slice(-30))); } catch (e) {} }
 function openMkt() {
 S.view = 'mkt'; MK.st = null; MK.err = ''; MK.busy = false; MK.copied = false; MK.draft = ''; MK.msgs = mkLoad(); render();
-callTo('/marketolog', { action: 'status' }).then(function (r) {
+callS('/marketolog', { action: 'status' }).then(function (r) {
 MK.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
 if (S.view === 'mkt') render();
 });
@@ -6038,10 +6067,10 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function shLineSum(price, q) { return Math.round(cents(price) * Number(q)); }
   function shParse(v) { return Number(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); }
   function openShop() { S.view = 'shop'; SH.kl = false; SH.tab = 'kassa'; SH.cart = []; SH.pay = ''; SH.who = ''; SH.cid = oid(); SH.err = ''; SH.ok = ''; SH.form = null; SH.rcv = null; SH.payf = null; SH.delAsk = ''; SH.voidAsk = ''; SH.found = null; SH.month = SH.month || today().slice(0, 7); SH.d = null; render(); shLoad(); }
-  function shLoad() { SH.busy = true; callTo('/magazin', { action: 'list', month: SH.month }).then(function (r) { SH.busy = false; if (!r.ok) SH.err = r.error || TX('не удалось загрузить'); else { SH.d = r; SH.err = ''; } if (S.view === 'shop') render(); }); }
+  function shLoad() { SH.busy = true; var m0 = SH.month, got = false; if (!SH.d) swGet('sh:' + m0, function (v) { if (!got && !SH.d && SH.month === m0 && S.view === 'shop') { SH.d = v; render(); } }); callTo('/magazin', { action: 'list', month: m0 }).then(function (r) { got = true; SH.busy = false; if (!r.ok) { if (!SH.d) SH.err = r.error || TX('не удалось загрузить'); } else { if (SH.month === m0) { SH.d = r; SH.err = ''; } swSave('sh:' + m0, r); } if (S.view === 'shop') render(); }); }
   function shAct(body, okMsg, after) {
     SH.busy = true; SH.err = ''; SH.ok = ''; body.month = SH.month; render();
-    return callTo('/magazin', body).then(function (r) { SH.busy = false; if (!r.ok) SH.err = r.error || TX('Не удалось записать'); else { SH.d = r; SH.ok = okMsg || ''; if (r.warn && r.warn.length) SH.ok += ' · ' + ui('Внимание, на складе не хватало: ', 'Диққат, дар анбор намерасид: ', 'Diqqat, omborda yetmadi: ') + r.warn.map(function (w) { return w.name; }).join(', '); if (after) after(r); } if (S.view === 'shop') render(); });
+    return callTo('/magazin', body).then(function (r) { SH.busy = false; if (!r.ok) SH.err = r.error || TX('Не удалось записать'); else { SH.d = r; swSave('sh:' + SH.month, r); SH.ok = okMsg || ''; if (r.warn && r.warn.length) SH.ok += ' · ' + ui('Внимание, на складе не хватало: ', 'Диққат, дар анбор намерасид: ', 'Diqqat, omborda yetmadi: ') + r.warn.map(function (w) { return w.name; }).join(', '); if (after) after(r); } if (S.view === 'shop') render(); });
   }
   var SH_F = {}, SH_FQ = {};
   function shFotoLoad(kod) {
@@ -6971,7 +7000,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function anState() { return SH.an || (SH.an = { sec: 'profit', days: 30, data: null, busy: false, err: '', inv: null, msg: '' }); }
   function anLoad() {
     var A = anState(); A.busy = true; A.err = '';
-    var p = A.sec === 'inv' ? callTo('/magazin', { action: 'inv_list' }) : callTo('/magazin', { action: 'stats', days: A.days });
+    var p = A.sec === 'inv' ? callS('/magazin', { action: 'inv_list' }) : callS('/magazin', { action: 'stats', days: A.days });
     p.then(function (r) { A.busy = false; if (!r || !r.ok) A.err = (r && r.error) || TX('Не удалось загрузить'); else if (A.sec === 'inv') A.inv = r.inv; else A.data = r.stats; if (S.view === 'shop') render(); });
     render();
   }
