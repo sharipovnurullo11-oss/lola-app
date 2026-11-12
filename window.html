@@ -1147,14 +1147,15 @@ function load_chats(){
   LC_BUSY = lc0; LC_WHO = lcw; LCLAST = lc0;
   if (LC_FRESH !== lcw && !CHATS.length) gc_get('chats', function(v){ if (LC_FRESH === lcw || lc_who() !== lcw || MODE !== 'user' || CHATS.length || !v || !Array.isArray(v.chats)) return; if (isStaff()) ORDERED = v.ordered || []; CHATS = v.chats; render_list(); }); /* 12.11.2026: сначала показываем сохранённый список, свежий придёт следом */
   /* 12.11.2026: владелец кабинета между полными загрузками спрашивает сервер только «есть ли новое» (лёгкий запрос cabinet-chats-check); все переписки читаем, когда что-то изменилось, и раз в минуту для сверки. Если лёгкий запрос не ответил — работаем как раньше. */
-  if (!isStaff() && LC_FRESH === lcw && lc0 - LC_FULLT < 60000) {
-    var bs = lc_base_get(lcw) || { m: 0, j: 0, a: -1 };
-    post('/cabinet-chats-check', { code: store('ew_cab') || '', m: bs.m, j: bs.j }).then(function(x){
+  if (LC_FRESH === lcw && lc0 - LC_FULLT < 60000) {
+    var bs = lc_base_get(lcw) || { m: 0, j: 0, a: -1, s: '' };
+    /* сотрудник присылает ключ смены: лёгкий запрос заодно отмечает, что он в сети (как раньше это делал полный запрос) */
+    post('/cabinet-chats-check', isStaff() ? { sid: store('ew_sid') || '', m: bs.m } : { code: store('ew_cab') || '', m: bs.m, j: bs.j }).then(function(x){
       if (lc_who() !== lcw) { if (LC_BUSY === lc0) LC_BUSY = 0; return; }
       var r = x && x.j;
       if (!r || !r.ok || typeof r.m !== 'number' || typeof r.j !== 'number') return lc_full(lc0, lcw);
-      var ch = r.m > bs.m || r.j > bs.j || r.a !== bs.a;
-      lc_base_set(lcw, { m: r.m, j: r.j, a: r.a });
+      var ch = r.m > bs.m || r.j > bs.j || r.a !== bs.a || String(r.s || '') !== String(bs.s || '');
+      lc_base_set(lcw, { m: r.m, j: r.j, a: r.a, s: String(r.s || '') });
       if (ch) return lc_full(lc0, lcw);
       if (LC_BUSY === lc0) LC_BUSY = 0;
       load_pauses();
@@ -1780,7 +1781,18 @@ var LCLAST = LCLAST || 0;
 function staff_pause(){ try { if (MODE !== 'user' || !isStaff()) return; var sid = store('ew_sid') || ''; if (!sid) return; var data = new URLSearchParams({ action: 'pause', sid: sid }); if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/staff', data))) { fetch(API + '/staff', { method: 'POST', body: data, keepalive: true }); } } catch (e) {} }
 window.addEventListener('pagehide', staff_pause);
 /* 12.11.2026: если список переписок на экране не виден (кабинет проката, финансист и т.д.), обновляем не каждые 6 секунд, а раз в минуту — иначе n8n зря перегружается (по 20 запросов в минуту с каждой открытой вкладки) */
-function live_refresh(){ if (document.hidden || MODE !== 'user') return; var n = Date.now(), ls = $('list'), ms = $('msgs'), gap = ((ls && ls.offsetParent) || (ms && ms.offsetParent) || CUR) ? 11000 : 55000; /* 12.11.2026: переписки на экране обновляем раз в 12 секунд, а не в 6 — сервер читает базу по очереди */ if (n - LCLAST < gap) return; LCLAST = n; load_chats(); }
+function live_refresh(){ if (document.hidden || MODE !== 'user') return; var n = Date.now(), ls = $('list'), ms = $('msgs'), vis = (ls && ls.offsetParent) || (ms && ms.offsetParent) || CUR, gap = vis ? 11000 : (isStaff() ? 23000 : 55000); /* 12.11.2026: переписки на экране — раз в 12 секунд; не на экране — владелец раз в минуту, сотрудник раз в 24 секунды: его смена закрывается сама, если минуту нет запросов */ if (n - LCLAST < gap) return; LCLAST = n; if (isStaff() && noChats()) return staff_beat(); load_chats(); }
+/* 12.11.2026: сотрудник аптеки не грузит переписки, поэтому отдельно отмечаем, что он в сети — иначе руководитель видит его «не в сети» и время работы не считается */
+var SB_BUSY = 0;
+function staff_beat(){
+  var sid = store('ew_sid') || ''; if (!sid) return;
+  var t = Date.now(); if (SB_BUSY && t - SB_BUSY < 20000) return; SB_BUSY = t;
+  post('/cabinet-chats-check', { sid: sid, m: 2000000000 }).then(function(x){
+    var r = x && x.j; if (r && r.ok) { SB_BUSY = 0; return; }
+    /* смена закрыта по простою или лёгкий запрос не ответил — старый запрос сам откроет смену заново */
+    return post('/staff', { action:'chats', sid: sid }).then(function(y){ SB_BUSY = 0; if (store('ew_sid') === sid && y && y.j && y.j.ok === false) logout(true); });
+  }).catch(function(){ SB_BUSY = 0; });
+}
 setInterval(live_refresh, 6000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) live_refresh(); });
 window.addEventListener('focus', live_refresh);
