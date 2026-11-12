@@ -6323,27 +6323,35 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     if (!SH.d && !AP.cp) { AP.cp = aptCRead(); if (AP.cp && S.view === 'apt') { var l0 = $s('apt-list'); if (l0) l0.innerHTML = aptList(); } }
     /* Быстрый список (10.11.2026): название, полка, штрихкоды приходят за секунды из памяти сервера — показываем сразу, не дожидаясь полного ответа «magazin» */
     /* 12.11.2026: в том же быстром ответе приходит и справочник (название, полка, описание, число; без фото) — сотрудник видит все препараты полок, не дожидаясь тяжёлого /spravochnik */
+    /* 12.11.2026: сотруднику (PHARM) тяжёлые /magazin и /spravochnik не нужны — всё есть в быстром списке; они держали сервер и быстрый ответ ждал 5–11 с */
     callTo('/apteka-spisok', { action: 'list' }).then(function (r) {
+      if (PHARM && !(r && r.ok && Array.isArray(r.products) && r.products.length && Array.isArray(r.kb))) { aptHeavy(); aptSprav(); return; }
       if (!r || !r.ok || S.view !== 'apt') return;
       if (Array.isArray(r.kb) && r.kb.length && !AP.kbDone) { aptApplyKb(r.kb, true, kbk); if (!AP.form) { var lk = $s('apt-list'); if (lk && SH.d) lk.innerHTML = aptList(); if (AP.polki && !AP.pedit) { var pk = $s('apt-polki-list'); if (pk) pk.innerHTML = aptPolkiList(); } } }
       if (!Array.isArray(r.products) || !r.products.length || SH.d || AP.form || AP.polki) return;
       AP.cp = r.products; aptCSave(r.products);
+      /* у сотрудника тяжёлый /magazin не вызывается, поэтому признак «Полки» берём из быстрого ответа */
+      if (PHARM && r.polki) { try { localStorage.setItem(shPolkiKey(), '1'); } catch (e) {} if (!AP.err && !AP.form && !AP.polki && !AP.multi && !document.querySelector('[data-apt="polki"]')) { render(); return; } }
       var lf = $s('apt-list'); if (lf) lf.innerHTML = aptList();
     });
-    callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
+    function aptHeavy() { callTo('/magazin', { action: 'list', month: SH.month || today().slice(0, 7) }).then(function (r) {
       if (!r.ok) { if (!(PHARM && AP.cp)) AP.err = r.error || TX('не удалось загрузить'); if (!aptRetry && aptN < 6) { aptRetry = true; aptN++; setTimeout(function () { aptRetry = false; if (S.view === 'apt' && !SH.d) aptLoad(); }, 2000); } } else { SH.d = r; AP.cp = null; aptCSave(r.products); AP.err = ''; aptN = 0; if (shk) idbSet(shk, { t: Date.now(), d: r }); }
       if (S.view !== 'apt') return;
       /* Кнопка «Полки» рисуется только когда данные загружены — если окно открылось раньше, перерисовываем */
       if (!AP.err && shPolkiOn() && !AP.form && !AP.polki && !AP.multi && !document.querySelector('[data-apt="polki"]')) { render(); return; }
       var l = $s('apt-list'); if (l && !AP.err) l.innerHTML = aptList(); else render();
-    });
+    }); }
+    if (!PHARM) aptHeavy();
+
     callTo('/polki-imena', { action: 'list' }).then(function (r) { if (r && r.ok && r.names) { AP.pn = r.names; if (S.view === 'apt' && !AP.polki && !AP.form) { var l2 = $s('apt-list'); if (l2 && SH.d) l2.innerHTML = aptList(); } if (S.view === 'apt' && AP.polki && !AP.form && !AP.pedit) { var pl = $s('apt-polki-list'); if (pl) pl.innerHTML = aptPolkiList(); } } });
     // Свой справочник препаратов (полка и описание, которые добавили вручную)
-    callTo('/spravochnik', { action: 'list', lite: true }).then(function (r) {
+    function aptSprav() { callTo('/spravochnik', { action: 'list', lite: true }).then(function (r) {
       if (r && r.ok) { AP.kbDone = true; aptApplyKb(r.items || [], !!r.lite, kbk); } if (S.view !== 'apt' || AP.form) return;
       var l2 = $s('apt-list'); if (l2) l2.innerHTML = aptList();
       if (AP.polki && !AP.pedit) { var pl2 = $s('apt-polki-list'); if (pl2) pl2.innerHTML = aptPolkiList(); }
-    });
+    }); }
+    if (!PHARM) aptSprav();
+
   }
   /* Принять справочник: фото берём из памяти телефона, недостающие докачиваем отдельно */
   function aptApplyKb(items, lite, kbk) {
@@ -6584,7 +6592,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     t = String(t || '').trim().toLowerCase(); if (!t) return [];
     var seen = {}, out = [];
     function add(n, sh, tx, qt, kq) { var l = String(n || '').trim().toLowerCase(); if (!l || l.indexOf(t) < 0 || seen[l]) return; seen[l] = 1; out.push({ n: String(n).trim(), sh: String(sh || '').trim(), tx: String(tx || ''), qt: qt || (kq ? kq + ' ' + ui('шт', 'дона', 'dona') : ''), kq: kq || '' }); }
-    ((SH.d && SH.d.products) || []).forEach(function (p) { var k = aptKb(p.name); var qs = ''; try { qs = shQ(p, p.qty); } catch (e) { qs = String(p.qty); } add(p.name, p.shelf || (k && k.polka), k && k.text, qs, k && k.kolvo); });
+    ((SH.d && SH.d.products) || AP.cp || []).forEach(function (p) { var k = aptKb(p.name); var qs = ''; if (p.qty !== undefined) { try { qs = shQ(p, p.qty); } catch (e) { qs = String(p.qty); } } add(p.name, p.shelf || (k && k.polka), k && k.text, qs, k && k.kolvo); });
     (AP.kb || []).forEach(function (k) { add(k.name, k.polka, k.text, '', k.kolvo); });
     out.sort(function (a, b) { var x = a.n.toLowerCase().indexOf(t) === 0 ? 0 : 1, y = b.n.toLowerCase().indexOf(t) === 0 ? 0 : 1; return x - y || a.n.localeCompare(b.n, 'ru'); });
     return out.slice(0, 8);
