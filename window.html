@@ -878,7 +878,7 @@ function lola_state(c){ if (c.comment) return ''; var k = pz_key(c); if (!k || !
 function lola_counts(){ var on = 0, off = 0; (CHATS||[]).forEach(function(c){ var st = lola_state(c); if (st==='on') on++; else if (st==='off') off++; }); return {on:on, off:off}; }
 function pz_post(action, c, ts){ var b = isStaff() ? { sid: store('ew_sid')||'', action: action } : { code: store('ew_cab')||'', action: action }; if (c) { b.contact = c.id; b.kanal = c.kanal; } if (ts) b.ts = ts; return post('/cabinet-ig-pause', b); }
 /* 10.11.2026, только кабинет Асрора Холова (аптека и финансист): переписки Instagram ему не нужны — не грузим чаты, паузы и аватарки, чтобы приложение открывалось быстрее */
-function noChats(){ try { var c = String(store('ew_cab') || ''); return !isStaff() && (c === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5' || (c !== '' && localStorage.getItem('ew_nochat_' + c) === '1')); } catch (e) { return false; } }
+function noChats(){ try { if (isStaff()) return localStorage.getItem('ew_apt_staff') === '1'; /* 12.11.2026: сотрудник аптеки Асрора не пользуется чатами — их и аватарки не грузим (запоминается после первого входа) */ var c = String(store('ew_cab') || ''); return (c === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5' || (c !== '' && localStorage.getItem('ew_nochat_' + c) === '1')); } catch (e) { return false; } }
 function load_pauses(){
   if (MODE !== 'user' || noChats()) return;
   pz_post('list').then(function(x){
@@ -1142,6 +1142,7 @@ function load_chats(){
 
 var PENDTIMER = null;
 function staff_login(login, pass, remember, done){
+  try { localStorage.removeItem('ew_apt_staff'); } catch (e) {}
   if (PENDTIMER) { clearTimeout(PENDTIMER); PENDTIMER = null; }
   getDevice(function(dev){
     post('/staff',{action:'login',phone:login,pass:pass,did:devId(),device:dev}).then(function(x){
@@ -2625,7 +2626,8 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
   function staffProbe() {
     var heavy = function () { callTo('/magazin', { action: 'list' }).then(function (r) { STK = !!(r && r.ok); STKbusy = false; if (r && r.ok && (r.role === 'pharmacist' || ((r.role === 'seller' || r.role === 'storekeeper') && r.polki))) { setPharm(); } else if (r && r.ok && (r.role === 'seller' || r.role === 'storekeeper')) { KEEPER = r.role === 'storekeeper'; setSeller(true); } staffBtn(); }); };
     callTo('/apteka-spisok', { action: 'list' }).then(function (r) {
-      if (r && r.ok && r.polki && Array.isArray(r.products)) { STK = true; STKbusy = false; setPharm(); staffBtn(); return; }
+      if (r && r.ok && r.polki && Array.isArray(r.products)) { try { localStorage.setItem('ew_apt_staff', '1'); } catch (e) {} STK = true; STKbusy = false; setPharm(); staffBtn(); return; }
+      if (r && r.ok === false && r.error === 'нет доступа') { try { if (localStorage.getItem('ew_apt_staff') === '1' && typeof window.logout === 'function') { localStorage.removeItem('ew_apt_staff'); window.logout(true); return; } } catch (e) {} }
       heavy();
     });
   }
