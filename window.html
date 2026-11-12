@@ -7567,7 +7567,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
     }
 
     /* 12.11.2026: владелец и админ (#as=) открывают окно сотрудника-аптекаря «как есть» — смотреть и решать проблемы на месте. Выход вернёт в обычное окно. */
-    if (b.dataset.apt === 'asstaff') { if (!shPolkiOn() || PHARM) return; KEEPER = false; PREVIEW = true; PREV_APT = true; var mdp = $s('m-spec'); if (mdp && mdp.open) mdp.close(); AP.polki = false; AP.pq = ''; AP.q = ''; AP.form = null; AP.multi = null; setPharm(); return; }
+    if (b.dataset.apt === 'asstaff') { if (!shPolkiOn() || PHARM) return; KEEPER = false; PREVIEW = true; PREV_APT = true; var mdp = $s('m-spec'); if (mdp && mdp.open) mdp.close(); var spb2 = $s('sp-body'); if (spb2) spb2.innerHTML = ''; /* скрытая копия окна владельца дублировала id (apt-list, apt-q): список писался в неё, а в окне сотрудника висело «Загрузка…» */ AP.polki = false; AP.pq = ''; AP.q = ''; AP.form = null; AP.multi = null; setPharm(); return; }
     if (b.dataset.apt === 'exit-ask') { AP.exitAsk = true; render(); return; }
     if (b.dataset.apt === 'exit-no') { AP.exitAsk = false; render(); return; }
     if (b.dataset.apt === 'ppage') { AP.pg = parseInt(b.dataset.p, 10) || 0; var apl = $s('apt-polki-list'); if (apl) { apl.innerHTML = aptPolkiList(); try { apl.scrollIntoView({ block: 'start' }); } catch (e) {} } return; }
