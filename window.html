@@ -3737,6 +3737,20 @@ if (S.view === 'mkt') return renderMkt(el);
   function swKey(n) { return pkCK() + ':sw:' + n; }
   function swGet(n, ok) { idbGet(swKey(n)).then(function (c) { if (c && c.v) ok(c.v); }); }
   function swSave(n, v) { idbSet(swKey(n), { v: v, t: Date.now() }); }
+  /* Как callTo, но сначала отдаёт сохранённый на телефоне ответ (если есть), потом свежий. Только для чтения. */
+  function callS(path, body) {
+    var key = swKey('c:' + path + ':' + JSON.stringify(body));
+    return { then: function (fn) {
+      var fresh = false, shown = false;
+      idbGet(key).then(function (c) { if (!fresh && c && c.v) { shown = true; try { fn(c.v); } catch (e) {} } });
+      return callTo(path, body).then(function (r) {
+        fresh = true;
+        if (r && r.ok) { try { var j = JSON.stringify(r); if (j.length < 1500000) idbSet(key, { v: r, t: Date.now() }); } catch (e) {} }
+        else if (shown) return;
+        return fn(r);
+      });
+    } };
+  }
   function pkCK() { var c = code(), v = String(c.code || c.sid || ''), h = 0; for (var i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) | 0; return 'pk:' + (c.sid ? 's' : 'c') + h; }
   var pkPhInited = false, pkPhTimer = 0;
   function pkPhInit() {
@@ -3763,7 +3777,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkOpenPoint(name) {
     PK.cur = { name: name, loading: true }; PK.add = null; PK.ol = null; pkShLoad(name); pkPbLoad(name); PK.pt = null; PK.big = null; pkPhLoad(name); PK.err = ''; PK.msg = ''; PK.form = null; PK.ride = false; render();
-    callTo('/prokat', { action: 'point', name: name }).then(function (r) {
+    callS('/prokat', { action: 'point', name: name }).then(function (r) {
       if (S.view !== 'prokat' || !PK.cur || PK.cur.name !== name) return;
       if (!r || !r.ok || !r.point) { PK.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render(); }
       PK.cur = r.point; render();
@@ -3834,7 +3848,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkSkLoad() {
     var sk = PK.sk; pkPhInit();
     idbGet(pkCK() + ':stock').then(function (c) { if (c && Array.isArray(c.kinds) && sk.loading && S.view === 'prokat' && PK.sk === sk) { sk.kinds = c.kinds; sk.history = c.history || []; sk.totals = c.totals || {}; sk.parts_total = pkNum(c.parts_total); sk.loading = false; render(); } });
-    callTo('/prokat', { action: 'stock' }).then(function (r) {
+    callS('/prokat', { action: 'stock' }).then(function (r) {
       if (S.view !== 'prokat' || PK.sk !== sk) return;
       sk.loading = false;
       if (!r || !r.ok) { if (!(sk.kinds && sk.kinds.length)) sk.error = (r && r.error) || TX('не удалось загрузить'); }
@@ -4206,7 +4220,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // Окупаемость в карточке пункта: стоимость инструментов по закупочным ценам против того, что пункт уже принёс.
   function pkPbLoad(name) {
     var pb = PK.pb = { name: name, loading: true, data: null };
-    callTo('/prokat', { action: 'payback', name: name }).then(function (r) { if (PK.pb !== pb) return; pb.loading = false; pb.data = r && r.ok ? r : null; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); });
+    callS('/prokat', { action: 'payback', name: name }).then(function (r) { if (PK.pb !== pb) return; pb.loading = false; pb.data = r && r.ok ? r : null; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); });
   }
   function pkPbBlock() {
     var pb = PK.pb; if (!pb || !PK.cur || pb.name !== PK.cur.name || pb.loading || !pb.data) return '';
@@ -4223,7 +4237,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkPct(x) { return String(Math.round(pkNum(x) * 10) / 10).replace('.', ',') + '%'; }
   function pkShLoad(name) {
     var sh = PK.sh = { name: name, loading: true, error: '', pct: null, def: null, own: false, form: null, msg: '' };
-    callTo('/prokat', { action: 'share_get', name: name }).then(function (r) { pkShGot(sh, r); });
+    callS('/prokat', { action: 'share_get', name: name }).then(function (r) { pkShGot(sh, r); });
   }
   function pkShGot(sh, r) {
     if (PK.sh !== sh) return;
@@ -4285,7 +4299,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkOlLoad() {
     var name = PK.cur && PK.cur.name; if (!name) return;
     var ol = PK.ol = { name: name, loading: true, link: '', owner: '', since: '', pin: '', locked: false, pf: null, error: '', ask: false, busy: false, id: '', msg: '' }; render();
-    callTo('/prokat', { action: 'owner_link', name: name }).then(function (r) {
+    callS('/prokat', { action: 'owner_link', name: name }).then(function (r) {
       if (PK.ol !== ol) return;
       ol.loading = false;
       if (!r || !r.ok) ol.error = (r && r.error) || TX('не удалось загрузить');
@@ -4373,7 +4387,7 @@ if (S.view === 'mkt') return renderMkt(el);
     var ph = PK.ph = { name: name, loading: true, tools: [], error: '' }; if (!PK.cur || PK.cur.name !== name) PK.phG = '';
     var pck = pkCK() + ':tools:' + name;
     idbGet(pck).then(function (c) { if (c && Array.isArray(c.tools) && PK.ph === ph && ph.loading) { ph.tools = c.tools; ph.loading = false; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); } });
-    callTo('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
+    callS('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
       if (PK.ph !== ph) return;
       ph.loading = false;
       if (!r || !r.ok) { if (!ph.tools.length) ph.error = (r && r.error) || TX('не удалось загрузить'); }
@@ -4457,7 +4471,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkToolOpen(i) {
     var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
     var pt = PK.pt = { point: PK.cur.name, tool: t.name, vid: pkKindOf(t).label, icon: pkKindOf(t).icon, card: { loading: true, firma: '', cena: '', kredit: '', msg: '', err: '', busy: false, id: '' }, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '', st: { status: t.status, status_text: t.status_text, out: t.out, month_income: t.month_income } }; PK.big = null; render();
-    callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
+    callS('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (r) {
       if (PK.pt !== pt) return;
       pt.loading = false;
       if (!r || !r.ok) pt.error = (r && r.error) || TX('не удалось загрузить');
@@ -4527,7 +4541,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   /* ---------- Перевозки: пункт → пункт, пункт ↔ склад ---------- */
   function pkMovesLoad(pt) {
-    callTo('/prokat', { action: 'moves', name: pt.point, tool: pt.tool }).then(function (r) {
+    callS('/prokat', { action: 'moves', name: pt.point, tool: pt.tool }).then(function (r) {
       if (PK.pt !== pt) return;
       pt.moves = r && r.ok && Array.isArray(r.moves) ? r.moves : [];
       if (S.view === 'prokat') render();
@@ -4720,7 +4734,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkAllOpen() {
     var all = PK.all = { loading: true, total: 0, groups: [], error: '', open: {} }; PK.ride = false; render();
-    callTo('/prokat-foto', { action: 'all' }).then(function (r) {
+    callS('/prokat-foto', { action: 'all' }).then(function (r) {
       if (PK.all !== all) return;
       all.loading = false;
       if (!r || !r.ok) all.error = (r && r.error) || TX('не удалось загрузить');
@@ -4758,7 +4772,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // Напоминания: давно не было объезда, владелец должен передать деньги, инструмент долго сломан.
   function pkRemLoad() {
     var rem = PK.rem = { loading: true, data: null, open: PK.rem ? PK.rem.open : false };
-    callTo('/prokat', { action: 'reminders' }).then(function (r) {
+    callS('/prokat', { action: 'reminders' }).then(function (r) {
       if (PK.rem !== rem) return;
       rem.loading = false; rem.data = r && r.ok ? r : null;
       if (S.view === 'prokat') render();
@@ -4788,7 +4802,7 @@ if (S.view === 'mkt') return renderMkt(el);
   // «Сейчас в аренде» (12.11.2026): все аренды со статусом «в аренде» по пунктам — что выдано, с какого дня, на сколько, просрочено ли.
   function pkRentedOpen() {
     var u = PK.rn = { loading: true, error: '', points: [], total: 0 }; PK.ride = false; render();
-    callTo('/prokat', { action: 'rented' }).then(function (r) {
+    callS('/prokat', { action: 'rented' }).then(function (r) {
       if (PK.rn !== u) return;
       u.loading = false;
       if (!r || !r.ok) u.error = (r && r.error) || TX('не удалось загрузить'); else { u.points = Array.isArray(r.points) ? r.points : []; u.total = pkNum(r.total); }
@@ -4813,7 +4827,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkPickupOpen() {
     var u = PK.pu = { loading: true, error: '', points: [], total: 0, msg: '' }; PK.ride = false; render();
-    callTo('/prokat', { action: 'pickup' }).then(function (r) {
+    callS('/prokat', { action: 'pickup' }).then(function (r) {
       if (PK.pu !== u) return;
       u.loading = false;
       if (!r || !r.ok) u.error = (r && r.error) || TX('не удалось загрузить'); else { u.points = Array.isArray(r.points) ? r.points : []; u.total = pkNum(r.total); }
@@ -4838,7 +4852,7 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkCmpOpen() {
     var c = PK.cmp = { loading: true, points: [], error: '', open: {} }; render();
-    callTo('/prokat', { action: 'compare' }).then(function (r) {
+    callS('/prokat', { action: 'compare' }).then(function (r) {
       if (PK.cmp !== c) return;
       c.loading = false;
       if (!r || !r.ok) c.error = (r && r.error) || TX('не удалось загрузить'); else c.points = Array.isArray(r.points) ? r.points : [];
@@ -5066,7 +5080,7 @@ if (S.view === 'mkt') return renderMkt(el);
   var SM = { st: null, busy: false, res: '', act: '', err: '', plan: '', cap: '', ideas: '', rep: '', copied: false, an: null, anBusy: false, anErr: '', anCopied: false, anTimer: 0 };
   function openSmm() {
     S.view = 'smm'; SM.res = ''; SM.err = ''; SM.st = null; SM.copied = false; SM.an = null; SM.anErr = ''; SM.anCopied = false; anStop(); render();
-    callTo('/smm', { action: 'status' }).then(function (r) {
+    callS('/smm', { action: 'status' }).then(function (r) {
       SM.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
       if (S.view === 'smm') render();
     });
@@ -5654,7 +5668,7 @@ function mkLoad() { try { var v = JSON.parse(lstore(mkKey()) || 'null'); if (Arr
 function mkSave() { try { lstore(mkKey(), JSON.stringify(MK.msgs.slice(-30))); } catch (e) {} }
 function openMkt() {
 S.view = 'mkt'; MK.st = null; MK.err = ''; MK.busy = false; MK.copied = false; MK.draft = ''; MK.msgs = mkLoad(); render();
-callTo('/marketolog', { action: 'status' }).then(function (r) {
+callS('/marketolog', { action: 'status' }).then(function (r) {
 MK.st = r.ok ? r : { error: r.error || TX('не удалось загрузить') };
 if (S.view === 'mkt') render();
 });
@@ -6984,7 +6998,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
   function anState() { return SH.an || (SH.an = { sec: 'profit', days: 30, data: null, busy: false, err: '', inv: null, msg: '' }); }
   function anLoad() {
     var A = anState(); A.busy = true; A.err = '';
-    var p = A.sec === 'inv' ? callTo('/magazin', { action: 'inv_list' }) : callTo('/magazin', { action: 'stats', days: A.days });
+    var p = A.sec === 'inv' ? callS('/magazin', { action: 'inv_list' }) : callS('/magazin', { action: 'stats', days: A.days });
     p.then(function (r) { A.busy = false; if (!r || !r.ok) A.err = (r && r.error) || TX('Не удалось загрузить'); else if (A.sec === 'inv') A.inv = r.inv; else A.data = r.stats; if (S.view === 'shop') render(); });
     render();
   }
