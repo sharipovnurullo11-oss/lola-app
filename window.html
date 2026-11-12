@@ -2553,6 +2553,7 @@ function $s(id) { return document.getElementById(id); }
   function code() { var b = {}; try { if (staffNow()) b.sid = store('ew_sid') || ''; else b.code = store('ew_cab') || ''; } catch (e) {} return b; }
   function callTo(path, body) {
     var b = code(); for (var k in body) b[k] = body[k];
+    if (!SW_READ[body && body.action]) SW_W = Date.now(); /* любая запись: сохранённые копии старше неё не показываем */
     return post(path, b).then(function (x) { return (x && x.j) || { ok: false, error: TX('нет связи') }; }, function () { return { ok: false, error: TX('нет связи') }; });
   }
   function call(body) { return callTo('/buhgalter', body); }
@@ -3734,15 +3735,16 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkMoney(x) { return money(cents(pkNum(x))); }
   /* Память телефона для проката: точки, склад и фото открываются сразу, свежее приходит в фоне */
   /* Память телефона: открываем сохранённое сразу, свежее приходит в фоне (12.11.2026) */
+  var SW_W = 0, SW_READ = {}; 'ping list point points stock payback payback_all buy_prices share_get owner_link tools tool moves all reminders rented pickup compare tour_point status analysis_status inv_list stats get foto_get chek_get stock_photo_get debts lich_list trash_list info foto export find_photo route nlist profile ask explain chat'.split(' ').forEach(function (a) { SW_READ[a] = 1; });
   function swKey(n) { return pkCK() + ':sw:' + n; }
-  function swGet(n, ok) { idbGet(swKey(n)).then(function (c) { if (c && c.v) ok(c.v); }); }
+  function swGet(n, ok) { idbGet(swKey(n)).then(function (c) { if (c && c.v && c.t > SW_W) ok(c.v); }); }
   function swSave(n, v) { idbSet(swKey(n), { v: v, t: Date.now() }); }
   /* Как callTo, но сначала отдаёт сохранённый на телефоне ответ (если есть), потом свежий. Только для чтения. */
   function callS(path, body) {
     var key = swKey('c:' + path + ':' + JSON.stringify(body));
     return { then: function (fn) {
       var fresh = false, shown = false;
-      idbGet(key).then(function (c) { if (!fresh && c && c.v) { shown = true; try { fn(c.v); } catch (e) {} } });
+      idbGet(key).then(function (c) { if (!fresh && c && c.v && c.t > SW_W) { shown = true; try { fn(c.v); } catch (e) {} } });
       return callTo(path, body).then(function (r) {
         fresh = true;
         if (r && r.ok) { try { var j = JSON.stringify(r); if (j.length < 1500000) idbSet(key, { v: r, t: Date.now() }); } catch (e) {} }
@@ -3848,7 +3850,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkSkLoad() {
     var sk = PK.sk; pkPhInit();
     idbGet(pkCK() + ':stock').then(function (c) { if (c && Array.isArray(c.kinds) && sk.loading && S.view === 'prokat' && PK.sk === sk) { sk.kinds = c.kinds; sk.history = c.history || []; sk.totals = c.totals || {}; sk.parts_total = pkNum(c.parts_total); sk.loading = false; render(); } });
-    callS('/prokat', { action: 'stock' }).then(function (r) {
+    callTo('/prokat', { action: 'stock' }).then(function (r) {
       if (S.view !== 'prokat' || PK.sk !== sk) return;
       sk.loading = false;
       if (!r || !r.ok) { if (!(sk.kinds && sk.kinds.length)) sk.error = (r && r.error) || TX('не удалось загрузить'); }
@@ -4387,7 +4389,7 @@ if (S.view === 'mkt') return renderMkt(el);
     var ph = PK.ph = { name: name, loading: true, tools: [], error: '' }; if (!PK.cur || PK.cur.name !== name) PK.phG = '';
     var pck = pkCK() + ':tools:' + name;
     idbGet(pck).then(function (c) { if (c && Array.isArray(c.tools) && PK.ph === ph && ph.loading) { ph.tools = c.tools; ph.loading = false; if (S.view === 'prokat' && PK.cur && PK.cur.name === name) render(); } });
-    callS('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
+    callTo('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
       if (PK.ph !== ph) return;
       ph.loading = false;
       if (!r || !r.ok) { if (!ph.tools.length) ph.error = (r && r.error) || TX('не удалось загрузить'); }
