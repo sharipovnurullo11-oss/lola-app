@@ -3798,8 +3798,8 @@ if (S.view === 'mkt') return renderMkt(el);
       (S.pushMsg ? '<p role="status" style="margin-top:10px">' + esc(S.pushMsg) + '</p>' : '');
   }
   // «Склад»: инструменты не на пунктах, в основном сломанные. У каждого вида своё фото, количество по состояниям и запчасти.
-  var PK_SK_ST = ['сломан', 'в ремонте', 'починен', 'на запчасти'];
-  var PK_SK_COL = { 'сломан': '#c0392b', 'в ремонте': '#b26a00', 'починен': '#1f8a4c', 'на запчасти': '#6b6b6b' };
+  var PK_SK_ST = ['новый', 'сломан', 'в ремонте', 'починен', 'на запчасти'];
+  var PK_SK_COL = { 'новый': '#1f4fa8', 'сломан': '#c0392b', 'в ремонте': '#b26a00', 'починен': '#1f8a4c', 'на запчасти': '#6b6b6b' };
   var PK_SK_KINDS = ['Болгарка большая', 'Болгарка малая', 'Отбойный молоток', 'Перфоратор большой', 'Перфоратор малый', 'Шуруповёрт', 'Дрель', 'Лобзик', 'Циркулярка', 'Бензопила', 'Компрессор', 'Сварочный аппарат', 'Вибратор', 'Краскопульт', 'Утюг для пластиковых труб', 'Строительный миксер'];
   var PK_SK_PH = {}; // фото видов: имя -> { date, url, busy }
   function pkSkOpen() {
@@ -3855,7 +3855,7 @@ if (S.view === 'mkt') return renderMkt(el);
       return '<div style="padding:10px;border-radius:10px;border:1px solid ' + PK_SK_COL[s] + '"><small>' + esc(TX(s)) + '</small><b style="display:block;font-size:22px;color:' + PK_SK_COL[s] + '">' + esc(pkNum(sk.totals[s])) + '</b></div>';
     }).join('') + '</div><p style="margin:0 0 10px">🔩 ' + esc(TX('Запчастей всего')) + ': <b>' + esc(sk.parts_total) + '</b></p>';
     if (sk.msg) h += '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(sk.msg) + '</p>';
-    h += sk.form && sk.form.mode === 'new' ? pkSkNewForm(sk.form) : pkBtn('sk-new', '➕ ' + esc(TX('Новый инструмент')), false, 'width:100%;margin-bottom:10px');
+    h += sk.form && sk.form.mode === 'new' ? pkSkNewForm(sk.form) : pkBtn('sk-new', '➕ ' + esc(TX('Добавить инструмент')), false, 'width:100%;margin-bottom:10px');
     h += sk.kinds.length ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">' + sk.kinds.map(function (g, i) {
       var line = PK_SK_ST.filter(function (s) { return pkSkSt(g, s); }).map(function (s) { return '<span style="color:' + PK_SK_COL[s] + '">' + esc(TX(s)) + ' ' + pkSkSt(g, s) + '</span>'; }).join(' · ');
       return '<button type="button" data-pk="sk-k:' + i + '" style="display:block;padding:8px;border:1px solid rgba(127,127,127,.35);border-radius:12px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer">' + pkSkImg(g, '100%') +
@@ -3944,7 +3944,7 @@ if (S.view === 'mkt') return renderMkt(el);
     });
   }
   function pkSkForm(mode, extra) {
-    var F = { mode: mode, name: '', state: mode === 'move' ? '' : 'сломан', to: '', qty: '', note: '', part: '', photo: '', wait: false, busy: false, err: '', id: oid(), pid: oid() };
+    var F = { mode: mode, name: '', state: mode === 'move' ? '' : mode === 'new' ? 'новый' : 'сломан', to: '', qty: '', note: '', part: '', photo: '', wait: false, busy: false, err: '', id: oid(), pid: oid() };
     for (var k in extra || {}) F[k] = extra[k];
     PK.sk.form = F; PK.sk.msg = ''; render();
   }
@@ -4594,6 +4594,9 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function pkMoveClick(k) {
     var M = PK.mv;
+    if (k === 'brk-open') { if (PK.pt) { PK.pt.brk = 'ask'; PK.pt.msg = ''; render(); } return true; }
+    if (k === 'brk-no') { if (PK.pt) { PK.pt.brk = ''; render(); } return true; }
+    if (k === 'brk-yes') { pkBrkSave(); return true; }
     if (k === 'mv-open') { if (PK.pt) pkMoveOpen(PK.pt.point, PK.pt.tool, 'pt'); return true; }
     if (k === 'sell-open') { if (PK.pt) pkMoveOpen(PK.pt.point, PK.pt.tool, 'pt', true); return true; }
     if (!M) return false;
@@ -4603,6 +4606,22 @@ if (S.view === 'mkt') return renderMkt(el);
     return false;
   }
   document.addEventListener('change', function (e) { var t = e.target; if (PK.mv && t && t.getAttribute && t.getAttribute('data-mvto') != null) { pkMoveKeep(); render(); } });
+  // «Сломался» (12.11.2026): одна отметка «сломан» на инструменте пункта. Идёт тем же путём, что и объезд (tour_save), поэтому инструмент сам попадает в «Что забрать».
+  function pkBrkBlock(pt) {
+    if (pt.brk === 'ask') return '<div style="margin:0 0 10px;padding:10px;border-radius:10px;border:2px solid #c0392b"><b style="display:block;margin-bottom:8px">' + esc(TX('Отметить, что инструмент сломался?')) + '</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + pkBtn('brk-yes', esc(TX('Да, сломался')), false, 'background:#c0392b;border-color:#c0392b') + pkBtn('brk-no', esc(TX('Нет')), true) + '</div></div>';
+    if (pt.brk === 'busy') return '<p style="margin:0 0 10px">' + esc(TX('Сохраняю…')) + '</p>';
+    return '<div style="margin-bottom:10px">' + pkBtn('brk-open', '🔧 ' + esc(TX('Сломался')), true, 'width:100%') + '</div>';
+  }
+  function pkBrkSave() {
+    var pt = PK.pt; if (!pt || pt.brk !== 'ask') return;
+    pt.brk = 'busy'; render();
+    callTo('/prokat', { action: 'tour_save', name: pt.point, id: oid(), items: [{ name: pt.tool, state: 'сломан' }] }).then(function (r) {
+      if (PK.pt !== pt) return;
+      pt.brk = '';
+      if (r && r.ok) { pt.msg = TX('Отмечено: сломан. Инструмент теперь в кнопке «Что забрать».'); PK.pu = null; } else pt.msg = (r && r.error) || TX('Не получилось сохранить, попробуйте ещё раз');
+      if (S.view === 'prokat') render();
+    });
+  }
   function renderPkToolHist(el) {
     var pt = PK.pt, h = pkBtn('pt-back', '← ' + esc(pt.point), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px;margin-bottom:2px">🧰 ' + esc(pt.tool) + '</h2><p style="margin:0 0 10px;opacity:.8">' + esc(pt.point) + '</p>' + pkTStatus(pt.st, true) +
       (pt.st && pkNum(pt.st.month_income) > 0 ? '<p style="margin:0 0 8px">' + esc(TX('Доход за этот месяц')) + ': <b>' + pkMoney(pt.st.month_income) + '</b></p>' : '') +
@@ -4610,7 +4629,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (pt.loading) return void (el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>');
     if (pt.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(pt.error) + '</p>' + pkBtn('pt-retry', esc(TX('Ещё раз')), true));
     if (pt.msg) h += '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(pt.msg) + '</p>';
-    h += PK.mv && PK.mv.ctx === 'pt' ? pkMoveForm() : '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:10px">' + pkBtn('mv-open', '🚚 ' + esc(TX('Перевезти')), true) + pkBtn('sell-open', '💰 ' + esc(TX('Продать')), true) + '</div>';
+    h += PK.mv && PK.mv.ctx === 'pt' ? pkMoveForm() : '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:10px">' + pkBtn('mv-open', '🚚 ' + esc(TX('Перевезти')), true) + pkBtn('sell-open', '💰 ' + esc(TX('Продать')), true) + '</div>' + pkBrkBlock(pt);
     h += pkMovesBlock(pt.moves);
     if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>');
     h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, сверху самые новые')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
