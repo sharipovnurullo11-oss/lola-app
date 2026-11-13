@@ -3925,6 +3925,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function openFinOrProkat() {
     S.view = 'prokat'; PK.folder = false; PK.sk = null; PK.all = null; PK.cmp = null; PK.pu = null; PK.rn = null; PK.tour = null; PK.ph = null; PK.pt = null; PK.big = null; PK.busy = true; PK.warm = false; PK.err = ''; PK.msg = ''; PK.cur = null; PK.form = null; PK.ride = false; render();
     pkPhInit();
+    PK_OB.list = PK_OB.ck === pkCK() ? PK_OB.list : null; pkObLoad().then(function (l) { if (l.length) { pkObWatch(); pkObFlush(); } if ((l.length || PK_OB.bad.length) && S.view === 'prokat') render(); });
     idbGet(pkCK() + ':points').then(function (c) { if (c && Array.isArray(c.points) && PK.busy && S.view === 'prokat') { PK.points = c.points; PK.total = c.total == null ? null : c.total; PK.warm = true; render(); } });
     callTo('/prokat', { action: 'points' }).then(function (r) {
       PK.busy = false;
@@ -3933,6 +3934,67 @@ if (S.view === 'mkt') return renderMkt(el);
       PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; idbSet(pkCK() + ':points', { points: PK.points, total: PK.total }); try { localStorage.setItem('ew_nochat_' + String(store('ew_cab') || ''), '1'); } catch (e) {} /* 12.11.2026: кабинет проката не грузит чаты и аватарки при входе */ render(); pkRemLoad();
     });
   }
+  /* ---------- Работа без интернета, шаг 1 (14.11.2026): записи проката не пропадают ----------
+     Если связи нет (или сервер не ответил вовремя), запись кладётся в очередь в памяти телефона и сама уходит, когда интернет появится.
+     У каждой записи свой номер (id), сервер повторную запись с тем же номером не дублирует — поэтому повтор безопасен. */
+  var PK_OB = { ck: '', list: null, bad: [], busy: false, timer: 0 };
+  function pkNoNet(r) { return !r || (!r.ok && r.error === TX('нет связи')); }
+  function pkObLoad() {
+    var ck = pkCK();
+    if (PK_OB.list && PK_OB.ck === ck) return Promise.resolve(PK_OB.list);
+    return idbGet(ck + ':outbox').then(function (c) {
+      if (!PK_OB.list || PK_OB.ck !== ck) { PK_OB.ck = ck; PK_OB.list = c && Array.isArray(c.list) ? c.list : []; PK_OB.bad = c && Array.isArray(c.bad) ? c.bad : []; }
+      return PK_OB.list;
+    });
+  }
+  function pkObStore() { return idbSet(PK_OB.ck + ':outbox', { list: PK_OB.list || [], bad: PK_OB.bad || [] }); }
+  // Запрос с пределом ожидания: при очень слабом интернете не висим минутами.
+  function pkNet(path, body, ms) {
+    return new Promise(function (ok) {
+      var done = false, t = setTimeout(function () { if (!done) { done = true; ok({ ok: false, error: TX('нет связи') }); } }, ms);
+      callTo(path, body).then(function (r) { if (!done) { done = true; clearTimeout(t); ok(r); } });
+    });
+  }
+  // Как callTo, но для записей: без связи запись сохраняется в телефоне, ответ — { ok: true, queued: true }.
+  function callQ(path, body, label) {
+    var prev = SW_W, off = false, heavy = false;
+    try { off = navigator.onLine === false; heavy = JSON.stringify(body).length > 20000; } catch (e) {}
+    var go = off ? Promise.resolve({ ok: false, error: TX('нет связи') }) : pkNet(path, body, heavy ? 60000 : 20000), mine = SW_W;
+    return go.then(function (r) {
+      if (!pkNoNet(r)) return r;
+      if (SW_W === mine) SW_W = prev; /* запись не ушла — сохранённые на телефоне копии остаются видны */
+      return pkObLoad().then(function (l) {
+        l.push({ path: path, body: body, label: String(label || ''), t: Date.now() }); pkObStore(); pkObWatch();
+        return { ok: true, queued: true };
+      });
+    });
+  }
+  function pkObWatch() { if (!PK_OB.timer) PK_OB.timer = setInterval(function () { if (PK_OB.list && PK_OB.list.length) pkObFlush(); }, 60000); }
+  function pkObFlush() {
+    if (PK_OB.busy) return;
+    try { if (navigator.onLine === false) return; } catch (e) {}
+    PK_OB.busy = true;
+    pkObLoad().then(function (l) {
+      var sent = 0;
+      (function next() {
+        var it = l[0];
+        if (!it) { PK_OB.busy = false; if (sent) { pkReload(); if (S.view === 'prokat' && PK.cur && PK.cur.name && !PK.cur.loading) { pkOpenPointQuiet(PK.cur.name); pkPhQuiet(PK.cur.name); } } if (S.view === 'prokat') render(); return; }
+        pkNet(it.path, it.body, 90000).then(function (r) {
+          if (pkNoNet(r)) { PK_OB.busy = false; if (S.view === 'prokat') render(); return; }
+          if (l[0] === it) l.shift();
+          if (r.ok) sent++; else PK_OB.bad.push((it.label || TX('запись')) + ' — ' + String(r.error || TX('сервер не принял')));
+          pkObStore(); if (S.view === 'prokat') render(); next();
+        });
+      })();
+    });
+  }
+  function pkObBanner() {
+    var l = PK_OB.list || [], bad = PK_OB.bad || [], h = '';
+    if (l.length) h += '<div role="status" style="margin:0 44px 8px 0;padding:10px 12px;border-radius:12px;border:2px solid #F5A524;background:rgba(245,165,36,.12)"><b>⏳ ' + esc(TX('Ждёт интернета')) + ': ' + l.length + '</b><br><small>' + l.slice(0, 5).map(function (x) { return esc(x.label); }).join('<br>') + (l.length > 5 ? '<br>…' : '') + '</small><br><small style="opacity:.8">' + esc(TX('Сохранено в телефоне. Уйдёт само, когда появится интернет.')) + '</small>' + pkBtn('ob-send', esc(TX(PK_OB.busy ? 'Отправляю…' : 'Отправить сейчас')), true, 'display:block;margin-top:6px;height:auto;padding:8px 12px' + (PK_OB.busy ? ';opacity:.6' : '')) + '</div>';
+    if (bad.length) h += '<div role="alert" style="margin:0 44px 8px 0;padding:10px 12px;border-radius:12px;border:2px solid #c0392b;background:rgba(192,57,43,.1)"><b>' + esc(TX('Сервер не принял')) + ': ' + bad.length + '</b><br><small>' + bad.slice(-5).map(function (x) { return esc(x); }).join('<br>') + '</small>' + pkBtn('ob-clear', esc(TX('Понятно, убрать')), true, 'display:block;margin-top:6px;height:auto;padding:8px 12px') + '</div>';
+    return h;
+  }
+  window.addEventListener('online', function () { if (PK_OB.list && PK_OB.list.length) pkObFlush(); });
   function pkReload() {
     return callTo('/prokat', { action: 'points' }).then(function (r) {
       if (r && r.ok) { PK.points = Array.isArray(r.points) ? r.points : []; PK.total = r.total == null ? null : r.total; }
@@ -3943,7 +4005,11 @@ if (S.view === 'mkt') return renderMkt(el);
     PK.cur = { name: name, loading: true }; PK.add = null; PK.ol = null; pkShLoad(name); pkPbLoad(name); PK.pt = null; PK.big = null; pkPhLoad(name); PK.err = ''; PK.msg = ''; PK.form = null; PK.ride = false; render();
     callS('/prokat', { action: 'point', name: name }).then(function (r) {
       if (S.view !== 'prokat' || !PK.cur || PK.cur.name !== name) return;
-      if (!r || !r.ok || !r.point) { PK.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render(); }
+      if (!r || !r.ok || !r.point) {
+        var lp = pkNoNet(r) ? PK.points.filter(function (x) { return x.name === name; })[0] : null;
+        if (lp) { var oc = { offline: true }; for (var lk in lp) oc[lk] = lp[lk]; PK.cur = oc; return render(); }
+        PK.cur = { name: name, error: (r && r.error) || TX('не удалось загрузить') }; return render();
+      }
       PK.cur = r.point; render();
     });
   }
@@ -3951,7 +4017,8 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkBadge(st) { var c = pkStatusColor(st); return '<span style="flex:none;font-size:12px;padding:3px 8px;border-radius:10px;border:1px solid ' + c + ';color:' + c + '">' + esc(st || '—') + '</span>'; }
   function pkRow(label, val, bold) { return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>' + esc(label) + '</span><span style="white-space:nowrap' + (bold ? ';font-weight:700' : '') + '">' + val + '</span></div>'; }
   function pkBtn(k, text, sec, style) { return '<button type="button" class="btn' + (sec ? ' sec' : '') + '" data-pk="' + esc(k) + '"' + (style ? ' style="' + style + '"' : '') + '>' + text + '</button>'; }
-  function renderProkat(el) {
+  function renderProkat(el) { renderProkat0(el); var ob = pkObBanner(); if (ob) el.insertAdjacentHTML('afterbegin', ob); }
+  function renderProkat0(el) {
     if (PK.busy && !PK.warm) { el.innerHTML = backBtn() + '<h2 style="padding-right:36px">💼 ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')) + '</h2><p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (PK.tour) return renderPkTour(el);
     if (PK.pt) return renderPkToolHist(el);
@@ -4253,6 +4320,7 @@ if (S.view === 'mkt') return renderMkt(el);
       '<p style="margin:0 0 8px;opacity:.8">' + esc(p.city || '') + (p.owner ? ' · ' + esc(TX('Владелец')) + ': ' + esc(p.owner) : '') + (phones ? ' · ' + esc(phones) : '') + '<br>🚗 ' + esc(pkVisit(p)) + '</p>' +
       (p.note ? '<p style="margin:0 0 8px">' + esc(p.note) + '</p>' : '') +
       '<div style="margin-bottom:8px">' + pkBadge(p.status) + '</div>' +
+      (p.offline ? '<p style="margin:0 0 8px;color:#b26a00"><small>' + esc(TX('Нет связи — показано то, что сохранено в телефоне.')) + '</small></p>' : '') +
       /* 12.11.2026: инструменты и «Добавить» — сразу под названием пункта, деньги ниже */
       pkPhBlock() + (PK.form ? '' : (PK.add ? pkAddForm() : pkBtn('add-open', '➕ ' + esc(TX('Добавить инструмент')), true, 'width:100%;margin-top:8px'))) +
       '<h3 style="margin:16px 0 6px">💰 ' + esc(TX('Деньги по пункту')) + '</h3>' +
@@ -4315,10 +4383,11 @@ if (S.view === 'mkt') return renderMkt(el);
     F.busy = true; PK.err = ''; render();
     var name = PK.cur.name;
     // id создан при открытии формы: повторное нажатие после обрыва связи не создаст вторую запись.
-    callTo('/prokat', { action: 'collect', name: name, amount: Math.round(amount * 100) / 100, method: F.method, note: String(F.note || '').trim().slice(0, 200), id: F.id }).then(function (r) {
+    callQ('/prokat', { action: 'collect', name: name, amount: Math.round(amount * 100) / 100, method: F.method, note: String(F.note || '').trim().slice(0, 200), id: F.id }, TX('Забрал деньги') + ': ' + name + ' — ' + pkMoney(amount)).then(function (r) {
       if (!PK.form || PK.form.id !== F.id) return;
       F.busy = false;
       if (!r || !r.ok) { PK.err = (r && r.error) || TX('Не получилось сохранить'); return render(); }
+      if (r.queued) { PK.form = null; PK.msg = TX('Сохранено в телефоне. Уйдёт на сервер, когда появится интернет.'); return render(); }
       PK.form = null; PK.msg = TX('Записано') + ': ' + pkMoney(amount);
       if (PK.cur && PK.cur.name === name && r.taken != null) PK.cur.taken = r.taken;
       render(); pkOpenPointQuiet(name); pkReload();
@@ -4659,10 +4728,11 @@ if (S.view === 'mkt') return renderMkt(el);
     var t = e.target; if (!t || !t.getAttribute || t.getAttribute('data-ptphoto') == null) return;
     var pt = PK.pt, file = t.files && t.files[0]; if (!pt || !file || (pt.np && pt.np.busy)) return;
     var np = pt.np = { busy: true, err: '', id: oid() }; pt.msg = ''; render();
-    pkShrink(file).then(function (url) { return callTo('/prokat', { action: 'tool_photo', name: pt.point, tool: pt.tool, photo: url, id: np.id }); }).then(function (r) {
+    pkShrink(file).then(function (url) { return callQ('/prokat', { action: 'tool_photo', name: pt.point, tool: pt.tool, photo: url, id: np.id }, TX('Фото') + ': ' + pt.tool + ', ' + pt.point); }).then(function (r) {
       if (PK.pt !== pt) return;
       np.busy = false;
       if (!r || !r.ok) { np.err = (r && r.error) || TX('Не получилось сохранить'); return render(); }
+      if (r.queued) { pt.msg = TX('Сохранено в телефоне. Уйдёт на сервер, когда появится интернет.'); return render(); }
       pt.msg = TX('Фото сохранено'); render();
       callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (x) {
         if (PK.pt !== pt || !x || !x.ok) return;
@@ -4771,16 +4841,23 @@ if (S.view === 'mkt') return renderMkt(el);
     var body = { action: 'move', from: 'Куплен', to: point, tool: name, qty: +q, note: String(A.note || '').trim().slice(0, 80), id: A.id };
     if (ps) body.price = Math.round(Number(ps) * 100) / 100;
     A.busy = true; render();
-    callTo('/prokat', body).then(function (r) {
+    callQ('/prokat', body, TX('Новый инструмент') + ': ' + name + ', ' + point).then(function (r) {
       if (PK.add !== A) return;
       A.busy = false;
       if (!r || !r.ok) { A.err = (r && r.error) || TX('Не получилось сохранить'); if (r && r.error && r.error !== TX('нет связи')) A.id = oid(); return render(); }
+      if (r.queued) {
+        PK.add = null; PK.msg = TX('Добавлено') + ': ' + name + '. ' + TX('Сохранено в телефоне. Уйдёт на сервер, когда появится интернет.');
+        if (A.photo) callQ('/prokat', { action: 'tool_photo', name: point, tool: name, photo: A.photo, id: oid() }, TX('Фото') + ': ' + name + ', ' + point);
+        // Новый инструмент сразу виден в списке пункта на телефоне (и в объезде без связи).
+        if (PK.ph && PK.ph.name === point && !PK.ph.tools.some(function (t) { return String(t.name || '').toLowerCase() === name.toLowerCase(); })) { PK.ph.tools.push({ name: name, qty: +q, kind: '', count: 0, url: '', last: '' }); idbSet(pkCK() + ':tools:' + point, { tools: PK.ph.tools }); }
+        return render();
+      }
       PK.add = null; PK.msg = TX('Добавлено') + ': ' + name + ', ' + q + ' ' + TX('шт.') + (body.price ? ' — ' + pkMoney(body.price) + ' ' + TX('за 1 шт.') : '');
       render(); pkPhLoad(point); pkOpenPointQuiet(point); pkReload();
       // Фото нового инструмента уходит следом; название берём то, под которым сервер его записал.
-      if (A.photo) callTo('/prokat', { action: 'tool_photo', name: point, tool: (r.moved && r.moved.tool) || name, photo: A.photo, id: oid() }).then(function (x) {
+      if (A.photo) callQ('/prokat', { action: 'tool_photo', name: point, tool: (r.moved && r.moved.tool) || name, photo: A.photo, id: oid() }, TX('Фото') + ': ' + name + ', ' + point).then(function (x) {
         if (S.view !== 'prokat' || !PK.cur || PK.cur.name !== point) return;
-        PK.msg += x && x.ok ? ' · ' + TX('фото сохранено') : ' · ' + TX('фото не сохранилось, сделайте его в окне инструмента'); if (!PK.form) render();
+        PK.msg += x && x.queued ? ' · ' + TX('фото ждёт интернета') : x && x.ok ? ' · ' + TX('фото сохранено') : ' · ' + TX('фото не сохранилось, сделайте его в окне инструмента'); if (!PK.form) render();
         if (x && x.ok) pkPhQuiet(point);
       });
     });
@@ -4865,10 +4942,10 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkBrkSave() {
     var pt = PK.pt; if (!pt || pt.brk !== 'ask') return;
     pt.brk = 'busy'; render();
-    callTo('/prokat', { action: 'tour_save', name: pt.point, id: oid(), items: [{ name: pt.tool, state: 'сломан' }] }).then(function (r) {
+    callQ('/prokat', { action: 'tour_save', name: pt.point, id: oid(), items: [{ name: pt.tool, state: 'сломан' }] }, TX('Сломан') + ': ' + pt.tool + ', ' + pt.point).then(function (r) {
       if (PK.pt !== pt) return;
       pt.brk = '';
-      if (r && r.ok) { pt.msg = TX('Отмечено: сломан. Инструмент теперь в кнопке «Что забрать».'); PK.pu = null; } else pt.msg = (r && r.error) || TX('Не получилось сохранить, попробуйте ещё раз');
+      if (r && r.ok && r.queued) pt.msg = TX('Сохранено в телефоне. Уйдёт на сервер, когда появится интернет.'); else if (r && r.ok) { pt.msg = TX('Отмечено: сломан. Инструмент теперь в кнопке «Что забрать».'); PK.pu = null; } else pt.msg = (r && r.error) || TX('Не получилось сохранить, попробуйте ещё раз');
       if (S.view === 'prokat') render();
     });
   }
@@ -5133,10 +5210,12 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkTourOpen(name) {
     var T = PK.tour = { name: name, loading: true, error: '', point: null, items: [], marks: [], sent: {}, plan: null, dirty: false, saving: false, prog: null, err: '' }; render();
     if (!PK.ph || PK.ph.name !== name || PK.ph.error) pkPhLoad(name);
-    callTo('/prokat', { action: 'tour_point', name: name }).then(function (r) {
+    pkNet('/prokat', { action: 'tour_point', name: name }, 15000).then(function (r) {
       if (PK.tour !== T) return;
       T.loading = false;
-      if (!r || !r.ok) T.error = (r && r.error) || TX('не удалось загрузить');
+      var tl = pkNoNet(r) && PK.ph && PK.ph.name === name ? PK.ph.tools.filter(function (t) { return pkNum(t.qty) > 0 && !/без названия/i.test(String(t.name || '')); }) : [];
+      if (tl.length) { T.offline = true; T.items = tl.map(function (t) { return { name: t.name, qty: t.qty, last_state: '', last_date: '', last_photo_id: '', last_note: '' }; }); T.marks = T.items.map(function () { return { state: '', note: '', photo: '', wait: false }; }); }
+      else if (!r || !r.ok) T.error = (r && r.error) || TX('не удалось загрузить');
       else { T.point = r.point || null; T.last_visit = r.last_visit || ''; T.items = Array.isArray(r.items) ? r.items : []; T.marks = T.items.map(function () { return { state: '', note: '', photo: '', wait: false }; }); }
       if (S.view === 'prokat') render();
     });
@@ -5217,13 +5296,14 @@ if (S.view === 'mkt') return renderMkt(el);
       if (!B) {
         T.saving = false;
         var cnt = Object.keys(T.sent).length;
-        PK.tour = null; PK.msg = TX('Объезд сохранён') + ': ' + cnt + ' ' + TX('инстр.');
+        PK.tour = null; PK.msg = TX('Объезд сохранён') + ': ' + cnt + ' ' + TX('инстр.') + (T.queued ? '. ' + TX('Сохранено в телефоне. Уйдёт на сервер, когда появится интернет.') : '');
         render(); pkOpenPointQuiet(T.name); pkReload(); pkRemLoad();
         return;
       }
       var items = B.idx.map(function (i) { var m = T.marks[i], o = { name: T.items[i].name, state: m.state, note: String(m.note || '').trim().slice(0, 200) }; if (m.photo) o.photo = m.photo; return o; });
-      callTo('/prokat', { action: 'tour_save', name: T.name, id: B.id, items: items }).then(function (r) {
+      callQ('/prokat', { action: 'tour_save', name: T.name, id: B.id, items: items }, TX('Объезд') + ': ' + T.name + ' (' + items.length + ' ' + TX('инстр.') + ')').then(function (r) {
         if (PK.tour !== T) return;
+        if (r && r.queued) T.queued = true;
         if (!r || !r.ok) {
           T.saving = false; T.err = (r && r.error) || TX('Не получилось сохранить');
           if (r && r.error && r.error !== TX('нет связи')) B.id = oid(); // сервер отказал — следующая попытка этой пачки будет новой записью
@@ -5262,6 +5342,8 @@ if (S.view === 'mkt') return renderMkt(el);
     pkShrink(file).then(function (url) { m.photo = url; T.dirty = true; }, function (er) { T.err = er.message; }).then(function () { m.wait = false; if (PK.tour === T) render(); });
   });
   function pkClick(k) {
+    if (k === 'ob-send') { pkObFlush(); return render(); }
+    if (k === 'ob-clear') { PK_OB.bad = []; pkObStore(); return render(); }
     if (pkTourClick(k)) return;
     if (pkMoveClick(k)) return;
     if (pkAddClick(k)) return;
