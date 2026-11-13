@@ -4068,12 +4068,15 @@ if (S.view === 'mkt') return renderMkt(el);
     h += '<h3 style="margin:16px 0 6px">' + esc(TX('История')) + '</h3>' + pkSkHist(sk.history);
     el.innerHTML = h;
   }
-  function pkSkPhotoBtn(F, label) {
-    return '<label style="display:flex;align-items:center;gap:10px;margin:0 0 8px;min-height:48px;padding:6px 10px;border:2px ' + (F.photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;cursor:pointer;font-weight:600">' +
-      (F.photo ? '<img src="' + esc(F.photo) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">' : '📷') +
-      '<span>' + esc(F.wait ? TX('Обрабатываю фото…') : F.photo ? TX('Фото готово, нажмите, чтобы переснять') : label) + '</span>' +
-      '<input type="file" accept="image/*" capture="environment" data-skphoto="1" style="position:absolute;width:1px;height:1px;opacity:0"></label>';
+  // Фото двумя способами (14.11.2026): снять камерой или выбрать из галереи телефона. attr — data-атрибут, по нему фото ловит свой обработчик.
+  function pkPhotoPick(attr, photo, wait, label) {
+    var lb = 'position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:6px 8px;border:2px ' + (photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;cursor:pointer;font-weight:600;text-align:center';
+    var inp = function (cap) { return '<input type="file" accept="image/*"' + (cap ? ' capture="environment"' : '') + ' ' + attr + ' style="position:absolute;width:1px;height:1px;opacity:0">'; };
+    var txt = wait ? TX('Обрабатываю фото…') : photo ? TX('Фото готово. Можно снять заново или выбрать другое') : (label || '');
+    return '<div style="margin:6px 0 8px">' + (txt || photo ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-weight:600">' + (photo ? '<img src="' + esc(photo) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">' : '') + '<span>' + esc(txt) + '</span></div>' : '') +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><label style="' + lb + '">📷 ' + esc(TX('Снять фото')) + inp(true) + '</label><label style="' + lb + '">🖼️ ' + esc(TX('Из галереи')) + inp(false) + '</label></div></div>';
   }
+  function pkSkPhotoBtn(F, label) { return pkPhotoPick('data-skphoto="1"', F.photo, F.wait, label); }
   function pkSkFormEnd(F) {
     return (F.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(F.err) + '</p>' : '') +
       '<div style="display:grid;grid-template-columns:2fr 1fr;gap:6px">' + pkBtn('sk-save', esc(TX(F.busy ? 'Сохраняю…' : 'Сохранить')), false, F.busy ? 'opacity:.6' : '') + pkBtn('sk-cancel', esc(TX('Отмена')), true) + '</div></div>';
@@ -4651,6 +4654,30 @@ if (S.view === 'mkt') return renderMkt(el);
     });
     pkMovesLoad(pt); pkCardLoad(pt);
   }
+  // Новое фото инструмента прямо из его окна: камера или галерея. Фото сжимается и уходит на диск проката (действие tool_photo).
+  document.addEventListener('change', function (e) {
+    var t = e.target; if (!t || !t.getAttribute || t.getAttribute('data-ptphoto') == null) return;
+    var pt = PK.pt, file = t.files && t.files[0]; if (!pt || !file || (pt.np && pt.np.busy)) return;
+    var np = pt.np = { busy: true, err: '', id: oid() }; pt.msg = ''; render();
+    pkShrink(file).then(function (url) { return callTo('/prokat', { action: 'tool_photo', name: pt.point, tool: pt.tool, photo: url, id: np.id }); }).then(function (r) {
+      if (PK.pt !== pt) return;
+      np.busy = false;
+      if (!r || !r.ok) { np.err = (r && r.error) || TX('Не получилось сохранить'); return render(); }
+      pt.msg = TX('Фото сохранено'); render();
+      callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (x) {
+        if (PK.pt !== pt || !x || !x.ok) return;
+        pt.photos = pkNewestFirst(Array.isArray(x.photos) ? x.photos : []); pt.total = pkNum(x.total) || pt.photos.length; if (S.view === 'prokat') render();
+      });
+      if (PK.cur && PK.cur.name === pt.point) pkPhQuiet(pt.point);
+    }, function (er) { if (PK.pt !== pt) return; np.busy = false; np.err = (er && er.message) || TX('Не получилось сохранить'); render(); });
+  });
+  // Тихо обновить список инструментов пункта (после нового фото), не сбрасывая экран.
+  function pkPhQuiet(name) {
+    callTo('/prokat-foto', { action: 'tools', name: name }).then(function (r) {
+      if (!r || !r.ok || !PK.ph || PK.ph.name !== name || !Array.isArray(r.tools)) return;
+      PK.ph.tools = r.tools; idbSet(pkCK() + ':tools:' + name, { tools: r.tools }); if (S.view === 'prokat' && !PK.pt) render();
+    });
+  }
   // Карточка вида: фирма и цена покупки (в т.ч. в кредит) — хранится в n8n, вебхук /prokat-карта.
   function pkCardLoad(pt) {
     callTo('/prokat-karta', { action: 'get', vid: pt.vid }).then(function (r) {
@@ -4729,7 +4756,7 @@ if (S.view === 'mkt') return renderMkt(el);
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Количество')) + '<input id="pk-add-qty" type="text" inputmode="numeric" autocomplete="off" oninput="pkAddKeep()" value="' + esc(A.qty) + '" style="display:block;width:100%;font-size:20px"></label>' +
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Цена покупки за 1 шт., сомони (можно пусто)')) + '<input id="pk-add-price" type="text" inputmode="decimal" autocomplete="off" oninput="pkAddKeep()" value="' + esc(A.price) + '" style="display:block;width:100%;font-size:20px"></label>' +
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Заметка')) + '<input id="pk-add-note" type="text" maxlength="80" autocomplete="off" oninput="pkAddKeep()" value="' + esc(A.note) + '" style="display:block;width:100%"></label>' +
-      '<p style="margin:0 0 8px;opacity:.75"><small>' + esc(TX('Фото инструмента сделайте в «Начать объезд» — новый инструмент там уже будет.')) + '</small></p>' +
+      pkPhotoPick('data-addphoto="1"', A.photo, A.wait, TX('Фото инструмента (можно без фото)')) +
       (A.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(A.err) + '</p>' : '') +
       '<div style="display:grid;grid-template-columns:2fr 1fr;gap:6px">' + pkBtn('add-save', esc(TX(A.busy ? 'Сохраняю…' : 'Добавить')), false, A.busy ? 'opacity:.6' : '') + pkBtn('add-cancel', esc(TX('Отмена')), true) + '</div></div>';
   }
@@ -4740,6 +4767,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (!name) { A.err = TX('Напишите название инструмента'); return render(); }
     if (!/^\d{1,4}$/.test(q) || +q < 1) { A.err = TX('Количество — целое число больше нуля'); return render(); }
     if (ps && !(Number(ps) >= 0)) { A.err = TX('Цена — число'); return render(); }
+    if (A.wait) { A.err = TX('Подождите, фото обрабатывается'); return render(); }
     var body = { action: 'move', from: 'Куплен', to: point, tool: name, qty: +q, note: String(A.note || '').trim().slice(0, 80), id: A.id };
     if (ps) body.price = Math.round(Number(ps) * 100) / 100;
     A.busy = true; render();
@@ -4749,8 +4777,20 @@ if (S.view === 'mkt') return renderMkt(el);
       if (!r || !r.ok) { A.err = (r && r.error) || TX('Не получилось сохранить'); if (r && r.error && r.error !== TX('нет связи')) A.id = oid(); return render(); }
       PK.add = null; PK.msg = TX('Добавлено') + ': ' + name + ', ' + q + ' ' + TX('шт.') + (body.price ? ' — ' + pkMoney(body.price) + ' ' + TX('за 1 шт.') : '');
       render(); pkPhLoad(point); pkOpenPointQuiet(point); pkReload();
+      // Фото нового инструмента уходит следом; название берём то, под которым сервер его записал.
+      if (A.photo) callTo('/prokat', { action: 'tool_photo', name: point, tool: (r.moved && r.moved.tool) || name, photo: A.photo, id: oid() }).then(function (x) {
+        if (S.view !== 'prokat' || !PK.cur || PK.cur.name !== point) return;
+        PK.msg += x && x.ok ? ' · ' + TX('фото сохранено') : ' · ' + TX('фото не сохранилось, сделайте его в окне инструмента'); if (!PK.form) render();
+        if (x && x.ok) pkPhQuiet(point);
+      });
     });
   }
+  document.addEventListener('change', function (e) {
+    var t = e.target, A = PK.add; if (!A || !t || !t.getAttribute || t.getAttribute('data-addphoto') == null) return;
+    var file = t.files && t.files[0]; if (!file || A.busy) return;
+    pkAddKeep(); A.wait = true; A.err = ''; render();
+    pkShrink(file).then(function (url) { A.photo = url; }, function (er) { A.err = er.message; }).then(function () { A.wait = false; if (PK.add === A) render(); });
+  });
   function pkAddClick(k) {
     if (k === 'add-open') { pkAddOpen(); return true; }
     var A = PK.add; if (!A) return false;
@@ -4840,8 +4880,9 @@ if (S.view === 'mkt') return renderMkt(el);
     if (pt.error) return void (el.innerHTML = h + '<p style="color:#c0392b">' + esc(pt.error) + '</p>' + pkBtn('pt-retry', esc(TX('Ещё раз')), true));
     if (pt.msg) h += '<p role="status" style="color:#1f8a4c;margin:0 0 8px">' + esc(pt.msg) + '</p>';
     h += PK.mv && PK.mv.ctx === 'pt' ? pkMoveForm() : '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:10px">' + pkBtn('mv-open', '🚚 ' + esc(TX('Перевезти')), true) + pkBtn('sell-open', '💰 ' + esc(TX('Продать')), true) + '</div>' + pkBrkBlock(pt);
+    h += '<div style="margin:0 0 10px;padding:10px;border-radius:12px;border:1px solid rgba(127,127,127,.3)"><b>📷 ' + esc(TX('Новое фото инструмента')) + '</b>' + pkPhotoPick('data-ptphoto="1"', '', false, pt.np && pt.np.busy ? TX('Сохраняю фото…') : '') + (pt.np && pt.np.err ? '<p style="color:#c0392b;margin:0">' + esc(pt.np.err) + '</p>' : '') + '</div>';
     h += pkMovesBlock(pt.moves);
-    if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>');
+    if (!pt.photos.length) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет.')) + '</p>');
     h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, сверху самые новые')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
     h += '<div style="display:grid;gap:12px">' + pt.photos.map(function (p, i) {
       if (p.unit === 'нет') return '';
@@ -5150,10 +5191,7 @@ if (S.view === 'mkt') return renderMkt(el);
           return '<button type="button" data-pk="ts:' + i + ':' + k + '" style="min-height:48px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;border:2px solid ' + col + ';background:' + (on ? col : 'transparent') + ';color:' + (on ? '#fff' : col) + '">' + esc(TX(st)) + '</button>';
         }).join('') + '</div>' +
         '<input type="text" data-tnote="' + i + '" maxlength="200" autocomplete="off" placeholder="' + esc(TX('Заметка')) + '" value="' + esc(m.note) + '" style="display:block;width:100%;margin-top:6px">' +
-        '<label style="display:flex;align-items:center;gap:10px;margin-top:6px;min-height:48px;padding:6px 10px;border:2px ' + (m.photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;cursor:pointer;font-weight:600">' +
-          (m.photo ? '<img src="' + esc(m.photo) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">' : '📷') +
-          '<span>' + esc(m.wait ? TX('Обрабатываю фото…') : m.photo ? TX('Фото готово, нажмите, чтобы переснять') : TX('Фото')) + '</span>' +
-          '<input type="file" accept="image/*" capture="environment" data-tphoto="' + i + '" style="position:absolute;width:1px;height:1px;opacity:0"></label></div>';
+        pkPhotoPick('data-tphoto="' + i + '"', m.photo, m.wait, '') + '</div>';
     }).join('') + '</div>' : '<p style="opacity:.75">' + esc(TX('На пункте нет инструментов')) + '</p>';
     if (T.prog) h += '<div style="margin-top:12px"><div style="height:10px;border-radius:5px;background:rgba(127,127,127,.2);overflow:hidden"><div style="height:100%;width:' + Math.round(100 * T.prog.done / Math.max(1, T.prog.total)) + '%;background:#1f8a4c"></div></div><p style="margin:4px 0 0">' + esc(TX('Сохранено')) + ': ' + T.prog.done + ' ' + esc(TX('из')) + ' ' + T.prog.total + '</p></div>';
     if (T.err) h += '<p style="color:#c0392b;margin:10px 0 0">' + esc(T.err) + '</p>';
