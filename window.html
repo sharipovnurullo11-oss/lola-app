@@ -4567,7 +4567,7 @@ if (S.view === 'mkt') return renderMkt(el);
     return '<span data-st="' + esc(t.status) + '" style="display:block;color:' + c[0] + ';font-weight:600' + (big ? ';font-size:17px;margin:0 0 8px' : '') + '">' + c[1] + ' ' + esc(txt) + '</span>';
   }
   function pkPhBlock() {
-    var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.tools.length) + '</span>' : '') + '</h3>';
+    var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.tools.filter(function (t) { return !pkPast(t); }).length) + '</span>' : '') + '</h3>';
     if (!ph || ph.loading) return h + '<p style="opacity:.75">' + esc(TX('Загрузка…')) + '</p>';
     if (ph.error) return h + '<p style="color:#c0392b">' + esc(ph.error) + '</p>' + pkBtn('ph-retry', esc(TX('Ещё раз')), true);
     if (!ph.tools.length) return h + '<p style="opacity:.75">' + esc(TX('Инструментов пока нет')) + '</p>';
@@ -4590,6 +4590,8 @@ if (S.view === 'mkt') return renderMkt(el);
           pkBtn('pt:' + i, esc(TX('Все фото по датам, цена')), true, 'margin-top:8px') + '</div></div>';
       }).join('') + '</div>';
     }
+    var past = []; ph.tools.forEach(function (t, i) { if (pkPast(t)) past.push(i); });
+    if (past.length) h += '<p style="margin:14px 0 6px;opacity:.75"><small>' + esc(TX('Раньше было на пункте')) + ' (' + past.length + ')</small></p><div style="display:grid;gap:6px">' + past.map(function (i) { return pkBtn('pt:' + i, esc(ph.tools[i].name || ''), true, 'height:auto;padding:8px 12px;text-align:left;opacity:.8'); }).join('') + '</div>';
     return h;
   }
   // Вид инструмента: из прайса (kind), а если его нет — по названию (болгарка, перфоратор, фен...).
@@ -4605,12 +4607,17 @@ if (S.view === 'mkt') return renderMkt(el);
   var PK_FAM = [[/болгар|балгар|ушм/, 'болгарка', ['Большая болгарка', 'Маленькая болгарка', 'Болгарка'], [PK_ICON_BOLG_BIG, PK_ICON_BOLG_SMALL, PK_ICON_BOLG_BIG]], [/перфор|перфар/, 'перфоратор', ['Большой перфоратор', 'Маленький перфоратор', 'Перфоратор'], [PK_ICON_PERF_BIG, PK_ICON_PERF_SMALL, PK_ICON_PERF_BIG]], [/отбо[йи]|молот/, 'отбойный молоток', ['Отбойный молоток', 'Отбойный молоток', 'Отбойный молоток'], PK_ICON_OTBOY], [/шуруп/, 'шуруповёрт', ['Шуруповёрт аккумуляторный', 'Шуруповёрт аккумуляторный', 'Шуруповёрт аккумуляторный'], PK_ICON_SHURUP], [/(^|[^а-яё])фен([^а-яё]|$)/, 'фен', ['Строительный фен', 'Строительный фен', 'Строительный фен'], PK_ICON_FEN], [/бензопил/, 'бензопила', ['Бензопила', 'Бензопила', 'Бензопила'], PK_ICON_BENZO], [/паяльн|утиг|утюг/, 'паяльник', ['Паяльник для пластиковых труб', 'Паяльник для пластиковых труб', 'Паяльник для пластиковых труб'], PK_ICON_UTYUG], [/дрел/, 'дрель', ['Дрель', 'Дрель', 'Дрель'], '🔩'], [/лобзик/, 'лобзик', ['Лобзик', 'Лобзик', 'Лобзик'], PK_ICON_LOBZIK], [/циркул/, 'циркулярка', ['Циркулярка', 'Циркулярка', 'Циркулярка'], PK_ICON_CIRK]];
   function pkKindOf(t) {
     var nm = String((t && t.name) || ''), kd = String((t && t.kind) || ''), low = (kd || nm).toLowerCase(), sz = /калон|больш|катта/.test(low) ? 0 : /майда|мал|кичик/.test(low) ? 1 : 2;
+    // 14.11.2026: масло, баннер и реклама — не инструмент (раньше «масло для отбойника» попадало в отбойные молотки).
+    if (/масл|баннер|реклам/.test(nm.toLowerCase())) return { label: TX('Прочее'), icon: '📦' };
     for (var i = 0; i < PK_FAM.length; i++) if (PK_FAM[i][0].test(low)) { var ic = PK_FAM[i][3]; return { label: kd || PK_FAM[i][2][sz], icon: Array.isArray(ic) ? ic[sz] : ic }; }
     return { label: kd || nm || TX('Другое'), icon: '🧰' };
   }
+  // Количество 0 — вещи на пункте сейчас нет, остались только фото. Фото «Без названия» остаются как были.
+  function pkPast(t) { return !!t && t.qty != null && pkNum(t.qty) === 0 && !/без названия/i.test(String(t.name || '')); }
   function pkGroups(tools) {
     var by = {}, out = [];
     (tools || []).forEach(function (t, i) {
+      if (pkPast(t)) return;
       var k = pkKindOf(t), key = k.label.toLowerCase();
       if (!by[key]) { by[key] = { key: key, label: k.label, icon: k.icon, items: [] }; out.push(by[key]); }
       by[key].items.push(i);
