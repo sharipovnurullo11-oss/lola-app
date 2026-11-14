@@ -4355,7 +4355,7 @@ if (S.view === 'mkt') return renderMkt(el);
     // Если экран перерисовывается, пока человек печатает (пришёл ответ сервера), курсор возвращается в то же поле (14.11.2026).
     var a = document.activeElement, fid = '', fnote = null, fsel = null;
     try { if (a && el.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName)) { fid = a.id || ''; fnote = a.getAttribute('data-tnote'); fsel = [a.selectionStart, a.selectionEnd]; } } catch (e) {}
-    pkOvSync(); renderProkat0(el); PK_Q.html = pkQBanner(); el.insertAdjacentHTML('afterbegin', '<div id="pk-oq">' + PK_Q.html + '</div>');
+    pkOvSync(); renderProkat0(el); el.insertAdjacentHTML('beforeend', '<p style="text-align:center;font-size:11px;opacity:.5;margin:16px 0 4px">версия 14.11-3</p>'); PK_Q.html = pkQBanner(); el.insertAdjacentHTML('afterbegin', '<div id="pk-oq">' + PK_Q.html + '</div>');
     if (fid || fnote != null) try { var n = fid ? document.getElementById(fid) : el.querySelector('[data-tnote="' + String(fnote).replace(/[^0-9]/g, '') + '"]'); if (n && document.activeElement !== n) { n.focus(); if (fsel && fsel[0] != null) n.setSelectionRange(fsel[0], fsel[1]); } } catch (e) {}
   }
   function renderProkat0(el) {
