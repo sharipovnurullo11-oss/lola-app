@@ -7211,7 +7211,7 @@ h += '<h3 style="margin:16px 0 2px">' + esc(TX('Склад')) + '</h3><p style="
       if (hasOther) pager += bt(OTH, '···');
       pager += '</div><small style="display:block;opacity:.7;margin-bottom:4px">' + esc(pg === OTH ? ui('Полки без номера', 'Рафҳои бе рақам', 'Raqamsiz javonlar') : ui('Полки ', 'Рафҳо ', 'Javonlar ') + (pg * PER + 1) + '–' + (pg * PER + PER)) + '</small>';
     }
-    var pageKeys = keys, total = 0; keys.forEach(function (k) { total += g[k].length; }); var left = !t ? 150 : (t.length < 3 && !isNum ? 100 : 100000), cap = left;
+    var pageKeys = keys, total = 0; keys.forEach(function (k) { total += g[k].length; }); var left = !t ? 100000 : (t.length < 3 && !isNum ? 100 : 100000), cap = left; /* 14.11.2026: без запроса показываем ВСЕ полки (раньше обрезалось на 150 препаратах — около 15 полок) */
     if (!pageKeys.length) return pager + '<p style="margin:8px 0;opacity:.75">' + esc(ui('На этой странице полок нет', 'Дар ин саҳифа раф нест', 'Bu sahifada javon yoʻq')) + '</p>';
     return pager + pageKeys.map(function (k) {
       var arr = g[k].sort(function (a, b) { return a.localeCompare(b, 'ru'); }), shown = arr.slice(0, Math.max(left, 0)); left -= shown.length;
