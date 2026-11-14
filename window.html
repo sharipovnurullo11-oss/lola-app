@@ -4355,7 +4355,7 @@ if (S.view === 'mkt') return renderMkt(el);
     // Если экран перерисовывается, пока человек печатает (пришёл ответ сервера), курсор возвращается в то же поле (14.11.2026).
     var a = document.activeElement, fid = '', fnote = null, fsel = null;
     try { if (a && el.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName)) { fid = a.id || ''; fnote = a.getAttribute('data-tnote'); fsel = [a.selectionStart, a.selectionEnd]; } } catch (e) {}
-    pkOvSync(); renderProkat0(el); el.insertAdjacentHTML('beforeend', '<p style="text-align:center;font-size:11px;opacity:.5;margin:16px 0 4px">версия 14.11-3</p>'); PK_Q.html = pkQBanner(); el.insertAdjacentHTML('afterbegin', '<div id="pk-oq">' + PK_Q.html + '</div>');
+    pkOvSync(); renderProkat0(el); el.insertAdjacentHTML('beforeend', '<p style="text-align:center;font-size:11px;opacity:.5;margin:16px 0 4px">версия 14.11-4</p>'); PK_Q.html = pkQBanner(); el.insertAdjacentHTML('afterbegin', '<div id="pk-oq">' + PK_Q.html + '</div>');
     if (fid || fnote != null) try { var n = fid ? document.getElementById(fid) : el.querySelector('[data-tnote="' + String(fnote).replace(/[^0-9]/g, '') + '"]'); if (n && document.activeElement !== n) { n.focus(); if (fsel && fsel[0] != null) n.setSelectionRange(fsel[0], fsel[1]); } } catch (e) {}
   }
   function renderProkat0(el) {
@@ -5009,7 +5009,7 @@ if (S.view === 'mkt') return renderMkt(el);
           (u ? '<button type="button" data-pk="pt:' + i + '" aria-label="' + esc(TX('Все фото по датам, цена')) + '" style="display:block;width:100%;padding:0;border:0;background:none;cursor:pointer"><img src="' + esc(u) + '" loading="lazy" alt="' + esc(t.name || '') + '" style="display:block;width:100%;max-height:360px;object-fit:contain;background:rgba(127,127,127,.12)"></button>' : '<p style="margin:10px 12px;opacity:.75">' + esc(ph.lite ? TX('Фото не загружено — нет связи.') : TX('Фото этого инструмента пока нет. Новое фото появится после объезда.')) + '</p>') +
           '<div style="padding:8px 12px 10px"><b>' + esc(t.name || '') + (pkNum(t.qty) > 1 ? ' × ' + esc(t.qty) : '') + '</b>' + pkTStatus(t) +
           '<small style="opacity:.8">' + (n ? '📷 ' + n + (t.last ? ' · ' + esc(pkDay(t.last)) : '') : esc(TX('фото нет'))) + (pkPriceMin(t.prices) ? ' · 💰 ' + esc(TX('от')) + ' ' + pkPriceMin(t.prices) + ' ' + esc(TX('смн')) : '') + '</small>' +
-          pkBtn('pt:' + i, esc(TX('Все фото по датам, цена')), true, 'margin-top:8px') + '</div></div>';
+          pkBtn('pt:' + i, '📷 ' + esc(TX('Открыть: снять фото, все фото, цена')), false, 'margin-top:8px') + '</div></div>';
       }).join('') + '</div>';
     }
     var past = []; ph.tools.forEach(function (t, i) { if (pkPast(t)) past.push(i); });
