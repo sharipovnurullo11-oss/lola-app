@@ -4988,22 +4988,37 @@ if (S.view === 'mkt') return renderMkt(el);
     var txt = TX(t.status_text || '') + (pkNum(t.out) > 0 ? ' · ' + TX('в аренде') + ' ' + pkNum(t.out) : '');
     return '<span data-st="' + esc(t.status) + '" style="display:block;color:' + c[0] + ';font-weight:600' + (big ? ';font-size:17px;margin:0 0 8px' : '') + '">' + c[1] + ' ' + esc(txt) + '</span>';
   }
+  // Фото самого аппарата (самое свежее из группы); нет фото — значок.
+  function pkTilePic(list, icon) {
+    var u = ''; (list || []).forEach(function (t) { if (!u) u = pkSafeUrl(t && t.url); });
+    return u ? '<img src="' + esc(u) + '" loading="lazy" alt="" style="display:block;width:100%;aspect-ratio:1/1;object-fit:cover;background:rgba(127,127,127,.12)">'
+      : '<span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:1/1;font-size:40px;background:rgba(127,127,127,.12)">' + icon + '</span>';
+  }
   function pkPhBlock() {
     var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.tools.filter(function (t) { return !pkPast(t); }).length) + '</span>' : '') + '</h3>';
     if (!ph || ph.loading) return h + '<p style="opacity:.75">' + esc(TX('Загрузка…')) + '</p>';
     if (ph.error) return h + '<p style="color:#c0392b">' + esc(ph.error) + '</p>' + pkBtn('ph-retry', esc(TX('Ещё раз')), true);
     if (!ph.tools.length) return h + '<p style="opacity:.75">' + esc(TX('Инструментов пока нет')) + '</p>';
     var gs = pkGroups(ph.tools), cur = gs.filter(function (g) { return g.key === PK.phG; })[0];
-    h += '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на значок, чтобы увидеть фото инструментов этого вида')) + '<br><small>🟢 ' + esc(TX('работает')) + ' · 🟡 ' + esc(TX('в ремонте')) + ' · 🔴 ' + esc(TX('сломан или потерян')) + ' · ⚪ ' + esc(TX('нужно забрать')) + '</small></p>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + gs.map(function (g, gi) {
+    h += '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на фото аппарата, чтобы увидеть его прошлые фото')) + '<br><small>🟢 ' + esc(TX('работает')) + ' · 🟡 ' + esc(TX('в ремонте')) + ' · 🔴 ' + esc(TX('сломан или потерян')) + ' · ⚪ ' + esc(TX('нужно забрать')) + '</small></p>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">' + gs.map(function (g, gi) {
         var on = g === cur;
-        return '<button type="button" data-pk="ptg:' + gi + '" aria-expanded="' + on + '" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;min-height:96px;padding:10px 4px 8px;border-radius:12px;font:inherit;color:inherit;text-align:center;cursor:pointer;border:2px solid ' + (on ? '#1f8a4c' : 'rgba(127,127,127,.3)') + ';background:' + (on ? 'rgba(31,138,76,.12)' : 'none') + '">' +
-          '<span aria-hidden="true" style="font-size:34px;line-height:1">' + g.icon + '</span>' +
-          '<span style="font-size:12px;line-height:1.25;font-weight:700;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + esc(g.label) + '</span>' +
-          '<span style="position:absolute;top:4px;right:4px;min-width:20px;padding:0 5px;border-radius:10px;background:rgba(127,127,127,.2);font-size:12px;font-weight:700">' + g.items.length + '</span></button>';
+        return '<button type="button" data-pk="ptg:' + gi + '" aria-expanded="' + on + '" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;padding:0 0 8px;overflow:hidden;border-radius:12px;font:inherit;color:inherit;text-align:center;cursor:pointer;border:2px solid ' + (on ? '#1f8a4c' : 'rgba(127,127,127,.3)') + ';background:' + (on ? 'rgba(31,138,76,.12)' : 'none') + '">' +
+          pkTilePic(g.items.map(function (i) { return ph.tools[i]; }), g.icon) +
+          '<span style="font-size:14px;line-height:1.25;font-weight:700;padding:0 4px;overflow:hidden;word-break:break-word">' + esc(g.label) + '</span>' +
+          '<span style="position:absolute;top:6px;right:6px;min-width:20px;padding:0 6px;border-radius:10px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:700">' + g.items.length + '</span></button>';
       }).join('') + '</div>';
-    var past = []; ph.tools.forEach(function (t, i) { if (pkPast(t)) past.push(i); });
-    if (past.length) h += '<p style="margin:14px 0 6px;opacity:.75"><small>' + esc(TX('Раньше было на пункте')) + ' (' + past.length + ')</small></p><div style="display:grid;gap:6px">' + past.map(function (i) { return pkBtn('pt:' + i, esc(ph.tools[i].name || ''), true, 'height:auto;padding:8px 12px;text-align:left;opacity:.8'); }).join('') + '</div>';
+    var oldI = [], arcI = [];
+    ph.tools.forEach(function (t, i) { if (pkOld(t) && !pkPast(t)) oldI.push(i); else if (pkPast(t) || (t && (t.status === 'sklad' || t.status === 'sold' || t.status === 'moved'))) arcI.push(i); });
+    var tl = function (ids) {
+      return '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">' + ids.map(function (i) {
+        var t = ph.tools[i], k = pkKindOf(t);
+        return '<button type="button" data-pk="pt:' + i + '" aria-label="' + esc(t.name || '') + '" style="display:flex;flex-direction:column;padding:0 0 8px;overflow:hidden;border-radius:12px;font:inherit;color:inherit;text-align:center;cursor:pointer;border:2px solid rgba(127,127,127,.3);background:none;opacity:.9">' +
+          pkTilePic([t], k.icon) + '<span style="font-size:14px;line-height:1.25;font-weight:700;padding:4px 6px 0;word-break:break-word">' + esc(t.name || k.label) + '</span>' + (t.status ? '<span style="padding:0 6px;font-size:13px">' + pkTStatus(t) + '</span>' : '') + '</button>';
+      }).join('') + '</div>';
+    };
+    if (oldI.length) h += '<h3 style="margin:18px 0 4px">🛠 ' + esc(TX('Старая аппаратура')) + ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + oldI.length + '</span></h3><p style="margin:0 0 8px;opacity:.75"><small>' + esc(TX('Сломанные, в ремонте или те, что нужно забрать')) + '</small></p>' + tl(oldI);
+    if (arcI.length) h += '<h3 style="margin:18px 0 4px">🗄 ' + esc(TX('Архив')) + ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + arcI.length + '</span></h3><p style="margin:0 0 8px;opacity:.75"><small>' + esc(TX('Раньше было на пункте, на складе, на запчастях, проданные — история сохраняется')) + '</small></p>' + tl(arcI);
     return h;
   }
   // Вид инструмента: из прайса (kind), а если его нет — по названию (болгарка, перфоратор, фен...).
@@ -5025,11 +5040,13 @@ if (S.view === 'mkt') return renderMkt(el);
     return { label: kd || nm || TX('Другое'), icon: '🧰' };
   }
   // Количество 0 — вещи на пункте сейчас нет, остались только фото. Фото «Без названия» остаются как были.
+  // 17.11.2026: «Старая аппаратура» — сломан, в ремонте, потерян или нужно забрать: уходит вниз пункта, отдельно от рабочих.
+  function pkOld(t) { var s = t && t.status; return s === 'repair' || s === 'broken' || s === 'lost' || s === 'pickup'; }
   function pkPast(t) { return !!t && t.qty != null && pkNum(t.qty) === 0 && !/без названия/i.test(String(t.name || '')); }
   function pkGroups(tools) {
     var by = {}, out = [];
     (tools || []).forEach(function (t, i) {
-      if (pkPast(t)) return;
+      if (pkPast(t) || pkOld(t)) return;
       var k = pkKindOf(t), key = k.label.toLowerCase();
       if (!by[key]) { by[key] = { key: key, label: k.label, icon: k.icon, items: [] }; out.push(by[key]); }
       by[key].items.push(i);
