@@ -5095,7 +5095,7 @@ if (S.view === 'mkt') return renderMkt(el);
   var PK_BU = null;
   function pkBuNorm(n) { return String(n || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   function pkBuFor(t) { var B = PK_BU; if (!B || !PK.cur || B.name !== PK.cur.name || !t) return []; return B.items.filter(function (i) { return pkBuNorm(i.name) === pkBuNorm(t.name); }); }
-  function pkGone(t) { var n = pkBuFor(t).length; return n > 0 && pkNum(t.qty) <= n; }
+  function pkGone(t) { var b = pkBuFor(t); if (!b.length) return false; var f = String(t.fid || ''); return !f || b.some(function (i) { return String(i.fid) === f; }); } /* уходит вниз целиком, только если и последнее фото на плитке — сломанного аппарата */
   function pkBuRender(name) { if (S.view === 'prokat' && PK.cur && PK.cur.name === name && !PK.pt && !pkTyping()) render(); }
   function pkBuLoad(name) {
     var B = PK_BU = { name: name, items: (PK_BU && PK_BU.name === name) ? PK_BU.items : [] };
