@@ -5207,7 +5207,10 @@ if (S.view === 'mkt') return renderMkt(el);
   var PK_BU = null;
   function pkBuNorm(n) { return String(n || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   function pkBuFor(t) { var B = PK_BU; if (!B || !PK.cur || B.name !== PK.cur.name || !t) return []; return B.items.filter(function (i) { return pkBuNorm(i.name) === pkBuNorm(t.name); }); }
-  function pkGone(t) { var b = pkBuFor(t); if (!b.length) return false; var f = String(t.fid || ''); if (!f || b.some(function (i) { return String(i.fid) === f; })) return true; /* 18.11.2026: если сломаны все штуки этого аппарата (одна и сломана) — он уходит вниз целиком, даже когда самое свежее фото не сломанное */ var q = t.qty != null ? pkNum(t.qty) : 1, bq = b.reduce(function (s, i) { return s + Math.max(1, pkNum(i.qty)); }, 0); return q > 0 && bq >= q; } /* уходит вниз целиком, только если и последнее фото на плитке — сломанного аппарата */
+  /* Плитка уходит вниз целиком, только если целого фото у инструмента не осталось: фото на плитке — сломанного (или отсутствующего) аппарата, либо фото нет вовсе.
+     19.11.2026: правило «сломано столько же, сколько числится штук» убрано — оно прятало рабочий аппарат, когда под одним названием два аппарата (старый и новый), а в учёте одна штука.
+     off — все фото инструмента с отметкой «сломан» или «нет» (n8n /prokat, pickup). */
+  function pkGone(t) { var b = pkBuFor(t); if (!b.length) return false; var f = String(t.fid || ''); return !f || b.some(function (i) { return String(i.fid) === f || (Array.isArray(i.off) && i.off.indexOf(f) >= 0); }); }
   function pkBuRender(name) { if (S.view === 'prokat' && PK.cur && PK.cur.name === name && !PK.pt && !pkTyping()) render(); }
   function pkBuLoad(name) {
     var B = PK_BU = { name: name, items: (PK_BU && PK_BU.name === name) ? PK_BU.items : [] };
@@ -5216,7 +5219,7 @@ if (S.view === 'mkt') return renderMkt(el);
     callS('/prokat', { action: 'pickup' }, 25000).then(function (r) {
       if (PK_BU !== B || !r || !r.ok || !Array.isArray(r.points)) return;
       var key = pkBuNorm(name).slice(0, 14), g = r.points.filter(function (p) { return pkBuNorm(p.name).slice(0, 14) === key; })[0];
-      B.items = ((g && g.items) || []).filter(function (i) { return i && i.fid; }).map(function (i) { return { name: String(i.name || ''), qty: i.qty, fid: String(i.fid), note: String(i.note || '') }; });
+      B.items = ((g && g.items) || []).filter(function (i) { return i && i.fid; }).map(function (i) { return { name: String(i.name || ''), qty: i.qty, fid: String(i.fid), note: String(i.note || ''), off: Array.isArray(i.off) ? i.off.map(String) : [] }; });
       B.got = true; idbSet(ck, { items: B.items }); pkBuThumbs(B); pkBuRender(name);
     });
   }
@@ -5568,27 +5571,53 @@ if (S.view === 'mkt') return renderMkt(el);
     el.innerHTML = h + pkBigPhoto();
   }
   // Отдельный аппарат на фото (12.11.2026): «Сломан» — этот аппарат попадает в «Что забрать»; «Его нет» — фото уходит в архив внизу карточки; «Снова работает» / «Вернуть» отменяют отметку.
+  /* 19.11.2026: сколько у инструмента ещё целых фото, кроме этого. Если есть — при отметке «Сломан» спрашиваем, остался ли на пункте рабочий такой же аппарат:
+     «Да» — вниз уходит только это фото (под одним названием два аппарата: старый и новый); «Нет» — сломанными отмечаются все его фото, и инструмент целиком уходит в «Старую аппаратуру». */
+  function pkUnitMore(pt, i) { return (pt.photos || []).filter(function (q, j) { return j !== i && q && q.id && q.unit !== 'сломан' && q.unit !== 'нет'; }).length; }
   function pkUnitBlock(pt, p, i) {
     var U = pt.un;
     if (U && U.i === i) {
-      var txt = U.st === 'сломан' ? 'Отметить, что именно этот аппарат сломан?' : U.st === 'нет' ? 'Этого аппарата на пункте уже нет. Где он? Фото уйдёт в архив.' : 'Отметить, что этот аппарат снова работает?';
+      var more = U.st === 'сломан' ? pkUnitMore(pt, i) : 0, dim = U.busy ? 'opacity:.6' : '';
+      var txt = U.st === 'сломан' ? (more ? 'Этот аппарат сломан. На пункте остался ещё рабочий такой же?' : 'Отметить, что именно этот аппарат сломан?') : U.st === 'нет' ? 'Этого аппарата на пункте уже нет. Где он? Фото уйдёт в архив.' : 'Отметить, что этот аппарат снова работает?';
       return '<div style="margin-top:8px;padding:10px;border-radius:10px;border:2px solid #c0392b"><b style="display:block;margin-bottom:8px">' + esc(TX(txt)) + '</b>' +
         (U.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(U.err) + '</p>' : '') +
-        (U.st === 'нет' ? '<div style="display:grid;gap:8px">' + pkBtn('un-sklad', '🏠 ' + esc(TX(U.busy ? 'Сохраняю…' : 'Он на складе (сломан)')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-yes', esc(TX('Его вообще нет')), true, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Отмена')), true) + '</div>' :
+        (more ? '<div style="display:grid;gap:8px">' + pkBtn('un-yes', esc(TX(U.busy ? 'Сохраняю…' : 'Да, есть рабочий')), true, dim) + pkBtn('un-all', esc(TX(U.busy ? 'Сохраняю…' : 'Нет, рабочего нет')), false, 'background:#c0392b;border-color:#c0392b;' + dim) + pkBtn('un-no', esc(TX('Отмена')), true) + '</div><small style="display:block;margin-top:8px;opacity:.8">' + esc(TX('«Да» — вниз уйдёт только это фото, инструмент останется. «Нет» — инструмент целиком уйдёт вниз, в «Старую аппаратуру».')) + '</small>' :
+        U.st === 'нет' ? '<div style="display:grid;gap:8px">' + pkBtn('un-sklad', '🏠 ' + esc(TX(U.busy ? 'Сохраняю…' : 'Он на складе (сломан)')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-yes', esc(TX('Его вообще нет')), true, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Отмена')), true) + '</div>' :
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + pkBtn('un-yes', esc(TX(U.busy ? 'Сохраняю…' : 'Да')), false, U.busy ? 'opacity:.6' : '') + pkBtn('un-no', esc(TX('Нет')), true) + '</div>') + '</div>';
     }
     if (p.unit === 'сломан') return '<div style="margin-top:8px"><span style="display:block;color:#c0392b;font-weight:700;margin-bottom:6px">🔧 ' + esc(TX('Этот аппарат сломан — он в кнопке «Что забрать»')) + '</span>' + pkBtn('un:' + i + ':работает', esc(TX('Снова работает')), true) + '</div>';
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">' + pkBtn('un:' + i + ':сломан', '🔧 ' + esc(TX('Сломан')), true) + pkBtn('un:' + i + ':нет', esc(TX('Его нет')), true) + '</div>';
   }
-  function pkUnitSave() {
+  /* После отметки под фото — заново скачать плитки пункта и «Старую аппаратуру», чтобы по возвращении в пункт всё уже стояло на своих местах. */
+  function pkUnitFresh(pt) { if (PK.cur && PK.cur.name === pt.point) pkPhLoad(pt.point); }
+  function pkUnitSave(all) {
     var pt = PK.pt, U = pt && pt.un; if (!U || U.busy) return;
     var p = pt.photos[U.i]; if (!p) return;
     U.busy = true; U.err = ''; render();
+    if (all === true && U.st === 'сломан') { /* «Нет, рабочего нет»: сломанными отмечаются это фото и все остальные целые фото инструмента */
+      var list = pt.photos.filter(function (q) { return q && q.id && q.unit !== 'сломан' && q.unit !== 'нет'; });
+      if (list.indexOf(p) < 0 && p.unit !== 'сломан') list.unshift(p);
+      var left = list.length, bad = 0, done = function () {
+        PK.pu = null; U.busy = false; pkUnitFresh(pt);
+        if (PK.pt !== pt || pt.un !== U) return;
+        if (bad) { U.err = TX('Сохранилось не всё. Нажмите ещё раз.'); return render(); }
+        pt.un = null; pt.msg = TX('Отмечено: рабочего аппарата на пункте нет. Инструмент ушёл вниз, в «Старую аппаратуру», и в кнопку «Что забрать».');
+        render();
+      };
+      if (!left) return done();
+      list.forEach(function (q) {
+        callTo('/prokat-foto', { action: 'unit', name: pt.point, fid: q.id, tool: pt.tool, state: 'сломан', where: '' }).then(function (r) {
+          if (r && r.ok) { q.unit = 'сломан'; q.where = ''; } else bad++;
+          if (--left === 0) done();
+        });
+      });
+      return;
+    }
     callTo('/prokat-foto', { action: 'unit', name: pt.point, fid: p.id, tool: pt.tool, state: U.st, where: U.where || '' }).then(function (r) {
       if (PK.pt !== pt || pt.un !== U) return;
       U.busy = false;
       if (!r || !r.ok) { U.err = (r && r.error) || TX('Не получилось сохранить, попробуйте ещё раз'); return render(); }
-      p.unit = U.st === 'работает' ? '' : U.st; p.where = U.where || ''; pt.un = null; PK.pu = null;
+      p.unit = U.st === 'работает' ? '' : U.st; p.where = U.where || ''; pt.un = null; PK.pu = null; pkUnitFresh(pt);
       pt.msg = U.st === 'сломан' ? TX('Отмечено: этот аппарат сломан. Он теперь в кнопке «Что забрать».') : U.st === 'нет' ? TX('Фото убрано в архив.') : TX('Отмечено: аппарат работает.');
       render();
       if (U.st === 'нет' && U.where === 'склад') {
@@ -6025,6 +6054,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k.indexOf('un:') === 0) { var up = k.split(':'); if (PK.pt && PK.pt.photos[+up[1]] && !(PK.pt.un && PK.pt.un.busy)) { PK.pt.un = { i: +up[1], st: up[2], busy: false, err: '' }; PK.pt.msg = ''; render(); } return; }
     if (k === 'un-sklad') { if (PK.pt && PK.pt.un && !PK.pt.un.busy) PK.pt.un.where = 'склад'; return pkUnitSave(); }
     if (k === 'un-yes') return pkUnitSave();
+    if (k === 'un-all') return pkUnitSave(true);
     if (k === 'un-no') { if (PK.pt && PK.pt.un && !PK.pt.un.busy) { PK.pt.un = null; render(); } return; }
     if (k === 'arch-toggle') { if (PK.pt) { PK.pt.arch = !PK.pt.arch; render(); } return; }
     if (k.indexOf('rl:') === 0) { if (PK.pt) { PK.pt.rl = { i: +k.slice(3), to: '', name: '', busy: false, err: '' }; PK.pt.msg = ''; render(); } return; }
