@@ -5028,7 +5028,7 @@ if (S.view === 'mkt') return renderMkt(el);
     return true;
   }
   function pkPhBlock() {
-    var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.tools.filter(function (t) { return !pkPast(t); }).length) + '</span>' : '') + '</h3>';
+    var ph = PK.ph, h = '<h3 style="margin:16px 0 6px">🧰 ' + esc(TX('Инструменты на пункте')) + (ph && !ph.loading && !ph.error ? ' <span style="font-size:15px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(ph.tools.filter(function (t) { return !pkPast(t) && !pkOld(t) && !pkMan(t) && !pkGone(t); }).length) + '</span>' : '') + '</h3>';
     if (!ph || ph.loading) return h + '<p style="opacity:.75">' + esc(TX('Загрузка…')) + '</p>';
     if (ph.error) return h + '<p style="color:#c0392b">' + esc(ph.error) + '</p>' + pkBtn('ph-retry', esc(TX('Ещё раз')), true);
     if (!ph.tools.length) return h + '<p style="opacity:.75">' + esc(TX('Инструментов пока нет')) + '</p>';
@@ -5134,7 +5134,7 @@ if (S.view === 'mkt') return renderMkt(el);
   var PK_BU = null;
   function pkBuNorm(n) { return String(n || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   function pkBuFor(t) { var B = PK_BU; if (!B || !PK.cur || B.name !== PK.cur.name || !t) return []; return B.items.filter(function (i) { return pkBuNorm(i.name) === pkBuNorm(t.name); }); }
-  function pkGone(t) { var b = pkBuFor(t); if (!b.length) return false; var f = String(t.fid || ''); return !f || b.some(function (i) { return String(i.fid) === f; }); } /* уходит вниз целиком, только если и последнее фото на плитке — сломанного аппарата */
+  function pkGone(t) { var b = pkBuFor(t); if (!b.length) return false; var f = String(t.fid || ''); if (!f || b.some(function (i) { return String(i.fid) === f; })) return true; /* 18.11.2026: если сломаны все штуки этого аппарата (одна и сломана) — он уходит вниз целиком, даже когда самое свежее фото не сломанное */ var q = t.qty != null ? pkNum(t.qty) : 1, bq = b.reduce(function (s, i) { return s + Math.max(1, pkNum(i.qty)); }, 0); return q > 0 && bq >= q; } /* уходит вниз целиком, только если и последнее фото на плитке — сломанного аппарата */
   function pkBuRender(name) { if (S.view === 'prokat' && PK.cur && PK.cur.name === name && !PK.pt && !pkTyping()) render(); }
   function pkBuLoad(name) {
     var B = PK_BU = { name: name, items: (PK_BU && PK_BU.name === name) ? PK_BU.items : [] };
@@ -5371,7 +5371,11 @@ if (S.view === 'mkt') return renderMkt(el);
     return false;
   }
   // Продажа (sell) — та же перевозка, только «в Продан» и с ценой за всё.
-  function pkMoveOpen(from, tool, ctx, sell) { PK.mv = { from: from, tool: tool, ctx: ctx, sell: !!sell, to: sell ? 'Продан' : '', qty: '1', price: '', state: from === 'Склад' ? (sell ? 'на запчасти' : 'починен') : 'сломан', note: '', id: oid(), busy: false, err: '' }; render(); }
+  function pkMoveOpen(from, tool, ctx, sell) { PK.mv = { from: from, tool: tool, ctx: ctx, sell: !!sell, to: sell ? 'Продан' : '', qty: '1', price: '', state: from === 'Склад' ? (sell ? 'на запчасти' : 'починен') : 'сломан', note: '', id: oid(), busy: false, err: '' }; render(); pkMvShow(sell ? 'pk-mv-price' : 'pk-mv-to'); }
+  /* 18.11.2026: форма сама прокручивается в видимое место и ставит курсор в нужное поле (раньше кнопка «Продать» будто ничего не делала: форма и ошибка оставались за краем экрана) */
+  function pkMvShow(id) { setTimeout(function () { var el = $s(id); if (!el) return; try { el.scrollIntoView({ block: 'center' }); el.focus(); } catch (e) {} }, 60); }
+  function pkMvErr(M, msg, id) { M.err = msg; render(); pkMvShow(id); }
+  document.addEventListener('input', function (e) { var t = e.target; if (PK.mv && t && (t.id === 'pk-mv-price' || t.id === 'pk-mv-qty')) { var c = String(t.value).replace(t.id === 'pk-mv-qty' ? /[^0-9\s]/g : /[^0-9.,\s]/g, ''); if (c !== t.value) t.value = c; } });
   function pkMoveKeep() { var M = PK.mv; if (!M) return; var t = $s('pk-mv-to'), q = $s('pk-mv-qty'), n = $s('pk-mv-note'), pr = $s('pk-mv-price'); if (pr) M.price = pr.value; if (t) M.to = t.value; if (q) M.qty = q.value; if (n) M.note = n.value; }
   function pkMoveForm() {
     var M = PK.mv, places = ['Склад'].concat(PK.points.map(function (p) { return p.name; }).sort(function (a, b) { return a.localeCompare(b, 'ru'); })).filter(function (n) { return n !== M.from; });
@@ -5382,7 +5386,7 @@ if (S.view === 'mkt') return renderMkt(el);
       (sk ? '<b style="display:block;margin-bottom:4px">' + esc(M.from === 'Склад' ? TX(M.sell ? 'Какие продать со склада' : 'Какие взять со склада') : TX('В каком состоянии на склад')) + '</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">' + PK_SK_ST.map(function (st, i) { return pkSkChip('mv-st:' + i, TX(st), M.state === st, PK_SK_COL[st]); }).join('') + '</div>' : '') +
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Количество')) + '<input id="pk-mv-qty" type="text" inputmode="numeric" autocomplete="off" value="' + esc(M.qty) + '" style="display:block;width:100%;font-size:20px"></label>' +
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Заметка')) + '<input id="pk-mv-note" type="text" maxlength="80" autocomplete="off" value="' + esc(M.note) + '" style="display:block;width:100%"></label>' +
-      (M.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(M.err) + '</p>' : '') +
+      (M.err ? '<p role="alert" style="color:#c0392b;margin:0 0 8px;font-weight:700">⚠️ ' + esc(M.err) + '</p>' : '') +
       '<div style="display:grid;grid-template-columns:2fr 1fr;gap:6px">' + pkBtn('mv-save', esc(TX(M.busy ? 'Сохраняю…' : M.sell ? 'Продать' : 'Перевезти')), false, M.busy ? 'opacity:.6' : '') + pkBtn('mv-cancel', esc(TX('Отмена')), true) + '</div></div>';
   }
   function pkMovesBlock(list) {
@@ -5395,10 +5399,10 @@ if (S.view === 'mkt') return renderMkt(el);
     var M = PK.mv; if (!M || M.busy) return;
     pkMoveKeep(); M.err = '';
     var q = String(M.qty || '').replace(/\s/g, '');
-    if (!M.to) { M.err = TX('Выберите, куда перевезти'); return render(); }
-    if (!/^\d{1,4}$/.test(q) || +q < 1) { M.err = TX('Количество — целое число больше нуля'); return render(); }
+    if (!M.to) return pkMvErr(M, TX('Выберите, куда перевезти'), 'pk-mv-to');
+    if (!/^\d{1,4}$/.test(q) || +q < 1) return pkMvErr(M, TX('Количество — целое число больше нуля (например, 1)'), 'pk-mv-qty');
     var price = Number(String(M.price || '').replace(/\s/g, '').replace(',', '.'));
-    if (M.sell && !(price > 0)) { M.err = TX('Укажите цену продажи'); return render(); }
+    if (M.sell && !(price > 0)) return pkMvErr(M, TX('Впишите цену продажи цифрами, например 850'), 'pk-mv-price');
     var body = { action: 'move', from: M.from, to: M.to, tool: M.tool, qty: +q, note: String(M.note || '').trim().slice(0, 80), id: M.id };
     if (M.sell) body.price = Math.round(price * 100) / 100;
     if (M.from === 'Склад' || M.to === 'Склад') body.state = M.state;
