@@ -5071,7 +5071,8 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkKindOf(t) {
     var nm = String((t && t.name) || ''), kd = String((t && t.kind) || ''), low = (kd || nm).toLowerCase(), sz = /калон|больш|катта/.test(low) ? 0 : /майда|мал|кичик/.test(low) ? 1 : 2;
     // 14.11.2026: масло, баннер и реклама — не инструмент (раньше «масло для отбойника» попадало в отбойные молотки).
-    if (/масл|баннер|реклам/.test(nm.toLowerCase())) return { label: TX('Прочее'), icon: '📦' };
+    // 18.11.2026: подпись на плитке — их собственное название («масло для отбойника»), а не общее «Прочее».
+    if (/масл|баннер|реклам/.test(nm.toLowerCase())) return { label: nm.replace(/\s+/g, ' ').trim() || TX('Прочее'), icon: '📦' };
     for (var i = 0; i < PK_FAM.length; i++) if (PK_FAM[i][0].test(low)) { var ic = PK_FAM[i][3]; return { label: kd || PK_FAM[i][2][sz], icon: Array.isArray(ic) ? ic[sz] : ic }; }
     return { label: kd || nm || TX('Другое'), icon: '🧰' };
   }
