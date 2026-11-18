@@ -29,10 +29,14 @@ for (const tag of ['script', 'style']) {
 ok('CSP: только свой скрипт и стиль по хешу, запросы только на prokat-owner, картинки только с lh3.googleusercontent.com');
 
 for (const bad of ['/prokat\'', '/prokat-foto', '/buhgalter', 'ew_cab', 'ew_sid', 'localStorage', 'sessionStorage', 'document.cookie', 'console.']) assert.ok(!html.includes(bad), `в странице не должно быть ${bad}`);
-assert.ok(html.includes('history.replaceState'));
+// 19.11.2026: токен из адреса больше не убираем — иначе значок на главном экране телефона сохраняется без него («Ссылка недействительна»).
+assert.ok(!html.includes('replaceState') && !html.includes('pushState'), 'адрес страницы не переписываем: токен остаётся после #');
+assert.ok(html.includes('function hashToken()') && html.includes('var TOKEN = hashToken();'), 'токен читается из адреса при каждом открытии');
+assert.ok(html.includes("window.addEventListener('hashchange'") && html.includes('location.reload()'), 'другая личная ссылка в той же вкладке открывается заново');
+assert.ok(html.includes('Страница открылась без вашей личной ссылки'), 'без токена страница говорит, что делать');
 assert.ok(!/blob:|createObjectURL|eval\(|new Function/.test(html), 'никаких blob: и eval — CSP не ослабляем');
 assert.ok(!/style="/.test(html), 'нет встроенных style= (CSP их не пустит)');
-ok('ни кабинетов, ни других вебхуков, токен не сохраняется и убирается из адреса');
+ok('ни кабинетов, ни других вебхуков; токен в браузере не сохраняется и остаётся в адресе, чтобы работал значок на главном экране');
 
 assert.equal((await fetch(base + '/punkt/x', { headers: { 'x-forwarded-for': '9.9.8.1' } })).status, 404);
 ok('лишний хвост пути — 404');
@@ -53,5 +57,32 @@ for (const need of ['function cmpHtml(', 'cmpHtml(r.tool, S.photo)', 'Было �
 ok('«Вернули»: прошлое фото инструмента рядом с новым («было → стало»)');
 for (const need of ['NEED_PIN', 'body.pin = PIN', 'Введите PIN пункта', 'data-pinform', 'r.need_pin']) assert.ok(html.includes(need), `нет в странице: ${need}`);
 ok('окно владельца спрашивает PIN, держит его только в памяти страницы');
+// 19.11.2026: скрипт страницы на подставном браузере — что происходит с токеном при разных адресах.
+{
+  const script = /<script>([\s\S]*?)<\/script>/.exec(html)[1];
+  const open = (hash) => {
+    const calls = { fetch: [], reload: 0, history: 0 }, on = {};
+    const app = { innerHTML: '', addEventListener() {}, querySelector: () => null, querySelectorAll: () => [] };
+    const location = { hash, pathname: '/punkt', search: '', reload() { calls.reload++; } };
+    const history = new Proxy({}, { get: () => () => { calls.history++; } });
+    const document = { getElementById: (id) => (id === 'app' ? app : null), addEventListener() {}, querySelector: () => null, querySelectorAll: () => [], activeElement: null, body: {} };
+    const window = { addEventListener: (n, f) => { on[n] = f; }, scrollTo() {} };
+    const fetch = (url, opt) => { calls.fetch.push(JSON.parse(opt.body)); return Promise.resolve({ json: () => Promise.resolve({ ok: false, error: 'ссылка не подходит' }) }); };
+    new Function('window', 'document', 'location', 'history', 'fetch', 'navigator', 'setTimeout', 'clearTimeout', 'setInterval', script)(window, document, location, history, fetch, { onLine: true }, () => 0, () => {}, () => 0);
+    return { calls, on, app, location };
+  };
+  const T = 'a'.repeat(32), tick = () => new Promise((r) => setTimeout(r, 5));
+  let p = open('#t=' + T); await tick();
+  assert.equal(p.calls.fetch.length, 1); assert.equal(p.calls.fetch[0].token, T);
+  assert.equal(p.location.hash, '#t=' + T, 'токен остаётся в адресе'); assert.equal(p.calls.history, 0, 'адрес не переписывается');
+  assert.match(p.app.innerHTML, /Ссылка недействительна, позвоните Нурулло/);
+  p = open(''); await tick();
+  assert.equal(p.calls.fetch.length, 0); assert.match(p.app.innerHTML, /Страница открылась без вашей личной ссылки/);
+  p.location.hash = '#t=' + T; p.on.hashchange(); assert.equal(p.calls.reload, 1);
+  p = open('#t=' + T); await tick();
+  p.on.hashchange(); assert.equal(p.calls.reload, 0);
+  p.location.hash = '#t=' + 'b'.repeat(32); p.on.hashchange(); assert.equal(p.calls.reload, 1);
+  ok('токен: после открытия остаётся в адресе (значок на главном экране его сохранит); без токена — понятная надпись; другая ссылка в той же вкладке открывается заново');
+}
 console.log('PUNKT PASSED');
 server.close(); process.exit(0);
