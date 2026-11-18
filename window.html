@@ -4215,7 +4215,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkOvOf(b) {
     if (!b || typeof b !== 'object') return null;
     var d = pkToday(), str = function (x) { return String(x == null ? '' : x); };
-    if (b.action === 'collect') return { a: 'collect', p: str(b.name), s: pkNum(b.amount), d: d };
+    if (b.action === 'collect') return { a: 'collect', p: str(b.name), s: pkNum(b.amount), d: /^\d{4}-\d{2}-\d{2}$/.test(str(b.date)) ? str(b.date) : d };
     if (b.action === 'tour_save') return { a: 'tour', p: str(b.name), d: d, it: (Array.isArray(b.items) ? b.items : []).map(function (x) { return [str(x && x.name), str(x && x.state), str(x && x.note)]; }) };
     if (b.action === 'move') return { a: 'move', f: str(b.from), t: str(b.to), n: b.from === 'Куплен' ? pkSName(b.tool) : str(b.tool), q: pkNum(b.qty), st: str(b.state), pr: pkNum(b.price), d: d };
     if (b.action === 'stock_state') return { a: 'stock', n: str(b.name), dl: [[str(b.from), -pkNum(b.qty)], [str(b.to), pkNum(b.qty)]] };
@@ -4719,20 +4719,25 @@ if (S.view === 'mkt') return renderMkt(el);
       '<b style="display:block;margin-bottom:8px">💵 ' + esc(TX('Забрал деньги')) + '</b>' +
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Сумма')) + '<input id="pk-sum" type="text" inputmode="decimal" autocomplete="off" value="' + esc(F.sum) + '" style="display:block;width:100%;font-size:20px"></label>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">' + Object.keys(PK_PAY).map(function (k) { return pkBtn('m:' + k, esc(TX(PK_PAY[k])), F.method !== k, 'height:auto;padding:8px 12px'); }).join('') + '</div>' +
+      '<label style="display:block;margin-bottom:8px">' + esc(TX('Когда забрал деньги')) + '<input id="pk-date" type="date" max="' + esc(pkToday()) + '" value="' + esc(F.date || pkToday()) + '" style="display:block;width:100%;min-height:44px;font:inherit;font-size:18px"><small style="display:block;opacity:.75">' + esc(TX('Сегодня — оставьте как есть. Если забрали раньше — выберите тот день.')) + '</small></label>' +
       '<label style="display:block;margin-bottom:8px">' + esc(TX('Заметка')) + '<input id="pk-note" type="text" maxlength="200" autocomplete="off" value="' + esc(F.note) + '" style="display:block;width:100%"></label>' +
       (PK.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(PK.err) + '</p>' : '') +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + pkBtn('save', esc(TX(F.busy ? 'Сохраняю…' : 'Сохранить')), false, F.busy ? 'opacity:.6' : '') + pkBtn('cancel', esc(TX('Отмена')), true) + '</div></div>';
   }
-  function pkKeep() { if (!PK.form) return; var s = $s('pk-sum'), n = $s('pk-note'); if (s) PK.form.sum = s.value; if (n) PK.form.note = n.value; }
+  function pkKeep() { if (!PK.form) return; var s = $s('pk-sum'), n = $s('pk-note'), dt = $s('pk-date'); if (s) PK.form.sum = s.value; if (n) PK.form.note = n.value; if (dt) PK.form.date = dt.value; }
   function pkSave() {
     var F = PK.form; if (!F || F.busy || !PK.cur) return;
     pkKeep();
     var amount = parseFloat(String(F.sum).replace(/\s/g, '').replace(',', '.'));
     if (!(amount > 0)) { PK.err = TX('Введите сумму'); return render(); }
+    /* 18.11.2026: деньги можно записать задним числом — день, когда их на самом деле забрали */
+    var day = String(F.date || pkToday());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || isNaN(Date.parse(day))) { PK.err = TX('Выберите дату'); return render(); }
+    if (day > pkToday()) { PK.err = TX('Дата не может быть из будущего'); return render(); }
     F.busy = true; PK.err = ''; render();
     var name = PK.cur.name;
     // id создан при открытии формы: повторное нажатие после обрыва связи не создаст вторую запись.
-    callQ('/prokat', { action: 'collect', name: name, amount: Math.round(amount * 100) / 100, method: F.method, note: String(F.note || '').trim().slice(0, 200), id: F.id }, TX('Забрал деньги') + ': ' + name + ' — ' + pkMoney(amount)).then(function (r) {
+    callQ('/prokat', { action: 'collect', name: name, date: day, amount: Math.round(amount * 100) / 100, method: F.method, note: String(F.note || '').trim().slice(0, 200), id: F.id }, TX('Забрал деньги') + ': ' + name + ' — ' + pkMoney(amount) + (day !== pkToday() ? ' (' + pkDay(day) + ')' : '')).then(function (r) {
       if (!PK.form || PK.form.id !== F.id) return;
       F.busy = false;
       if (!r || !r.ok) { PK.err = (r && r.error) || TX('Не получилось сохранить'); return render(); }
@@ -5957,7 +5962,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'back') { PK.add = null; PK.cur = null; PK.ol = null; PK.sh = null; PK.pb = null; PK.ph = null; PK.pt = null; PK.big = null; PK.form = null; PK.msg = ''; PK.err = ''; PK.ride = false; return render(); }
     if (k === 'p-retry') { if (PK.cur) pkOpenPoint(PK.cur.name); return; }
     if (k === 'ride') { PK.ride = !PK.ride; return render(); }
-    if (k === 'take') { var ro = PK.cur && PK.cur.rent ? pkNum(PK.cur.rent.owed) : 0; PK.form = { sum: ro > 0 ? String(Math.round(ro * 100) / 100) : '', method: 'cash', note: '', id: oid(), busy: false }; PK.err = ''; PK.msg = ''; PK.ride = false; render(); var s = $s('pk-sum'); if (s) s.focus(); return; }
+    if (k === 'take') { var ro = PK.cur && PK.cur.rent ? pkNum(PK.cur.rent.owed) : 0; PK.form = { sum: ro > 0 ? String(Math.round(ro * 100) / 100) : '', method: 'cash', note: '', date: pkToday(), id: oid(), busy: false }; PK.err = ''; PK.msg = ''; PK.ride = false; render(); var s = $s('pk-sum'); if (s) s.focus(); return; }
     if (k === 'cancel') { PK.form = null; PK.err = ''; return render(); }
     if (k === 'save') return pkSave();
   }
