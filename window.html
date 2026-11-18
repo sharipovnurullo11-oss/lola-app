@@ -3906,7 +3906,7 @@ if (S.view === 'mkt') return renderMkt(el);
   function pkMoney(x) { return money(cents(pkNum(x))); }
   /* Память телефона для проката: точки, склад и фото открываются сразу, свежее приходит в фоне */
   /* Память телефона: открываем сохранённое сразу, свежее приходит в фоне (12.11.2026) */
-  var SW_W = 0, SW_READ = {}; 'ping list pack point points stock payback payback_all buy_prices share_get owner_link tools tool moves all reminders rented pickup compare tour_point status analysis_status inv_list stats get foto_get chek_get stock_photo_get debts lich_list trash_list info foto export find_photo route nlist profile-get ask explain chat'.split(' ').forEach(function (a) { SW_READ[a] = 1; });
+  var SW_W = 0, SW_READ = {}; 'ping list pack point points stock payback payback_all buy_prices share_get owner_link tools tool moves all reminders rented pickup compare tour_point status analysis_status inv_list stats get foto_get chek_get stock_photo_get debts lich_list trash_list info foto export find_photo route nlist profile-get ask explain chat points_state'.split(' ').forEach(function (a) { SW_READ[a] = 1; });
   function swIsRead(a) { a = String(a || ''); return !!SW_READ[a] || /(^|[_-])(get|list|status|ping)$/.test(a); }
   function swKey(n) { return pkCK() + ':sw:' + n; }
   function swGet(n, ok) { idbGet(swKey(n)).then(function (c) { if (c && c.v && c.t > SW_W) ok(c.v); }); }
@@ -5633,9 +5633,38 @@ if (S.view === 'mkt') return renderMkt(el);
       if (PK.all !== all) return;
       all.loading = false;
       if (!r || !r.ok) all.error = (r && r.error) || TX('не удалось загрузить');
-      else { all.groups = Array.isArray(r.groups) ? r.groups : []; all.total = r.total == null ? all.groups.reduce(function (s, g) { return s + pkNum(g.count); }, 0) : r.total; }
+      else { all.groups = Array.isArray(r.groups) ? r.groups : []; all.total = r.total == null ? all.groups.reduce(function (s, g) { return s + pkNum(g.count); }, 0) : r.total; Object.keys(all.open).forEach(function (i) { if (all.open[i]) pkAllThumbs(all, +i); }); }
       if (S.view === 'prokat') render();
     });
+  }
+  /* 19.11.2026: «Все инструменты» — напротив каждого аппарата маленькое фото; нажал — открывается большое.
+     Миниатюры грузятся только для раскрытого списка: по 12 штук, три запроса одновременно. Ссылки живут в PK_TH 30 минут. */
+  function pkAllThumbs(all, gi) {
+    var g = all.groups[gi], items = g && Array.isArray(g.items) ? g.items : [], now = Date.now(), need = [];
+    all.thq = all.thq || {}; all.thx = all.thx || {};
+    items.forEach(function (x) { var f = x && x.id ? String(x.id) : ''; if (f && need.indexOf(f) < 0 && !all.thq[f] && !all.thx[f] && (!PK_TH[f] || now - PK_TH[f].t > 1800000)) need.push(f); });
+    if (!need.length) return;
+    need.forEach(function (f) { all.thq[f] = 1; });
+    var parts = []; for (var i = 0; i < need.length; i += 12) parts.push(need.slice(i, i + 12));
+    var run = function () {
+      var b = parts.shift(); if (!b) return;
+      if (PK.all !== all) return;
+      callTo('/prokat-foto', { action: 'thumbs_get', fids: b }).then(function (r) {
+        var got = !!(r && r.ok && Array.isArray(r.photos));
+        if (got) r.photos.forEach(function (p) { if (p && p.id && pkSafeUrl(p.url)) PK_TH[String(p.id)] = { url: String(p.url), t: Date.now() }; });
+        /* сервер ответил, а фото не дал — больше не спрашиваем; связи не было — спросим, когда список раскроют снова */
+        b.forEach(function (f) { delete all.thq[f]; if (got && (!PK_TH[f] || Date.now() - PK_TH[f].t > 1800000)) all.thx[f] = 1; });
+        if (PK.all === all && S.view === 'prokat' && !PK.big) render();
+        run();
+      });
+    };
+    run(); run(); run();
+  }
+  function pkAllPic(all, x, gi, xi) {
+    var f = x && x.id ? String(x.id) : '', e = f ? PK_TH[f] : null, u = e ? pkSafeUrl(e.url) : '', box = 'flex:none;width:56px;height:56px;border-radius:8px;overflow:hidden;background:rgba(127,127,127,.12)';
+    if (u) return '<button type="button" data-pk="aph:' + gi + ':' + xi + '" aria-label="' + esc(TX('Открыть фото') + ': ' + (x.name || '')) + '" style="' + box + ';padding:0;border:0;cursor:pointer"><img src="' + esc(u.replace(/=s\d+$/, '=s200')) + '" alt="" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover;-webkit-touch-callout:none"></button>';
+    var wait = !!(f && all.thq && all.thq[f]);
+    return '<span style="' + box + ';display:flex;align-items:center;justify-content:center;text-align:center;font-size:' + (wait ? '18px' : '11px') + ';line-height:1.15;opacity:.6">' + (wait ? '…' : esc(TX('нет фото'))) + '</span>';
   }
   function renderPkAll(el) {
     var all = PK.all, h = pkBtn('home', '← ' + esc(ui('Финансист', 'Мутахассиси молия', 'Moliyachi')), true, 'margin-bottom:8px') + '<h2 style="padding-right:36px">🧰 ' + esc(TX('Все инструменты')) + (!all.loading && !all.error ? ' <span style="font-size:16px;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(all.total) + '</span>' : '') + '</h2>';
@@ -5645,11 +5674,11 @@ if (S.view === 'mkt') return renderMkt(el);
       var on = !!all.open[i], items = Array.isArray(g.items) ? g.items : [];
       return '<div style="border:1px solid rgba(127,127,127,.3);border-radius:12px;overflow:hidden">' +
         '<button type="button" data-pk="grp:' + i + '" aria-expanded="' + on + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer"><span style="flex:none;width:14px">' + (on ? '▾' : '▸') + '</span><b style="flex:1">' + esc(g.group || TX('Другое')) + '</b><span style="flex:none;font-weight:700;padding:2px 9px;border-radius:12px;background:rgba(127,127,127,.15)">' + esc(g.count == null ? items.length : g.count) + '</span></button>' +
-        (on ? '<div style="padding:0 12px 8px">' + (items.length ? items.map(function (x) {
-          return '<div style="padding:6px 0;border-top:1px solid rgba(127,127,127,.2)">' + esc(x.name || '') + ' — <span style="opacity:.8">' + esc([x.point, x.city].filter(Boolean).join(', ')) + '</span></div>';
+        (on ? '<div style="padding:0 12px 8px">' + (items.length ? items.map(function (x, xi) {
+          return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(127,127,127,.2)"><span style="flex:1;min-width:0;word-break:break-word">' + esc(x.name || '') + ' — <span style="opacity:.8">' + esc([x.point, x.city].filter(Boolean).join(', ')) + '</span></span>' + pkAllPic(all, x, i, xi) + '</div>';
         }).join('') : '<p style="opacity:.75;margin:6px 0">' + esc(TX('Пока пусто')) + '</p>') + '</div>' : '') + '</div>';
     }).join('') + '</div>' : '<p style="opacity:.75">' + esc(TX('Пока пусто')) + '</p>';
-    el.innerHTML = h;
+    el.innerHTML = h + pkBigPhoto();
   }
   /* ---------- Напоминания, сравнение пунктов, объезд ---------- */
   function pkDay(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(s || ''); }
@@ -6014,7 +6043,8 @@ if (S.view === 'mkt') return renderMkt(el);
     if (k === 'push') return pushEnable();
     if (k === 'all') return pkAllOpen();
     if (k === 'all-retry') return pkAllOpen();
-    if (k.indexOf('grp:') === 0) { if (PK.all) { var gi = +k.slice(4); PK.all.open[gi] = !PK.all.open[gi]; render(); } return; }
+    if (k.indexOf('grp:') === 0) { if (PK.all) { var gi = +k.slice(4); PK.all.open[gi] = !PK.all.open[gi]; if (PK.all.open[gi]) pkAllThumbs(PK.all, gi); render(); } return; }
+    if (k.indexOf('aph:') === 0) { var ap = k.split(':'), ag = PK.all && PK.all.groups[+ap[1]], ax = ag && Array.isArray(ag.items) ? ag.items[+ap[2]] : null, ae = ax && ax.id ? PK_TH[String(ax.id)] : null; if (ae && pkSafeUrl(ae.url)) { PK.big = { url: ae.url, name: (ax.name || '') + (ax.point ? ' · ' + ax.point : ''), date: ax.date ? pkDay(ax.date) : '' }; render(); } return; }
     if (k.indexOf('pq') === 0 && pkQClick(k)) return;
     if (k.indexOf('ptg:') === 0) { var gg = pkGroups(PK.ph && PK.ph.tools)[+k.slice(4)]; if (gg) { return pkToolOpen(gg.items[0]); } return; }
     if (k.indexOf('pt:') === 0) return pkToolOpen(+k.slice(3));
