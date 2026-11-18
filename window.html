@@ -4383,11 +4383,11 @@ if (S.view === 'mkt') return renderMkt(el);
         '<div style="padding:10px;border-radius:10px;background:rgba(192,57,43,.1)"><small>' + esc(TX('В минусе')) + '</small><b style="display:block;font-size:22px;color:#c0392b">' + minus + '</b></div>' +
         '<div style="padding:10px;border-radius:10px;background:rgba(127,127,127,.12)"><small>' + esc(TX('Прибыль')) + '</small><b style="display:block;font-size:18px;color:' + (sum < 0 ? '#c0392b' : '#1f8a4c') + '">' + pkMoney(sum) + '</b></div>' +
       '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' + chip('all', TX('Все'), pts.length) + chip('minus', TX('В минусе'), minus) + chip('plus', TX('В плюсе'), plus) + chip('idle', TX('Нет движения'), idle) + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' + chip('all', TX('Все'), pts.length) + chip('minus', TX('В минусе'), minus) + chip('plus', TX('В плюсе'), plus) + chip('idle', TX('Нет движения'), idle) + (PK.pa ? '' : pkBtn('pa-open', '➕ ' + esc(TX('Добавить пункт')), true, 'height:auto;padding:6px 12px;font-size:14px')) + '</div>' + /* 19.11.2026: «Добавить пункт» — маленькая, в ряду с фильтрами */
+      (PK.pmsg ? '<p role="status" style="color:#1f8a4c;margin:0 0 8px;font-weight:700">' + esc(PK.pmsg) + '</p>' : '') +
+      (PK.pa ? pkPaForm() : '') +
       pkBtn('ride', '🚗 ' + esc(TX('Объезд')), true, 'width:100%;margin-bottom:10px') +
       (PK.ride ? pkRideNote() : '') +
-      (PK.pmsg ? '<p role="status" style="color:#1f8a4c;margin:0 0 8px;font-weight:700">' + esc(PK.pmsg) + '</p>' : '') +
-      (PK.pa ? pkPaForm() : pkBtn('pa-open', '➕ ' + esc(TX('Добавить новый пункт')), false, 'width:100%;margin-bottom:10px')) +
       '<div style="display:grid;gap:8px">' + (shown.length ? shown.map(function (p) {
         var i = PK.points.indexOf(p), pr = pkNum(p.profit);
         return '<button type="button" class="btn sec" data-pk="p:' + i + '" style="display:flex;align-items:center;gap:10px;text-align:left;height:auto;padding:12px;width:100%">' +
@@ -5106,7 +5106,7 @@ if (S.view === 'mkt') return renderMkt(el);
     if (ph.error) return h + '<p style="color:#c0392b">' + esc(ph.error) + '</p>' + pkBtn('ph-retry', esc(TX('Ещё раз')), true);
     if (!ph.tools.length) return h + '<p style="opacity:.75">' + esc(TX('Инструментов пока нет')) + '</p>';
     var gs = pkGroups(ph.tools), cur = gs.filter(function (g) { return g.key === PK.phG; })[0];
-    h += '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на фото аппарата, чтобы увидеть его прошлые фото')) + '<br><small>🟢 ' + esc(TX('работает')) + ' · 🟡 ' + esc(TX('в ремонте')) + ' · 🔴 ' + esc(TX('сломан или потерян')) + ' · ⚪ ' + esc(TX('нужно забрать')) + '</small></p>' +
+    h += '<p style="margin:0 0 8px;opacity:.8">' + esc(TX('Нажмите на фото аппарата, чтобы увидеть его прошлые фото')) + '</p>' + /* 19.11.2026: строка с четырьмя цветными точками убрана по просьбе Нурулло */
       '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">' + gs.map(function (g, gi) {
         // 18.11.2026: если одного вида несколько аппаратов (две газовые пушки) — у каждого своя плитка со своим фото, а не одна общая со счётчиком.
         if (g.items.length > 1) return g.items.map(function (ti, n) {
