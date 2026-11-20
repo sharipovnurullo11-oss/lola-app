@@ -326,7 +326,6 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     document.head.appendChild(st);
     var home = document.createElement('section'); home.id = 'sp-home'; home.hidden = true; home.setAttribute('aria-label', TX('Специалисты'));
     home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p>' +
-      '<button type="button" class="sp-hero pa" data-home="pa"><span class="ic" aria-hidden="true">🤝</span><span><b>' + esc(ui('Личный ассистент', 'Ёвари шахсӣ', 'Shaxsiy yordamchi')) + '</b><small id="sp-pa-sub">' + esc(ui('Расскажите о себе, и я настрою кабинет', 'Дар бораи худ нақл кунед, кабинетро танзим мекунам', 'Oʻzingiz haqingizda ayting, kabinetni sozlayman')) + '</small></span></button><p class="sp-lockmsg" id="sp-lockmsg" hidden>' + esc(ui('Сначала познакомьтесь с личным ассистентом, остальное откроется после этого.', 'Аввал бо ёвари шахсӣ шинос шавед, боқӣ баъд кушода мешавад.', 'Avval shaxsiy yordamchi bilan tanishing, qolgani shundan keyin ochiladi.')) + '</p>' +
       '<button type="button" class="sp-hero" data-home="assistant"><span class="ic" aria-hidden="true">✨</span><span><b>' + esc(TX('Мой ассистент: сводка дня')) + '</b><small id="sp-hero-sub">' + esc(TX('Что происходит у всех ваших специалистов, в одном окне')) + '</small></span></button>' +
       '<div class="sp-grid">' +
       LIST.filter(function (x) { return !x.hide; }).map(function (x) {
@@ -338,8 +337,6 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     app.insertBefore(back, ref);
     home.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-home]'); if (!b) return;
-      if (b.dataset.home === 'pa') return openPa();
-      if (!paDone()) { paCheck(); return openPa(); }
       if (b.dataset.home === 'assistant') return openAsst();
       if (b.dataset.home === 'seller') { HOME = false; return applyHome(); }
       openOne(b.dataset.home);
@@ -366,7 +363,6 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     // Кабинет со стройкой (Асрор Холов): оставляем только продавца-ассистента и двух финансистов; SMM, маркетолог, менеджер, юрист и «Личный ассистент» скрыты.
     var onlyFin = aOn();
     ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
-    var paHero = document.querySelector('#sp-home [data-home="pa"]'); if (paHero) paHero.hidden = onlyFin;
     // По просьбе Нурулло (08.11.2026) в кабинете Асрора Холова убраны «Мой ассистент: сводка дня» и «Продавец-ассистент». Остальным кабинетам они видны как раньше.
     ['assistant', 'seller'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
     var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = aOn() ? ui('Аптека', 'Дорухона', 'Dorixona') : TX('Финансист');
@@ -384,9 +380,6 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     if (show || !(aOn() || asrorCab)) document.documentElement.classList.remove('ob-pre');
     $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
-    var lock = show && !paDone(); if (show) paCheck();
-    $s('sp-home').classList.toggle('pa-lock', lock);
-    var lm = $s('sp-lockmsg'); if (lm) lm.hidden = !lock;
   }
 
   function render() {
@@ -1108,45 +1101,6 @@ if (S.view === 'mkt') return renderMkt(el);
   // По ответам ассистент сохраняет профиль (его же читает «Бухгалтер») и открывает кабинет. Пока знакомства нет, остальные кнопки закрыты.
   // Кабинеты, где профиль уже есть (на этом телефоне или на сервере), и кабинет с учётом магазина не блокируются.
   var PA = { step: 0, kind: '', other: '', about: '', stock: '', staff: '', goals: [], saving: false, asked: '', ok: false, err: '' };
-  /* Чек перевода: фото из галереи → n8n /chek (Groq, запасной OpenAI) → сразу приход или расход у Финансиста (бухгалтер кабинета) */
-  var PCK = { tip: 'in', busy: false, res: null, err: '' };
-  function paChekBox() {
-    var h = '<div style="margin:6px 0 14px;padding:12px;border-radius:16px;background:#f3f7f4;border:1px solid #d8eadf">';
-    h += '<b>🧾 ' + esc(ui('Чек перевода → Финансист', 'Чеки интиқол → Мутахассиси молия', 'Oʻtkazma cheki → Moliyachi')) + '</b>';
-    h += '<p style="margin:4px 0 8px;font-size:13px;opacity:.8">' + esc(ui('Выберите скриншот чека (Алиф, Душанбе Сити и др.). Я прочитаю сумму и сразу запишу.', 'Скриншоти чекро интихоб кунед (Алиф, Душанбе Сити ва ғ.). Маблағро хонда, фавран сабт мекунам.', 'Chek skrinshotini tanlang (Alif, Dushanbe City va b.). Summani oʻqib, darhol yozaman.')) + '</p>';
-    h += '<div style="display:flex;gap:8px;margin-bottom:8px">' + paOpt('ck-tip', 'in', '⬇ ' + ui('Мне перевели', 'Ба ман интиқол доданд', 'Menga oʻtkazishdi'), PCK.tip === 'in') + paOpt('ck-tip', 'out', '⬆ ' + ui('Я перевёл', 'Ман интиқол додам', 'Men oʻtkazdim'), PCK.tip === 'out') + '</div>';
-    if (PCK.busy) h += '<p style="margin:6px 0">⏳ ' + esc(ui('Читаю чек…', 'Чекро мехонам…', 'Chekni oʻqiyapman…')) + '</p>';
-    else h += '<label class="btn" style="display:flex;align-items:center;justify-content:center;height:46px;cursor:pointer">📷 ' + esc(ui('Выбрать чек из галереи', 'Чекро аз галерея интихоб кунед', 'Galereyadan chek tanlash')) + '<input type="file" accept="image/*" id="pa-ck-in" hidden></label>';
-    if (PCK.err) h += '<p role="alert" style="color:#b3261e;margin:8px 0 0">' + esc(PCK.err) + '</p>';
-    var r = PCK.res;
-    if (r && r.chek) {
-      var c = r.chek, inn = c.tip === 'in';
-      h += '<div style="margin-top:10px;padding:10px;border-radius:12px;background:#fff">';
-      h += '<div style="font-size:20px;font-weight:700;color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + money(cents(c.summa)) + ' ' + esc(c.valyuta === 'TJS' ? TX('сомони') : c.valyuta) + '</div>';
-      h += '<div style="font-size:13px;margin-top:4px">' + esc([c.data, c.vremya, c.bank, inn ? c.otpravitel : c.poluchatel, c.nomer ? '№' + c.nomer : ''].filter(Boolean).join(' · ')) + '</div>';
-      if (r.undone) h += '<p style="margin:8px 0 0">↩ ' + esc(ui('Запись отменена', 'Сабт бекор шуд', 'Yozuv bekor qilindi')) + '</p>';
-      else if (r.dup) h += '<p style="margin:8px 0 0">ℹ ' + esc(ui('Этот чек уже записан раньше, второй раз не пишу.', 'Ин чек пештар сабт шуда буд, бори дуюм сабт намекунам.', 'Bu chek avval yozilgan, qayta yozmayman.')) + '</p>';
-      else h += '<p style="margin:8px 0 0">✓ ' + esc(inn ? ui('Записано в приход у Финансиста', 'Ба даромад сабт шуд', 'Kirimga yozildi') : ui('Записано в расход у Финансиста', 'Ба хароҷот сабт шуд', 'Chiqimga yozildi')) + '</p>' +
-        '<button type="button" class="btn sec" data-pa="ck-undo" style="height:38px;padding:0 14px;margin-top:8px">↩ ' + esc(ui('Отменить, это ошибка', 'Бекор кардан', 'Bekor qilish')) + '</button>';
-      h += '</div>';
-    }
-    return h + '</div>';
-  }
-  function paChekFile(file) {
-    if (!file || PCK.busy) return;
-    PCK.busy = true; PCK.err = ''; PCK.res = null; render();
-    var tip = PCK.tip;
-    shFotoHQ(file, function (img) {
-      if (!img) { PCK.busy = false; PCK.err = ui('Не удалось открыть фото. Выберите другой снимок.', 'Аксро кушода нашуд. Акси дигар интихоб кунед.', 'Rasmni ochib boʻlmadi. Boshqasini tanlang.'); return render(); }
-      callTo('/chek', { action: 'read', tip: tip, foto: img }).then(function (r) {
-        PCK.busy = false;
-        if (!r || !r.ok) { PCK.err = (r && r.error) || TX('нет связи'); return render(); }
-        PCK.res = r; try { if (typeof S !== 'undefined') S.buh = null; } catch (e) {}
-        render();
-      });
-    });
-  }
-  document.addEventListener('change', function (e) { var t = e.target; if (t && t.id === 'pa-ck-in' && t.files && t.files[0]) paChekFile(t.files[0]); });
   var PA_GOALS = [
     ['clients', 'Больше клиентов', 'Муштариёни бештар', 'Koʻproq mijozlar'],
     ['posts', 'Подписи к постам', 'Тавсифи постҳо', 'Postlarga izohlar'],
@@ -1184,7 +1138,6 @@ if (S.view === 'mkt') return renderMkt(el);
   function paOpt(key, val, label, on) { return '<button type="button" class="btn' + (on ? '' : ' sec') + '" data-pa="' + key + ':' + val + '" style="height:40px;padding:0 14px">' + esc(label) + '</button>'; }
   function renderPa(el) {
     var h = '<h2 style="padding-right:36px">🤝 ' + esc(ui('Личный ассистент', 'Ёвари шахсӣ', 'Shaxsiy yordamchi')) + '</h2>';
-    h += paChekBox();
     if (PA.step === 0) {
       h += paBubble(ui('Здравствуйте! Я ваш личный ассистент. Давайте познакомимся: расскажите, чем вы занимаетесь. Это нужно один раз, чтобы я настроил кабинет под вас.', 'Салом! Ман ёвари шахсии шумо ҳастам. Биёед шинос шавем: бигӯед, ба чӣ машғул ҳастед. Ин танҳо як бор лозим аст, то ман кабинетро барои шумо танзим кунам.', 'Salom! Men sizning shaxsiy yordamchingizman. Tanishaylik: nima bilan shugʻullanishingizni ayting. Bu faqat bir marta kerak, kabinetni sizga moslayman.'));
       h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:10px 0">' + KINDS.map(function (k) {
@@ -1223,12 +1176,6 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function paClick(b) {
     var v = b.dataset.pa, i = v.indexOf(':'), key = i < 0 ? v : v.slice(0, i), val = i < 0 ? '' : v.slice(i + 1);
-    if (key === 'ck-tip') { PCK.tip = val === 'out' ? 'out' : 'in'; PCK.res = null; PCK.err = ''; return render(); }
-    if (key === 'ck-undo') {
-      var rr = PCK.res; if (!rr || !rr.id || rr.undone || rr.dup) return;
-      b.disabled = true;
-      return callTo('/buhgalter', { action: 'del', id: rr.id }).then(function (x) { if (x && x.ok) rr.undone = true; else PCK.err = (x && x.error) || TX('нет связи'); render(); });
-    }
     if (key === 'kind') PA.kind = val;
     else if (key === 'stock') PA.stock = val;
     else if (key === 'staff') PA.staff = val;
