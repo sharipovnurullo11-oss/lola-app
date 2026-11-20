@@ -1101,6 +1101,45 @@ if (S.view === 'mkt') return renderMkt(el);
   // По ответам ассистент сохраняет профиль (его же читает «Бухгалтер») и открывает кабинет. Пока знакомства нет, остальные кнопки закрыты.
   // Кабинеты, где профиль уже есть (на этом телефоне или на сервере), и кабинет с учётом магазина не блокируются.
   var PA = { step: 0, kind: '', other: '', about: '', stock: '', staff: '', goals: [], saving: false, asked: '', ok: false, err: '' };
+  /* Чек перевода: фото из галереи → n8n /chek (Groq, запасной OpenAI) → сразу приход или расход у Финансиста (бухгалтер кабинета) */
+  var PCK = { tip: 'in', busy: false, res: null, err: '' };
+  function paChekBox() {
+    var h = '<div style="margin:6px 0 14px;padding:12px;border-radius:16px;background:#f3f7f4;border:1px solid #d8eadf">';
+    h += '<b>🧾 ' + esc(ui('Чек перевода → Финансист', 'Чеки интиқол → Мутахассиси молия', 'Oʻtkazma cheki → Moliyachi')) + '</b>';
+    h += '<p style="margin:4px 0 8px;font-size:13px;opacity:.8">' + esc(ui('Выберите скриншот чека (Алиф, Душанбе Сити и др.). Я прочитаю сумму и сразу запишу.', 'Скриншоти чекро интихоб кунед (Алиф, Душанбе Сити ва ғ.). Маблағро хонда, фавран сабт мекунам.', 'Chek skrinshotini tanlang (Alif, Dushanbe City va b.). Summani oʻqib, darhol yozaman.')) + '</p>';
+    h += '<div style="display:flex;gap:8px;margin-bottom:8px">' + paOpt('ck-tip', 'in', '⬇ ' + ui('Мне перевели', 'Ба ман интиқол доданд', 'Menga oʻtkazishdi'), PCK.tip === 'in') + paOpt('ck-tip', 'out', '⬆ ' + ui('Я перевёл', 'Ман интиқол додам', 'Men oʻtkazdim'), PCK.tip === 'out') + '</div>';
+    if (PCK.busy) h += '<p style="margin:6px 0">⏳ ' + esc(ui('Читаю чек…', 'Чекро мехонам…', 'Chekni oʻqiyapman…')) + '</p>';
+    else h += '<label class="btn" style="display:flex;align-items:center;justify-content:center;height:46px;cursor:pointer">📷 ' + esc(ui('Выбрать чек из галереи', 'Чекро аз галерея интихоб кунед', 'Galereyadan chek tanlash')) + '<input type="file" accept="image/*" id="pa-ck-in" hidden></label>';
+    if (PCK.err) h += '<p role="alert" style="color:#b3261e;margin:8px 0 0">' + esc(PCK.err) + '</p>';
+    var r = PCK.res;
+    if (r && r.chek) {
+      var c = r.chek, inn = c.tip === 'in';
+      h += '<div style="margin-top:10px;padding:10px;border-radius:12px;background:#fff">';
+      h += '<div style="font-size:20px;font-weight:700;color:' + (inn ? '#1f8a4c' : '#c0392b') + '">' + (inn ? '+' : '−') + money(cents(c.summa)) + ' ' + esc(c.valyuta === 'TJS' ? TX('сомони') : c.valyuta) + '</div>';
+      h += '<div style="font-size:13px;margin-top:4px">' + esc([c.data, c.vremya, c.bank, inn ? c.otpravitel : c.poluchatel, c.nomer ? '№' + c.nomer : ''].filter(Boolean).join(' · ')) + '</div>';
+      if (r.undone) h += '<p style="margin:8px 0 0">↩ ' + esc(ui('Запись отменена', 'Сабт бекор шуд', 'Yozuv bekor qilindi')) + '</p>';
+      else if (r.dup) h += '<p style="margin:8px 0 0">ℹ ' + esc(ui('Этот чек уже записан раньше, второй раз не пишу.', 'Ин чек пештар сабт шуда буд, бори дуюм сабт намекунам.', 'Bu chek avval yozilgan, qayta yozmayman.')) + '</p>';
+      else h += '<p style="margin:8px 0 0">✓ ' + esc(inn ? ui('Записано в приход у Финансиста', 'Ба даромад сабт шуд', 'Kirimga yozildi') : ui('Записано в расход у Финансиста', 'Ба хароҷот сабт шуд', 'Chiqimga yozildi')) + '</p>' +
+        '<button type="button" class="btn sec" data-pa="ck-undo" style="height:38px;padding:0 14px;margin-top:8px">↩ ' + esc(ui('Отменить, это ошибка', 'Бекор кардан', 'Bekor qilish')) + '</button>';
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+  function paChekFile(file) {
+    if (!file || PCK.busy) return;
+    PCK.busy = true; PCK.err = ''; PCK.res = null; render();
+    var tip = PCK.tip;
+    shFotoHQ(file, function (img) {
+      if (!img) { PCK.busy = false; PCK.err = ui('Не удалось открыть фото. Выберите другой снимок.', 'Аксро кушода нашуд. Акси дигар интихоб кунед.', 'Rasmni ochib boʻlmadi. Boshqasini tanlang.'); return render(); }
+      callTo('/chek', { action: 'read', tip: tip, foto: img }).then(function (r) {
+        PCK.busy = false;
+        if (!r || !r.ok) { PCK.err = (r && r.error) || TX('нет связи'); return render(); }
+        PCK.res = r; try { if (typeof S !== 'undefined') S.buh = null; } catch (e) {}
+        render();
+      });
+    });
+  }
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.id === 'pa-ck-in' && t.files && t.files[0]) paChekFile(t.files[0]); });
   var PA_GOALS = [
     ['clients', 'Больше клиентов', 'Муштариёни бештар', 'Koʻproq mijozlar'],
     ['posts', 'Подписи к постам', 'Тавсифи постҳо', 'Postlarga izohlar'],
@@ -1176,6 +1215,12 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   function paClick(b) {
     var v = b.dataset.pa, i = v.indexOf(':'), key = i < 0 ? v : v.slice(0, i), val = i < 0 ? '' : v.slice(i + 1);
+    if (key === 'ck-tip') { PCK.tip = val === 'out' ? 'out' : 'in'; PCK.res = null; PCK.err = ''; return render(); }
+    if (key === 'ck-undo') {
+      var rr = PCK.res; if (!rr || !rr.id || rr.undone || rr.dup) return;
+      b.disabled = true;
+      return callTo('/buhgalter', { action: 'del', id: rr.id }).then(function (x) { if (x && x.ok) rr.undone = true; else PCK.err = (x && x.error) || TX('нет связи'); render(); });
+    }
     if (key === 'kind') PA.kind = val;
     else if (key === 'stock') PA.stock = val;
     else if (key === 'staff') PA.staff = val;
@@ -3242,7 +3287,7 @@ function load() {
   function renderBuh(el) {
     if (S.onb) return renderOnb(el);
 var h = backBtn() + '<h2 style="padding-right:36px">📒 ' + esc(TX('Бухгалтер')) + '</h2>' + (S.prof ? '<button type="button" class="btn sec" data-onb="change" style="height:30px;padding:0 10px;margin:0 0 6px;font-size:13px">' + esc(TX('Изменить вид деятельности')) + '</button>' : '');
-    h += shBtnsHtml();
+    h += shBtnsHtml(); h += paChekBox();
     if (!S.buh) { el.innerHTML = h + '<p>' + esc(TX('Загрузка…')) + '</p>'; return; }
     if (S.buh.error) { el.innerHTML = h + '<p class="err">' + esc(S.buh.error) + '</p><button class="btn" data-buh="reload" type="button">' + esc(TX('Ещё раз')) + '</button>'; return; }
     writeCache();
