@@ -211,6 +211,8 @@ export const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       // Главный адрес открывает рабочее окно. Старая страница «Лола · 300 сомони» убрана с главного адреса, но осталась в архиве: /start и /start/demo.
       if (p === '/' || p === '/demo') return redirect('/window');
+      // Политика конфиденциальности открыта всем, вход не нужен
+      if (p === '/privacy') return html(200, V.privacyPage(lang));
       if (p === '/start') return user ? redirect('/cabinet') : html(200, V.landing(lang));
       if (p === '/start/demo') return html(200, V.demoPage(lang));
       if (p === '/owner-register') return user ? redirect('/cabinet') : html(200, V.ownerRegisterPage(lang, csrf));

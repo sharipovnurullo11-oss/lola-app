@@ -25,6 +25,7 @@ export const T = {
     fillProfile:'Заполнить анкету', editProfile:'Изменить анкету', status_profile_done:'Анкета заполнена', profileDoneNote:'Анкета получена. Владелец настроит ассистента и свяжется с вами для подключения каналов.',
     yourChannels:'Выбранные каналы', clients:'Клиенты', clientsEmpty:'Клиентов пока нет', noProfile:'Анкета не заполнена', toClients:'К списку клиентов', field_tone:'Тон', field_channels:'Каналы', field_extra:'Важно знать',
     notFound: 'Страница не найдена', back: 'На главную',
+    privacyTitle: 'Политика конфиденциальности', privacyUpdated: 'Обновлено', privacyRuOnly: '',
     // --- вход по телефону, гостевой просмотр, дизайн
     brand: 'Лола', nav_demo: 'Посмотреть кабинет', nav_start: 'Начать',
     phone: 'Номер телефона (WhatsApp)', regLead: 'Введите номер телефона. На него придут логин и пароль после подтверждения оплаты.', continueBtn: 'Продолжить',
@@ -92,6 +93,7 @@ export const T = {
     fillProfile:'Пур кардани саволнома', editProfile:'Тағйири саволнома', status_profile_done:'Саволнома пур шуд', profileDoneNote:'Саволнома қабул шуд. Соҳиб ёрдамчиро танзим карда, барои пайвасти каналҳо бо шумо тамос мегирад.',
     yourChannels:'Каналҳои интихобшуда', clients:'Муштариён', clientsEmpty:'Ҳоло муштарӣ нест', noProfile:'Саволнома пур нашудааст', toClients:'Ба рӯйхати муштариён', field_tone:'Оҳанг', field_channels:'Каналҳо', field_extra:'Муҳим аст',
     notFound: 'Саҳифа ёфт нашуд', back: 'Ба саҳифаи асосӣ',
+    privacyTitle: 'Сиёсати махфият', privacyUpdated: 'Нав карда шуд', privacyRuOnly: 'Матни пурра ҳоло танҳо ба забони русӣ дастрас аст.',
   },
   uz: {
     app: 'Ijtimoiy tarmoqlar uchun yordamchi', tagline: 'Yordamchini Instagram, Telegram va WhatsApp’ga ulang — u mijozlaringizga javob beradi.',
@@ -116,6 +118,7 @@ export const T = {
     fillProfile:'Anketani toʻldirish', editProfile:'Anketani oʻzgartirish', status_profile_done:'Anketa toʻldirildi', profileDoneNote:'Anketa qabul qilindi. Egasi yordamchini sozlab, kanallarni ulash uchun siz bilan bogʻlanadi.',
     yourChannels:'Tanlangan kanallar', clients:'Mijozlar', clientsEmpty:'Hozircha mijoz yoʻq', noProfile:'Anketa toʻldirilmagan', toClients:'Mijozlar roʻyxatiga', field_tone:'Ohang', field_channels:'Kanallar', field_extra:'Muhim',
     notFound: 'Sahifa topilmadi', back: 'Bosh sahifaga',
+    privacyTitle: 'Maxfiylik siyosati', privacyUpdated: 'Yangilangan', privacyRuOnly: 'Toʻliq matn hozircha faqat rus tilida mavjud.',
   },
 };
 

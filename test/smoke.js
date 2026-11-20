@@ -13,8 +13,11 @@ async function call(method, path, body) {
 const ok = (n) => console.log('ok -', n);
 
 let r = await call('GET', '/start'); assert.equal(r.status, 200); assert.match(r.text, /Лола/); ok('landing ru');
+assert.match(r.text, /href="\/privacy"/); ok('landing links to privacy policy');
+r = await call('GET', '/privacy'); assert.equal(r.status, 200); assert.match(r.text, /<h1[^>]*>Политика конфиденциальности<\/h1>/); assert.match(r.text, /mailto:sharipovnurullo11@gmail\.com/); assert.match(r.text, /href="https:\/\/myaccount\.google\.com\/permissions"/); assert.doesNotMatch(r.text, /undefined/); ok('privacy policy is public');
 r = await call('GET', '/lang/tg'); assert.equal(r.status, 303);
 r = await call('GET', '/register'); assert.match(r.text, /Сабти ном/); ok('tajik');
+r = await call('GET', '/privacy'); assert.match(r.text, /Сиёсати махфият/); assert.match(r.text, /танҳо ба забони русӣ/); ok('privacy policy tajik title');
 r = await call('GET', '/lang/uz'); r = await call('GET', '/register'); assert.match(r.text, /Roʻyxatdan/); ok('uzbek');
 await call('GET', '/lang/ru'); r = await call('GET', '/register');
 

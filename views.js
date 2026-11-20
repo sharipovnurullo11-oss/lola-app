@@ -1,4 +1,5 @@
 import { LANGS, T } from './i18n.js';
+import { PRIVACY, PRIVACY_INTRO, PRIVACY_UPDATED } from './privacy.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -26,7 +27,8 @@ function layout(lang, title, body) {
 <div class="wrap"><header class="bar"><a class="logo" href="/">${LOGO}<b>${esc(t.brand)}</b></a>
 <nav class="nav"><a class="btn small" href="/start/demo">${esc(t.nav_demo)}</a><a class="btn small" href="/login">${esc(t.login)}</a><a class="btn small primary" href="/register">${esc(t.nav_start)}</a></nav></header>
 <nav class="langs">${langs}</nav>
-<main>${body}</main></div>
+<main>${body}</main>
+<footer class="foot"><a href="/privacy">${esc(t.privacyTitle)}</a></footer></div>
 <script src="/app.js" defer></script></body></html>`;
 }
 
@@ -216,6 +218,19 @@ export function clientPage(lang, c, p, csrf = '') {
   const body = p ? `<section class="card">${row(t.bizName, p.business_name)}${row(t.bizAbout, p.about)}${row(t.bizServices, p.services)}${row(t.bizHours, p.hours)}${row(t.field_tone, t['tone_' + p.tone] || p.tone)}${row(t.field_channels, chs)}${row(t.field_extra, p.extra)}</section>` : `<p>${esc(t.noProfile)}</p>`;
   const reset = c.phone ? `<form method="post" action="/admin/password"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="id" value="${Number(c.id)}"><button class="btn">${esc(t.newPassword)}</button></form>` : '';
   return layout(lang, c.name, `<h1 class="h2">${esc(c.phone ? fmtPhone(c.phone) : c.name)}</h1><p>${esc(c.email || '')} ${c.email ? '· ' : ''}${esc(t['status_' + c.status] || c.status)}</p>${body}${reset}<p><a href="/admin/clients">${esc(t.toClients)}</a></p>`);
+}
+
+// Политика конфиденциальности: открытая страница, текст лежит в privacy.js (пока только на русском)
+const linkify = (s) => esc(s)
+  .replace(/(https:\/\/[\w./-]+)/g, '<a href="$1" rel="noopener">$1</a>')
+  .replace(/([\w.+-]+@[\w-]+\.[\w.]+[\w])/g, '<a href="mailto:$1">$1</a>');
+const paras = (list) => (list || []).map((x) => `<p>${linkify(x)}</p>`).join('');
+export function privacyPage(lang) {
+  const t = T[lang];
+  const sections = PRIVACY.map((s, i) => `<section><h2>${i + 1}. ${esc(s.h)}</h2>${paras(s.p)}${s.ul ? `<ul>${s.ul.map((x) => `<li>${linkify(x)}</li>`).join('')}</ul>` : ''}${paras(s.after)}</section>`).join('');
+  return layout(lang, t.privacyTitle, `<article class="legal"><h1 class="h2">${esc(t.privacyTitle)}</h1>
+<p class="hint">${esc(t.privacyUpdated)}: ${esc(PRIVACY_UPDATED)}</p>${t.privacyRuOnly ? `<p class="hint">${esc(t.privacyRuOnly)}</p>` : ''}
+<p>${linkify(PRIVACY_INTRO)}</p>${sections}</article>`);
 }
 
 export function notFound(lang) {
