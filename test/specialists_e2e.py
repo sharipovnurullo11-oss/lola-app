@@ -182,7 +182,7 @@ Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { 
         pg.click('[data-sp-back]'); pg.wait_for_timeout(200)
         pg.click('[data-home="seller"]'); pg.wait_for_timeout(300)
         check(not pg.is_visible('#sp-home') and pg.is_visible('#list') and pg.is_visible('#sp-back'), 'продавец-ассистент открывает переписки, сверху «← Специалисты»')
-        pg.click('#sp-back button'); pg.wait_for_timeout(200); check(pg.is_visible('#sp-home') and not pg.is_visible('#list'), 'кнопка «← Специалисты» возвращает на главный экран')
+        pg.click('#sp-back button'); pg.wait_for_timeout(200); check(pg.is_visible('#sp-home') and not pg.is_visible('#list'), 'кнопка «← Назад» возвращает на главный экран')
         go(pg, 'buh'); pg.wait_for_timeout(500)
         check(pg.is_visible('[data-onb^="kind:"]'), 'бухгалтер: при первом входе просит выбрать вид деятельности')
         check(pg.locator('#sp-body [data-shop="goto"]').count() == 0, 'бухгалтер: кнопок «Касса» и «Учёт» внутри больше нет, они в «Финансисте»')
