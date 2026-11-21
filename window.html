@@ -3013,7 +3013,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       }).join('') + '<button type="button" class="sp-tile" data-home="obj" hidden><span class="ic" aria-hidden="true">🏗️</span><b>' + esc(ui('Финансист по объектам', 'Молиячӣ аз рӯи объектҳо', 'Obyektlar boʻyicha moliyachi')) + '</b><small>' + esc(ui('Точки, заказчики, мастера', 'Нуқтаҳо, фармоишгарон, устоҳо', 'Nuqtalar, buyurtmachilar, ustalar')) + '</small></button></div>';
     app.insertBefore(home, ref);
     var back = document.createElement('div'); back.id = 'sp-back'; back.hidden = true;
-    back.innerHTML = '<button type="button">← ' + esc(TX('Специалисты')) + '</button>';
+    back.innerHTML = '<button type="button">← ' + esc(ui('Назад', 'Бозгашт', 'Orqaga')) + '</button>';
     app.insertBefore(back, ref);
     home.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-home]'); if (!b) return;
