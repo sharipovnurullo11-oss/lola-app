@@ -162,7 +162,7 @@ button{font:inherit;color:inherit}
 .back{border:0;background:var(--soft);width:40px;height:40px;border-radius:12px;cursor:pointer;font-size:18px}
 .msgs{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:8px}
 .bub{max-width:82%;padding:9px 13px;border-radius:16px;font-size:15px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
-.bub small{display:block;font-size:11px;opacity:.65;margin-top:3px}
+.bub small{display:block;font-size:11px;opacity:.65;margin-top:3px}.bub .tk{font-size:12px;margin-left:5px;opacity:.7;letter-spacing:-2px}.bub .tk.read{color:#53BDEB;opacity:1}
 .bub.in{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
 .bub.out{align-self:flex-end;background:var(--navy2);color:#fff;border-bottom-right-radius:4px}
 .snd{flex:none;display:flex;gap:8px;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line)}
@@ -831,7 +831,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-chats-check','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/prokat-arhiv','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/chek','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-chats-check','/cabinet-chats-status','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/prokat-arhiv','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/chek','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body,signal){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:signal}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -1001,7 +1001,14 @@ function vplay(b){ var u = b.getAttribute('data-u');
     fetch(u).then(function(r){ return r.json(); }).then(function(j){ if (!j || !j.ok) throw new Error('x'); var bin = atob(j.b64), n = bin.length, arr = new Uint8Array(n); for (var i = 0; i < n; i++) arr[i] = bin.charCodeAt(i); playBuf(arr.buffer); }).catch(fail);
   } else fetch(u).then(function(r){ return r.arrayBuffer(); }).then(playBuf).catch(fail);
 }
-function msgs_html(c){ return (c.more && MODE === 'user' ? '<button type="button" class="moreh">' + T('Показать ранние сообщения') + '</button>' : '') + msgs_html0(c); }
+/* 21.11.2026: галочки у исходящих сообщений WhatsApp: ✓ отправлено, ✓✓ доставлено, синие ✓✓ прочитано. Статусы берём из cabinet-chats-status. */
+var TK_ST = {}, TK_T = 0;
+function tk_key(c, x){ return c.kanal + ':' + String(c.id).replace(/^[lc]:/, '') + '|' + x.v; }
+function tk_html(c, x){ if (c.kanal !== 'whatsapp' || MODE !== 'user') return ''; var s = TK_ST[tk_key(c, x)]; if (!s) return ''; return '<span class="tk ' + s + '" title="' + (s === 'read' ? 'прочитано' : s === 'delivered' ? 'доставлено' : 'отправлено') + '">' + (s === 'sent' ? '✓' : '✓✓') + '</span>'; }
+function tk_paint(){ try { var c = CUR; if (!c || c.kanal !== 'whatsapp') return; var m = c.messages || [], b = $('msgs'); if (!b) return; Array.prototype.forEach.call(b.querySelectorAll('.bub.out'), function(el){ var x = m[Number(el.getAttribute('data-i'))]; if (!x) return; var sm = el.querySelector('small'); if (!sm) return; var old = sm.querySelector('.tk'); var h = tk_html(c, x); if (!h) return; var tmp = document.createElement('span'); tmp.innerHTML = h; var n = tmp.firstChild; if (old) { if (old.className === n.className) return; old.replaceWith(n); } else sm.appendChild(n); }); } catch (e) {} }
+function tk_load(force){ var n = Date.now(); if (MODE !== 'user' || isStaff() || !CUR || CUR.kanal !== 'whatsapp') return; if (!force && n - TK_T < 15000) return; TK_T = n; post('/cabinet-chats-status', { code: store('ew_cab') || '' }).then(function(x){ var r = x && x.j; if (!r || !r.ok || !Array.isArray(r.s)) return; r.s.forEach(function(o){ TK_ST[o.k + ':' + String(o.c) + '|' + o.v] = o.s; }); tk_paint(); }).catch(function(){}); }
+setInterval(function(){ try { if (document.visibilityState !== 'hidden' && CUR && lc_vis()) tk_load(false); } catch (e) {} }, 15000);
+function msgs_html(c){ try { tk_load(false); } catch (e) {} return (c.more && MODE === 'user' ? '<button type="button" class="moreh">' + T('Показать ранние сообщения') + '</button>' : '') + msgs_html0(c); }
 function msgs_html0(c){
   var m = c.messages||[], ans = answeredBy(m);
   return m.map(function(x,i){
@@ -1012,7 +1019,7 @@ function msgs_html0(c){
       return '<div class="bub in" data-i="' + i + '">' + body + '<small>' + t + '</small>' + chk + '</div>';
     }
     var ai = x.a === 'ai';
-    return '<div class="bub out' + (ai ? ' ai' : '') + '" data-i="' + i + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + '</small></div>';
+    return '<div class="bub out' + (ai ? ' ai' : '') + '" data-i="' + i + '"><span class="au">' + (ai ? '🤖 ' : '') + esc(whoName(x.a)) + '</span>' + body + '<small>' + t + tk_html(c, x) + '</small></div>';
   }).join('');
 }
 /* Настоящие фото контактов (Instagram, WhatsApp, Telegram) */
