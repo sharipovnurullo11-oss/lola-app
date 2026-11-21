@@ -3002,7 +3002,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
       '#sp-home .sp-hero:focus-visible{outline:3px solid #fff;outline-offset:2px}#sp-home .sp-hero.wait small{opacity:1;font-weight:700}' +
       '#sp-home .sp-grid{gap:8px!important}#sp-home .sp-tile{padding:10px 8px!important}#sp-home .sp-tile .ic{font-size:28px!important}#sp-home .sp-tile small{display:none}' +
       '#sp-home .sp-hero.pa{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 18px rgba(15,118,110,.35)}#sp-home.pa-lock .sp-hero:not(.pa),#sp-home.pa-lock .sp-grid{opacity:.45}#sp-home .sp-lockmsg{margin:-6px 0 14px;font-size:13px;opacity:.85}' +
-      '#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
+      'body.inchat #sp-back{display:none}#sp-back{padding:6px 12px}#sp-back button{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:6px 0}';
     document.head.appendChild(st);
     var home = document.createElement('section'); home.id = 'sp-home'; home.hidden = true; home.setAttribute('aria-label', TX('Специалисты'));
     home.innerHTML = '<h2>' + esc(TX('Ваши специалисты')) + '</h2><p>' + esc(TX('Нажмите на специалиста, чтобы открыть его работу.')) + '</p>' +
@@ -3058,7 +3058,7 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var asrorCab = false; try { asrorCab = String(store('ew_cab') || '') === 'kd6es8ycn5fa6gj43v7vlmw3nc0z5'; } catch (e) {}
     document.body.classList.toggle('ob-only', !!(aOn() || asrorCab));
     if (show || !(aOn() || asrorCab)) document.documentElement.classList.remove('ob-pre');
-    $s('sp-back').hidden = true;
+    $s('sp-back').hidden = !(user && !HOME);
     if (show) heroSub();
   }
 
