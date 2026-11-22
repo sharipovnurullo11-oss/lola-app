@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="tg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Алифбо — уроки 1–24</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@500;700;800&display=swap">
+<style>
+:root{
+  --bg:#f3f8ff; --paper:#ffffff; --ink:#12223f; --muted:#5a6a86; --line:#b9d6f0;
+  --blue:#0b63ad; --on-blue:#ffffff; --red:#d91f2a; --on-red:#ffffff;
+  --yellow:#ffe21a; --on-yellow:#1b1600; --green:#0f9d58;
+  --font:"Noto Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1630; --paper:#16234a; --ink:#eaf1ff; --muted:#a2b3d6; --line:#2d4776;
+    --blue:#7cc0ff; --on-blue:#08142d; --red:#ff6a70; --on-red:#2a0508; --green:#41d68f; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1630; --paper:#16234a; --ink:#eaf1ff; --muted:#a2b3d6; --line:#2d4776;
+  --blue:#7cc0ff; --on-blue:#08142d; --red:#ff6a70; --on-red:#2a0508; --green:#41d68f; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.35}
+.app{max-width:480px;margin:0 auto;min-height:100%;padding-block:14px 28px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.chip{background:var(--yellow);color:var(--on-yellow);font-weight:800;padding:6px 12px;border-radius:6px;font-size:.95rem}
+.top .l{display:flex;gap:8px;align-items:center;min-width:0}
+.icon-btn{min-width:44px;height:44px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-weight:800;font-size:.85rem;cursor:pointer;padding:0 10px}
+.icon-btn[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.ru{display:none;font-size:.78rem;font-weight:500;color:var(--muted);margin-top:2px;line-height:1.2}
+.show-ru .ru{display:block}
+.btn .ru,.opt .ru,.card .ru{color:inherit;opacity:.85}
+.view{display:grid;gap:16px;align-content:start;animation:in .25s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h1.q{font-size:1.6rem;line-height:1.15;font-weight:800;margin:0;text-wrap:balance}
+.muted{color:var(--muted);font-size:.8rem;margin:0}
+.count{font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row .btn{flex:1 1 160px}
+.btn{min-height:58px;border:0;border-radius:16px;font:inherit;font-weight:800;font-size:1.1rem;padding:8px 20px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;text-align:center;line-height:1.15}
+.btn.primary{background:var(--blue);color:var(--on-blue)}
+.btn.listen{background:var(--red);color:var(--on-red)}
+.btn.ghost{background:var(--paper);color:var(--ink);border:2px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.list{display:grid;gap:10px}
+.card{display:flex;align-items:center;gap:12px;text-align:left;width:100%;min-height:72px;padding:10px 14px;border-radius:16px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;cursor:pointer}
+.card .n{flex:none;min-width:64px;text-align:center;background:var(--yellow);color:var(--on-yellow);font-weight:800;border-radius:6px;padding:6px 8px;font-size:.95rem}
+.card .t{flex:1;min-width:0;font-weight:800}
+.card .s{font-size:.75rem;font-weight:500;color:var(--muted)}
+.card .st{flex:none;color:var(--green);font-weight:800;font-size:1.4rem;width:28px;text-align:center}
+.card.done{border-color:var(--green)}
+.page-card{display:grid;justify-items:center;gap:2px;padding:20px 16px;background:var(--paper);border:2px solid var(--line);border-radius:16px;text-align:center}
+.page-card .k{font-weight:700;color:var(--muted)}
+.page-card .big{font-size:6.5rem;font-weight:800;line-height:1;color:var(--red);font-variant-numeric:tabular-nums}
+.page-card .lesson{font-weight:800;font-size:1.3rem;color:var(--blue)}
+.look{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.look li{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--paper);border:2px solid var(--line);border-radius:14px;font-weight:700}
+.look .e{font-size:2rem;line-height:1}
+.opts{display:grid;gap:10px}
+.opts.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.opt{min-height:78px;border-radius:16px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-weight:800;font-size:1.3rem;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px}
+.opt .e{font-size:2.2rem;line-height:1}
+.ok-state{background:var(--green)!important;border-color:var(--green)!important;color:#fff!important}
+.bad{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.plate{display:flex;justify-content:center;gap:18px;background:var(--yellow);color:var(--on-yellow);font-weight:800;font-size:6.5rem;line-height:1.1;padding:10px 0;border-radius:6px}
+.photo{display:grid;gap:10px}
+.pageimg{display:block;width:100%;height:auto;border-radius:10px;border:2px solid var(--line);background:var(--paper)}
+.addphoto{display:grid;gap:4px;padding:16px;border:3px dashed var(--line);border-radius:14px;background:var(--paper);cursor:pointer;text-align:center;color:var(--blue)}
+.addphoto:focus-within,.btn:focus-within{outline:3px solid var(--blue);outline-offset:2px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.btn.small{min-height:44px;font-size:.9rem;padding:6px 14px;position:relative}
+.addphoto{position:relative}
+.bookpage{background:var(--paper);border:2px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:14px}
+.ribbon{justify-self:center;background:var(--yellow);color:var(--on-yellow);font-weight:800;padding:6px 18px;border-radius:99px;border:2px solid var(--red)}
+.pbtn{border:0;cursor:pointer;font-family:inherit;width:100%}
+.pics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pic{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 6px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:800;cursor:pointer;min-height:130px;text-align:center}
+.pic .e{font-size:3.4rem;line-height:1.1}
+.pic .cap{font-size:1.05rem;line-height:1.2}
+.pic.on,.pbtn.on{outline:4px solid var(--red);outline-offset:2px}
+.dotsch{display:flex;gap:4px;padding:3px 6px;border:1.5px solid var(--ink);border-radius:3px}
+.dotsch i{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink)}
+.dotsch i.g{background:var(--green);border-color:var(--green)}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{aspect-ratio:1;border-radius:16px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-weight:800;font-size:3.4rem;cursor:pointer}
+.words{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.word{position:relative;min-height:96px;padding:8px;border-radius:16px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-weight:800;font-size:1.4rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.word .e{font-size:2.2rem;line-height:1}
+.word.heard{border-color:var(--green)}
+.hl{color:var(--red)}
+.done-view{display:grid;justify-items:center;gap:8px;text-align:center}
+.stars{display:flex;gap:6px}
+.stars svg{animation:pop .5s both}
+.stars svg:nth-child(2){animation-delay:.12s}
+.stars svg:nth-child(3){animation-delay:.24s}
+@keyframes pop{from{transform:scale(.2) rotate(-30deg);opacity:0}to{transform:none;opacity:1}}
+.dots{display:flex;gap:8px;justify-content:center;padding-top:4px;flex-wrap:wrap}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.dots i.done{background:var(--green)}
+.dots i.on{background:var(--blue);transform:scale(1.35)}
+.parents{border:2px solid var(--line);border-radius:14px;padding:4px 14px;background:var(--paper)}
+.parents summary{cursor:pointer;font-weight:700;padding:10px 0;color:var(--muted)}
+.parents .body{display:grid;gap:10px;padding-bottom:12px}
+@media (prefers-reduced-motion: reduce){.view,.stars svg,.bad{animation:none}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="l"><button class="icon-btn" id="homebtn" aria-label="К списку уроков" hidden>&larr;</button><span class="chip" id="chip">Алифбо</span></div>
+    <button class="icon-btn" id="rubtn" aria-pressed="false" aria-label="Показать русский перевод">RU</button>
+  </header>
+  <main id="stage"></main>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+  <details class="parents">
+    <summary>Барои падару модар</summary>
+    <div class="body">
+      <p class="muted">Приложение идёт за печатной книгой «Алифбо» (1 класс): ребёнок открывает указанную страницу, слушает, повторяет вслух и играет. Картинки и текст книги в приложение не копируются, игры и вопросы свои. Уроки 1–20 в книге идут по картинкам, буквы начинаются с урока 21.</p>
+      <p class="muted">Таджикские фразы здесь — черновик, их должен проверить Нурулло.</p>
+      <p class="muted voicenote"></p>
+    </div>
+  </details>
+</div>
+
+<script>
+(function(){
+'use strict';
+var UNITS=[
+ {id:1,lessons:'1–2',page:14,title:'Мактаб',ru:'Школа',
+  look:[{e:'🏫',t:'Ин синф аст.',ru:'Это класс.'},{e:'👩‍🏫',t:'Ин омӯзгор аст.',ru:'Это учитель.'},{e:'🧒',t:'Инҳо хонандагон ҳастанд.',ru:'Это ученики.'}],
+  quiz:[
+   {ask:'Дар расм чӣ тасвир шудааст?',ru:'Что нарисовано на картинке?',opts:[{e:'🏫',t:'Мактаб',ru:'школа',ok:1},{e:'🛒',t:'Бозор',ru:'рынок'},{e:'🌳',t:'Боғ',ru:'сад'}]},
+   {ask:'Дар синф кӣ истодааст?',ru:'Кто стоит в классе?',opts:[{e:'👩‍🏫',t:'Омӯзгор',ru:'учитель',ok:1},{e:'👨‍⚕️',t:'Духтур',ru:'врач'},{e:'👨‍✈️',t:'Ронанда',ru:'водитель'}]},
+   {ask:'Омӯзгор дар даст чӣ дорад?',ru:'Что у учителя в руке?',opts:[{e:'📗',t:'Китоб',ru:'книга',ok:1},{e:'⚽',t:'Тӯб',ru:'мяч'},{e:'🌹',t:'Гул',ru:'цветок'}]}],
+  multi:{ask:'Ба мактаб чӣ мебаранд?',ru:'Что берут в школу?',items:[{e:'📗',t:'китоб',ru:'книга',ok:1},{e:'📓',t:'дафтар',ru:'тетрадь',ok:1},{e:'✏️',t:'қалам',ru:'карандаш',ok:1},{e:'🎒',t:'ҷузвдон',ru:'портфель',ok:1},{e:'⚽',t:'тӯб',ru:'мяч'},{e:'🚗',t:'мошин',ru:'машина'}]}},
+ {id:2,lessons:'3–4',page:15,title:'Об ва кӯҳ',ru:'Вода и горы',
+  look:[{e:'⛰️',t:'Ин кӯҳ аст.',ru:'Это гора.'},{e:'💧',t:'Ин об аст.',ru:'Это вода.'}],
+  quiz:[
+   {ask:'Кадоме дар расм ҳаст?',ru:'Что есть на картинке?',opts:[{e:'⛰️',t:'Кӯҳ',ru:'гора',ok:1},{e:'🚗',t:'Мошин',ru:'машина'},{e:'🌹',t:'Гул',ru:'цветок'}]},
+   {ask:'Обро ёб.',ru:'Найди воду.',opts:[{e:'💧',t:'Об',ru:'вода',ok:1},{e:'🔥',t:'Оташ',ru:'огонь'},{e:'🏠',t:'Хона',ru:'дом'}]}]},
+ {id:3,lessons:'5–6',page:16,title:'Саҳрои гандум',ru:'Пшеничное поле',
+  look:[{e:'🌾',t:'Ин ғалла аст.',ru:'Это пшеница.'},{e:'🚜',t:'Ин трактор аст.',ru:'Это трактор.'}],
+  quiz:[
+   {ask:'Дар расм чӣ ҳаст?',ru:'Что на картинке?',opts:[{e:'🚜',t:'Трактор',ru:'трактор',ok:1},{e:'🚢',t:'Киштӣ',ru:'корабль'},{e:'✈️',t:'Ҳавопаймо',ru:'самолёт'}]},
+   {ask:'Дар саҳро чӣ мерӯяд?',ru:'Что растёт в поле?',opts:[{e:'🌾',t:'Ғалла',ru:'пшеница',ok:1},{e:'🌴',t:'Хурмо',ru:'пальма'},{e:'🌵',t:'Кактус',ru:'кактус'}]}]},
+ {id:4,lessons:'7–8',page:17,title:'Пахта',ru:'Хлопок',
+  look:[{e:'🤍',t:'Ин пахта аст.',ru:'Это хлопок.'},{e:'⚖️',t:'Ин тарозу аст.',ru:'Это весы.'},{e:'🚜',t:'Ин трактор аст.',ru:'Это трактор.'}],
+  quiz:[
+   {ask:'Дар расм чӣ ҷамъ мекунанд?',ru:'Что собирают на картинке?',opts:[{e:'🤍',t:'Пахта',ru:'хлопок',ok:1},{e:'🍎',t:'Себ',ru:'яблоко'},{e:'🍉',t:'Тарбуз',ru:'арбуз'}]},
+   {ask:'Кадоме дар расм ҳаст?',ru:'Что есть на картинке?',opts:[{e:'⚖️',t:'Тарозу',ru:'весы',ok:1},{e:'📞',t:'Телефон',ru:'телефон'},{e:'📗',t:'Китоб',ru:'книга'}]}]},
+ {id:5,lessons:'9–10',page:18,title:'Харбуза ва тарбуз',ru:'Дыни и арбузы',
+  look:[{e:'🍈',t:'Ин харбуза аст.',ru:'Это дыня.'},{e:'🍉',t:'Ин тарбуз аст.',ru:'Это арбуз.'},{e:'🐕',t:'Ин саг аст.',ru:'Это собака.'}],
+  quiz:[
+   {ask:'Кадом мева дар расм ҳаст?',ru:'Какой фрукт на картинке?',opts:[{e:'🍉',t:'Тарбуз',ru:'арбуз',ok:1},{e:'🍎',t:'Себ',ru:'яблоко'},{e:'🍌',t:'Банан',ru:'банан'}]},
+   {ask:'Дар расм кӣ ҳаст?',ru:'Кто есть на картинке?',opts:[{e:'🐕',t:'Саг',ru:'собака',ok:1},{e:'🐈',t:'Гурба',ru:'кошка'},{e:'🦁',t:'Шер',ru:'лев'}]}]},
+ {id:6,lessons:'11–12',page:19,title:'Боғ',ru:'Сад',
+  look:[{e:'🌳',t:'Ин дарахт аст.',ru:'Это дерево.'},{e:'🍑',t:'Ин мева аст.',ru:'Это фрукты.'},{e:'🧺',t:'Ин сабад аст.',ru:'Это корзина.'}],
+  quiz:[
+   {ask:'Дар боғ чӣ ҳаст?',ru:'Что есть в саду?',opts:[{e:'🌳',t:'Дарахт',ru:'дерево',ok:1},{e:'🚗',t:'Мошин',ru:'машина'},{e:'✈️',t:'Ҳавопаймо',ru:'самолёт'}]},
+   {ask:'Ба сабад чӣ мемонанд?',ru:'Что кладут в корзину?',opts:[{e:'🍑',t:'Мева',ru:'фрукты',ok:1},{e:'📗',t:'Китоб',ru:'книга'},{e:'⚽',t:'Тӯб',ru:'мяч'}]}]},
+ {id:7,lessons:'13–14',page:20,title:'Афсонаи «Бузаки ҷингилапо»',ru:'Сказка «Козлёнок»',
+  look:[{e:'🐐',t:'Ин буз аст.',ru:'Это коза.'},{e:'🐺',t:'Ин гург аст.',ru:'Это волк.'}],
+  quiz:[
+   {ask:'Афсона дар бораи кӣ аст?',ru:'О ком сказка?',opts:[{e:'🐐',t:'Буз',ru:'коза',ok:1},{e:'🦁',t:'Шер',ru:'лев'},{e:'🐘',t:'Фил',ru:'слон'}]},
+   {ask:'Гургро ёб.',ru:'Найди волка.',opts:[{e:'🐺',t:'Гург',ru:'волк',ok:1},{e:'🐇',t:'Харгӯш',ru:'заяц'},{e:'🐔',t:'Мурғ',ru:'курица'}]}]},
+ {id:8,lessons:'15–16',page:21,title:'Овозакҳо',ru:'Звуки',
+  look:[{e:'🐕',t:'Ин саг аст.',ru:'Это собака.'},{e:'🐈',t:'Ин гурба аст.',ru:'Это кошка.'},{e:'🦗',t:'Ин малах аст.',ru:'Это кузнечик.'},{e:'🐇',t:'Инҳо харгӯшҳо ҳастанд.',ru:'Это зайцы.'}],
+  quiz:[
+   {ask:'Саг чӣ мегӯяд?',ru:'Что говорит собака?',opts:[{e:'🐕',t:'Вов-вов',ru:'гав-гав',ok:1},{e:'🐈',t:'Мияв',ru:'мяу'},{e:'🐓',t:'Қу-қу-қу',ru:'ку-ка-ре-ку'}]},
+   {ask:'Гурба чӣ мегӯяд?',ru:'Что говорит кошка?',opts:[{e:'🐈',t:'Мияв',ru:'мяу',ok:1},{e:'🐕',t:'Вов-вов',ru:'гав-гав'},{e:'🐓',t:'Қу-қу-қу',ru:'ку-ка-ре-ку'}]}]},
+ {id:9,lessons:'17–18',page:22,title:'Овозакҳо',ru:'Звуки',
+  look:[{e:'🔨',t:'Ин оҳангар аст.',ru:'Это кузнец.'},{e:'🪑',t:'Ин дуредгар аст.',ru:'Это плотник.'},{e:'🔔',t:'Ин занг аст.',ru:'Это колокольчик.'}],
+  quiz:[
+   {ask:'Зангро ёб.',ru:'Найди колокольчик.',opts:[{e:'🔔',t:'Занг',ru:'колокольчик',ok:1},{e:'✏️',t:'Қалам',ru:'карандаш'},{e:'📗',t:'Китоб',ru:'книга'}]},
+   {ask:'Дуредгар чӣ месозад?',ru:'Что делает плотник?',opts:[{e:'🪑',t:'Курсӣ',ru:'стул',ok:1},{e:'🍞',t:'Нон',ru:'хлеб'},{e:'🌹',t:'Гул',ru:'цветок'}]}]},
+ {id:10,lessons:'19–20',page:23,title:'Овозакҳо',ru:'Звуки',
+  look:[{e:'🥁',t:'Ин табл аст.',ru:'Это барабан.'},{e:'🐸',t:'Ин қурбоққа аст.',ru:'Это лягушка.'},{e:'🐦',t:'Ин паранда аст.',ru:'Это птица.'},{e:'🐓',t:'Ин хурӯс аст.',ru:'Это петух.'}],
+  quiz:[
+   {ask:'Хурӯс чӣ мегӯяд?',ru:'Что говорит петух?',opts:[{e:'🐓',t:'Қу-қу-қу',ru:'ку-ка-ре-ку',ok:1},{e:'🐈',t:'Мияв',ru:'мяу'},{e:'🐕',t:'Вов-вов',ru:'гав-гав'}]},
+   {ask:'Таблро ёб.',ru:'Найди барабан.',opts:[{e:'🥁',t:'Табл',ru:'барабан',ok:1},{e:'⚽',t:'Тӯб',ru:'мяч'},{e:'📗',t:'Китоб',ru:'книга'}]}]},
+ {id:11,lessons:'21–22',page:24,title:'Ҳарфи О о',ru:'Буква О о',
+  letter:{U:'О',l:'о',pool:['Б','В','Н','А','Е','У','И'],say:['Ҳарфи о.','О.','О о о.'],words:[{e:'☀️',t:'офтоб',ru:'солнце'},{e:'🦌',t:'оҳу',ru:'олень'},{e:'💧',t:'об',ru:'вода'}]},
+  quiz:[
+   {ask:'Кадом калима бо «о» сар мешавад?',ru:'Какое слово начинается на «о»?',opts:[{e:'💧',t:'Об',ru:'вода',ok:1},{e:'🌹',t:'Гул',ru:'цветок'},{e:'📗',t:'Китоб',ru:'книга'}]},
+   {ask:'Кадом калима бо «о» сар мешавад?',ru:'Какое слово начинается на «о»?',opts:[{e:'☀️',t:'Офтоб',ru:'солнце',ok:1},{e:'🚗',t:'Мошин',ru:'машина'},{e:'⚽',t:'Тӯб',ru:'мяч'}]}]},
+ {id:12,lessons:'23–24',page:25,title:'Ҳарфи А а',ru:'Буква А а',
+  letter:{U:'А',l:'а',pool:['Б','В','Н','О','Е','У','И'],say:['Ҳарфи а.','А.','А а а.'],words:[{e:'🍇',t:'ангур',ru:'виноград'},{e:'🐴',t:'асп',ru:'лошадь'},{e:'☁️',t:'абр',ru:'облако'},{e:'📞',t:'алло',ru:'алло'}]},
+  quiz:[
+   {ask:'Кадом калима бо «а» сар мешавад?',ru:'Какое слово начинается на «а»?',opts:[{e:'🐴',t:'Асп',ru:'лошадь',ok:1},{e:'🌹',t:'Гул',ru:'цветок'},{e:'📗',t:'Китоб',ru:'книга'}]},
+   {ask:'Кадом калима бо «а» сар мешавад?',ru:'Какое слово начинается на «а»?',opts:[{e:'🍇',t:'Ангур',ru:'виноград',ok:1},{e:'🍞',t:'Нон',ru:'хлеб'},{e:'🐍',t:'Мор',ru:'змея'}]}]}
+];
+
+var SPK='<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function starSvg(n){return '<svg viewBox="0 0 24 24" width="'+n+'" height="'+n+'" aria-hidden="true"><polygon points="12,2 15,9 22,9.5 16.5,14 18.5,21 12,17 5.5,21 7.5,14 2,9.5 9,9" fill="#ffe21a" stroke="#1b1600" stroke-width="1.4" stroke-linejoin="round"/></svg>';}
+function $(s){return document.querySelector(s);}
+function $$(s){return Array.prototype.slice.call(document.querySelectorAll(s));}
+function h(tag,props){
+  var el=document.createElement(tag),p=props||{};
+  Object.keys(p).forEach(function(k){
+    var v=p[k];if(v===false||v==null)return;
+    if(k==='class')el.className=v;else if(k==='html')el.innerHTML=v;
+    else if(k.indexOf('on')===0)el.addEventListener(k.slice(2),v);
+    else if(v===true)el.setAttribute(k,'');else el.setAttribute(k,v);
+  });
+  Array.prototype.slice.call(arguments,2).forEach(function add(c){
+    if(c==null||c===false)return;
+    if(Array.isArray(c))c.forEach(add);else el.append(c.nodeType?c:document.createTextNode(c));
+  });
+  return el;
+}
+function tr(tg,ru){return h('span',{},tg,h('small',{class:'ru'},ru));}
+function btn(cls,label,onclick,icon){
+  return h('button',{type:'button',class:'btn '+cls,onclick:onclick},icon?h('span',{html:icon}):null,h('span',{},label));
+}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+/* progress: optional per-device convenience */
+var DONE={};
+try{DONE=JSON.parse(localStorage.getItem('alifbo-done')||'{}')||{};}catch(e){DONE={};}
+function markDone(id){DONE[id]=1;try{localStorage.setItem('alifbo-done',JSON.stringify(DONE));}catch(e){}}
+
+/* voice: browser speech for the sample; the real app will play recorded audio */
+var synth=('speechSynthesis' in window)?window.speechSynthesis:null,voices=[];
+function loadVoices(){try{voices=synth?synth.getVoices():[];}catch(e){voices=[];}}
+function pickVoice(){
+  var tg=voices.filter(function(v){return /^tg/i.test(v.lang);})[0];
+  if(tg)return{v:tg,tj:true};
+  var ru=voices.filter(function(v){return /^ru/i.test(v.lang);})[0];
+  return{v:ru||null,tj:false};
+}
+var PH={'ӯ':'у','ӣ':'и','ҳ':'х','ҷ':'дж','қ':'к','ғ':'г','Ӯ':'У','Ӣ':'И','Ҳ':'Х','Ҷ':'Дж','Қ':'К','Ғ':'Г'};
+function phon(s){return s.replace(/[ӯӣҳҷқғӮӢҲҶҚҒ]/g,function(c){return PH[c]||c;});}
+function voiceText(){
+  if(!synth)return'В этом браузере нет голоса, звука не будет.';
+  var p=pickVoice();
+  if(p.tj)return'Голос: таджикский.';
+  if(p.v)return'Голос: русский робот, только для образца. Настоящий голос запишем позже.';
+  return'Голос не найден: звука не будет. Попробуйте открыть на телефоне в Chrome.';
+}
+function refreshVoiceNote(){$$('.voicenote').forEach(function(e){e.textContent=voiceText();});}
+if(synth){loadVoices();synth.onvoiceschanged=function(){loadVoices();refreshVoiceNote();};}
+var speakId=0,started=false;
+function say(text,rate){
+  return new Promise(function(res){
+    if(!synth){res();return;}
+    try{
+      synth.cancel();
+      var p=pickVoice(),u=new SpeechSynthesisUtterance(p.tj?text:phon(text));
+      if(p.v){u.voice=p.v;u.lang=p.v.lang;}else{u.lang='ru-RU';}
+      u.rate=rate||0.8;u.pitch=1.1;u.onend=u.onerror=function(){res();};
+      synth.speak(u);
+    }catch(e){res();}
+  });
+}
+async function sayAll(list,rate){
+  var id=++speakId;
+  for(var i=0;i<list.length;i++){if(id!==speakId)return;await say(list[i],rate);await wait(220);}
+}
+function stopSpeech(){speakId++;try{if(synth)synth.cancel();}catch(e){}}
+function auto(list,rate){if(started)setTimeout(function(){sayAll(list,rate);},320);}
+function listenBtn(list,rate){return btn('listen',tr('Гӯш кун','Слушай'),function(){sayAll(list,rate);},SPK);}
+function voiceNote(){return h('p',{class:'muted voicenote'},voiceText());}
+function hl(str,ch){
+  var f=document.createDocumentFragment(),re=new RegExp('('+ch+')','i');
+  str.split(re).forEach(function(p){if(!p)return;f.append(re.test(p)&&p.length===1?h('span',{class:'hl'},p):document.createTextNode(p));});
+  return f;
+}
+
+/* engine */
+var S={unit:null,steps:[],i:0,qi:0,found:0,heard:{},fr:0};
+function buildSteps(u){
+  var st=[{k:'book'}];
+  st.push({k:'page'});
+  if(u.letter)st.push({k:'find'});
+  (u.quiz||[]).forEach(function(q){st.push({k:'quiz',q:q});});
+  if(u.multi)st.push({k:'multi'});
+  st.push({k:'done'});
+  return st;
+}
+function openUnit(u){S.unit=u;S.steps=buildSteps(u);S.i=0;S.heard={};S.fr=0;S.found=0;started=false;render();window.scrollTo(0,0);}
+function next(){stopSpeech();S.i++;S.fr=0;render();window.scrollTo(0,0);}
+function home(){stopSpeech();S.unit=null;render();window.scrollTo(0,0);}
+
+function vHome(){
+  var done=Object.keys(DONE).length;
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr('Дарсро интихоб кун','Выбери урок')),
+    h('p',{class:'muted'},'Открой книгу «Алифбо» на нужной странице и нажми на урок. Пройдено: '+done+' из '+UNITS.length+'.'),
+    h('div',{class:'list'},UNITS.map(function(u){
+      return h('button',{type:'button',class:'card'+(DONE[u.id]?' done':''),onclick:function(){openUnit(u);}},
+        h('span',{class:'n'},u.lessons),
+        h('span',{class:'t'},tr(u.title,u.ru),h('div',{class:'s'},'Саҳифа '+u.page)),
+        h('span',{class:'st','aria-label':DONE[u.id]?'пройден':''},DONE[u.id]?'✓':''));
+    })),
+    bookBox());
+}
+function vBook(){
+  var u=S.unit;
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr('Китобатро кушо','Открой свою книгу')),
+    h('div',{class:'page-card'},
+      h('span',{class:'k'},tr('Саҳифа','Страница')),
+      h('b',{class:'big'},String(u.page)),
+      h('span',{class:'lesson'},tr('Дарсҳои '+u.lessons,'Уроки '+u.lessons))),
+    h('div',{class:'row'},
+      listenBtn(['Китобатро кушо.','Саҳифаи '+u.page+'.']),
+      btn('primary',tr('Тайёр!','Готово!'),function(){started=true;next();})));
+}
+function vLook(){
+  var u=S.unit,lines=u.look.map(function(o){return o.t;});
+  var say1=['Расмро хуб нигар.'].concat(lines);
+  auto(say1);
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr('Расмро нигар ва гӯш кун','Смотри на картинку и слушай')),
+    h('ul',{class:'look'},u.look.map(function(o){
+      return h('li',{},h('span',{class:'e','aria-hidden':'true'},o.e),tr(o.t,o.ru));
+    })),
+    h('p',{class:'muted'},'Ребёнок повторяет вслух сам. Приложение его речь не слушает.'),
+    h('div',{class:'row'},listenBtn(say1),btn('primary',tr('Такрор кардам','Я повторил'),next)));
+}
+function vLetter(){
+  var L=S.unit.letter,need=L.words.length;
+  var cnt=h('b',{class:'count'},Object.keys(S.heard).length+' / '+need);
+  var nb=h('button',{type:'button',class:'btn primary',disabled:Object.keys(S.heard).length<need,onclick:next},tr('Давом','Дальше'));
+  auto(L.say);
+  var grid=h('div',{class:'words'});
+  L.words.forEach(function(o){
+    var b=h('button',{type:'button',class:'word'+(S.heard[o.t]?' heard':''),onclick:function(){
+      b.classList.add('heard');S.heard[o.t]=1;
+      cnt.textContent=Object.keys(S.heard).length+' / '+need;
+      nb.disabled=Object.keys(S.heard).length<need;
+      sayAll([o.t],0.7);
+    }},h('span',{class:'e','aria-hidden':'true'},o.e),h('span',{},hl(o.t,L.l)),h('small',{class:'ru'},o.ru));
+    grid.append(b);
+  });
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr('Гӯш кун ва такрор кун','Слушай и повторяй')),
+    h('div',{class:'plate'},h('span',{},L.U),h('span',{},L.l)),
+    h('div',{class:'row'},listenBtn(L.say)),
+    h('p',{class:'muted'},'Нажми на каждое слово и послушай.'),
+    grid,
+    h('div',{class:'row',style:'align-items:center;justify-content:space-between'},cnt,nb));
+}
+function vFind(){
+  var L=S.unit.letter,rounds=[L.U,L.l];
+  var t=rounds[S.fr],pool=t===L.U?L.pool:L.pool.map(function(c){return c.toLowerCase();});
+  var opts=shuffle([t].concat(shuffle(pool).slice(0,5)));
+  var prompt=['Ҳарфи '+L.l+'-ро ёб.'];
+  auto(prompt);
+  var locked=false,grid=h('div',{class:'tiles'});
+  opts.forEach(function(o){
+    var b=h('button',{type:'button',class:'tile',onclick:function(){
+      if(locked)return;
+      if(o===t){
+        locked=true;b.classList.add('ok-state');say('Офарин!');
+        setTimeout(function(){S.fr++;if(S.fr>=rounds.length){next();}else{render();}},1000);
+      }else{
+        b.classList.add('bad');say('Бори дигар кӯшиш кун.');
+        setTimeout(function(){b.classList.remove('bad');},450);
+      }
+    }},o);
+    grid.append(b);
+  });
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr('Ҳарфи '+t+'-ро ёб','Найди букву '+t),h('span',{class:'count'},'  '+(S.fr+1)+' / '+rounds.length)),
+    grid,h('div',{class:'row'},listenBtn(prompt)));
+}
+function vQuiz(){
+  var q=S.steps[S.i].q,locked=false,say1=[q.ask];
+  auto(say1);
+  var box=h('div',{class:'opts'});
+  shuffle(q.opts).forEach(function(o){
+    var b=h('button',{type:'button',class:'opt',onclick:function(){
+      if(locked)return;
+      if(o.ok){
+        locked=true;b.classList.add('ok-state');say('Офарин!');
+        setTimeout(next,1000);
+      }else{
+        b.classList.add('bad');say('Бори дигар кӯшиш кун.');
+        setTimeout(function(){b.classList.remove('bad');},450);
+      }
+    }},h('span',{class:'e','aria-hidden':'true'},o.e),tr(o.t,o.ru));
+    box.append(b);
+  });
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr(q.ask,q.ru)),
+    h('div',{class:'row'},listenBtn(say1)),box);
+}
+function vMulti(){
+  var m=S.unit.multi,need=m.items.filter(function(o){return o.ok;}).length,found=0;
+  var cnt=h('b',{class:'count'},'0 / '+need);
+  var nb=h('button',{type:'button',class:'btn primary',disabled:true,onclick:next},tr('Давом','Дальше'));
+  var prompt=[m.ask];auto(prompt);
+  var grid=h('div',{class:'opts grid'});
+  shuffle(m.items).forEach(function(o){
+    var done=false;
+    var b=h('button',{type:'button',class:'opt',onclick:function(){
+      if(done)return;
+      if(o.ok){
+        done=true;b.classList.add('ok-state');found++;cnt.textContent=found+' / '+need;
+        nb.disabled=found<need;sayAll([o.t],0.7);
+      }else{
+        b.classList.add('bad');say('Не, бори дигар кӯшиш кун.');
+        setTimeout(function(){b.classList.remove('bad');},450);
+      }
+    }},h('span',{class:'e','aria-hidden':'true'},o.e),tr(o.t,o.ru));
+    grid.append(b);
+  });
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr(m.ask,m.ru)),
+    h('p',{class:'muted'},'Нажми на всё, что подходит.'),
+    h('div',{class:'row'},listenBtn(prompt)),grid,
+    h('div',{class:'row',style:'align-items:center;justify-content:space-between'},cnt,nb));
+}
+function vDone(){
+  var u=S.unit;markDone(u.id);
+  auto(['Офарин!','Ту Дарсҳои '+u.lessons+'-ро тамом кардӣ.']);
+  var nu=UNITS[UNITS.indexOf(u)+1];
+  return h('section',{class:'view done-view'},
+    h('div',{class:'stars',html:starSvg(72)+starSvg(92)+starSvg(72)}),
+    h('h1',{class:'q'},tr('Офарин!','Молодец!')),
+    h('p',{style:'margin:0;font-weight:700'},tr('Ту Дарсҳои '+u.lessons+'-ро тамом кардӣ.','Ты закончил уроки '+u.lessons+'.')),
+    h('div',{class:'row',style:'width:100%'},
+      nu?btn('primary',tr('Дарси оянда','Следующий урок'),function(){openUnit(nu);}):null,
+      btn('ghost',tr('Рӯйхат','К списку'),home),
+      btn('ghost',tr('Аз нав','Ещё раз'),function(){openUnit(u);})));
+}
+/* Page photos: the parent adds a photo of the family's own book page. It stays on this device only. */
+function idb(){
+  return new Promise(function(res){
+    try{
+      var r=indexedDB.open('alifbo',1);
+      r.onupgradeneeded=function(){r.result.createObjectStore('pages');};
+      r.onsuccess=function(){res(r.result);};
+      r.onerror=function(){res(null);};
+    }catch(e){res(null);}
+  });
+}
+function getPhoto(id){
+  return idb().then(function(db){
+    if(!db)return null;
+    return new Promise(function(res){
+      try{var q=db.transaction('pages').objectStore('pages').get(id);
+        q.onsuccess=function(){res(q.result||null);};q.onerror=function(){res(null);};
+      }catch(e){res(null);}
+    });
+  });
+}
+function setPhoto(id,val){
+  return idb().then(function(db){
+    if(!db)return false;
+    return new Promise(function(res){
+      try{var st=db.transaction('pages','readwrite').objectStore('pages');
+        var q=val?st.put(val,id):st.delete(id);
+        q.onsuccess=function(){res(true);};q.onerror=function(){res(false);};
+      }catch(e){res(false);}
+    });
+  });
+}
+function shrink(file){
+  return new Promise(function(res,rej){
+    var img=new Image(),u=URL.createObjectURL(file);
+    img.onload=function(){
+      var s=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement('canvas');
+      c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.8));
+    };
+    img.onerror=function(){URL.revokeObjectURL(u);rej(new Error('img'));};
+    img.src=u;
+  });
+}
+function photoBox(u){
+  var box=h('div',{class:'photo'});
+  function draw(data,msg){
+    box.replaceChildren();
+    var input=h('input',{type:'file',accept:'image/*',class:'vh','aria-label':'Фото страницы '+u.page});
+    input.addEventListener('change',function(){
+      var f=input.files&&input.files[0];if(!f)return;
+      shrink(f).then(function(d){return setPhoto(u.id,d).then(function(ok){draw(d,ok?'':'Фото показано, но телефон не дал его сохранить.');});})
+        .catch(function(){draw(data,'Не получилось открыть это фото.');});
+    });
+    if(data){
+      box.append(h('img',{src:data,alt:'Саҳифаи '+u.page+' аз китоб',class:'pageimg'}));
+      box.append(h('div',{class:'row'},
+        h('label',{class:'btn ghost small'},input,h('span',{},'Заменить фото')),
+        h('button',{type:'button',class:'btn ghost small',onclick:function(){setPhoto(u.id,null).then(function(){draw(null,'');});}},'Убрать')));
+    }else{
+      box.append(h('label',{class:'addphoto'},input,
+        h('b',{},'+ Фото страницы '+u.page),
+        h('span',{class:'muted'},'Для родителей: сфотографируйте страницу своей книги, и она будет на экране. Фото хранится только в этом телефоне.')));
+    }
+    if(msg)box.append(h('p',{class:'muted',role:'status'},msg));
+  }
+  draw(null,'');
+  getPhoto(u.id).then(function(d){if(d)draw(d,'');});
+  return box;
+}
+/* Whole book at once: the parent picks the family's own PDF of the book; pages are cut out on this device and stay here. */
+function loadPdfJs(){
+  return new Promise(function(res,rej){
+    if(window.pdfjsLib){res(window.pdfjsLib);return;}
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=function(){
+      try{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';res(window.pdfjsLib);}
+      catch(e){rej(e);}
+    };
+    s.onerror=function(){rej(new Error('net'));};
+    document.head.append(s);
+  });
+}
+async function importBook(file,status){
+  status('Открываю книгу…');
+  var lib=await loadPdfJs();
+  var pdf=await lib.getDocument({data:await file.arrayBuffer()}).promise;
+  var n=0;
+  for(var i=0;i<UNITS.length;i++){
+    var u=UNITS[i];if(u.page>pdf.numPages)continue;
+    status('Страница '+u.page+' ('+(i+1)+' из '+UNITS.length+')…');
+    var pg=await pdf.getPage(u.page),vp=pg.getViewport({scale:1});
+    vp=pg.getViewport({scale:Math.min(2,1100/vp.width)});
+    var c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+    await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    if(await setPhoto(u.id,c.toDataURL('image/jpeg',0.8)))n++;
+  }
+  return n;
+}
+function bookBox(){
+  var msg=h('p',{class:'muted',role:'status'},'');
+  var input=h('input',{type:'file',accept:'application/pdf,.pdf',class:'vh','aria-label':'Файл книги PDF'});
+  input.addEventListener('change',function(){
+    var f=input.files&&input.files[0];if(!f)return;
+    importBook(f,function(t){msg.textContent=t;})
+      .then(function(n){msg.textContent=n?('Готово: страниц добавлено '+n+'. Откройте любой урок.'):'Страницы не сохранились: телефон не дал место.';})
+      .catch(function(){msg.textContent='Не получилось открыть этот файл. Добавьте страницы по одной через «+ Фото страницы» внутри урока.';});
+  });
+  return h('div',{class:'photo'},
+    h('label',{class:'addphoto'},input,
+      h('b',{},'+ Загрузить книгу (PDF) целиком'),
+      h('span',{class:'muted'},'Для родителей: выберите файл своей книги «Алифбо». Страницы уроков встанут на экран сами и останутся только в этом телефоне.')),
+    msg);
+}
+function dotScheme(word,ch){
+  var box=h('span',{class:'dotsch','aria-hidden':'true'});
+  word.split('').forEach(function(c){box.append(h('i',{class:c.toLowerCase()===ch?'g':''}));});
+  return box;
+}
+/* The page screen: our own page in the primer's style. Every element speaks on tap; Play reads the whole page. */
+function vPage(){
+  var u=S.unit,L=u.letter,seq=[];
+  function mark(el){seq.forEach(function(x){x.el.classList.toggle('on',x.el===el);});}
+  function reg(el,list,rate){
+    seq.push({el:el,list:list,rate:rate});
+    el.addEventListener('click',function(){mark(el);sayAll(list,rate);});
+  }
+  var page=h('div',{class:'bookpage'},h('div',{class:'ribbon'},'Дарсҳои '+u.lessons.replace('–',' ва ')));
+  if(L){
+    var pl=h('button',{type:'button',class:'plate pbtn','aria-label':'Ҳарфи '+L.U},h('span',{},L.U),h('span',{},L.l));
+    reg(pl,L.say,0.7);page.append(pl);
+  }
+  var grid=h('div',{class:'pics'});
+  (L?L.words:u.look).forEach(function(o){
+    var b=h('button',{type:'button',class:'pic'},
+      h('span',{class:'e','aria-hidden':'true'},o.e),
+      L?dotScheme(o.t,L.l):null,
+      h('span',{class:'cap'},L?hl(o.t,L.l):o.t),
+      h('small',{class:'ru'},o.ru));
+    reg(b,[o.t],0.7);grid.append(b);
+  });
+  page.append(grid);
+  var play=btn('listen',tr('Ҳамаро гӯш кун','Слушать всю страницу'),async function(){
+    var id=++speakId;
+    for(var i=0;i<seq.length;i++){
+      for(var j=0;j<seq[i].list.length;j++){
+        if(id!==speakId){return;}
+        mark(seq[i].el);
+        await say(seq[i].list[j],seq[i].rate);
+        await wait(350);
+      }
+    }
+    if(id===speakId)mark(null);
+  },SPK);
+  return h('section',{class:'view'},
+    h('h1',{class:'q'},tr('Саҳифаро нигар ва гӯш кун','Смотри на страницу и слушай')),
+    photoBox(u),
+    page,
+    h('p',{class:'muted'},'Нажми на букву или картинку, и она заговорит. Красная кнопка читает всю страницу. Ребёнок повторяет вслух сам.'),
+    h('div',{class:'row'},play,btn('primary',tr('Давом','Дальше'),next)));
+}
+var V={page:vPage,book:vBook,look:vLook,letter:vLetter,find:vFind,quiz:vQuiz,multi:vMulti,done:vDone};
+function render(){
+  var stage=$('#stage'),d=$('#dots');
+  stage.replaceChildren();d.replaceChildren();
+  $('#homebtn').hidden=!S.unit;
+  $('#chip').textContent=S.unit?('Дарсҳои '+S.unit.lessons):'Алифбо';
+  if(!S.unit){stage.append(vHome());return;}
+  stage.append(V[S.steps[S.i].k]());
+  S.steps.forEach(function(_,i){d.append(h('i',{class:i<S.i?'done':(i===S.i?'on':'')}));});
+}
+$('#homebtn').addEventListener('click',home);
+$('#rubtn').addEventListener('click',function(){
+  var on=$('#app').classList.toggle('show-ru');this.setAttribute('aria-pressed',on?'true':'false');
+});
+refreshVoiceNote();render();
+})();
+</script>
+</body>
+</html>
