@@ -60,7 +60,7 @@ const PUNKT_CSP = `default-src 'none'; script-src ${inlineHashes('script')}; sty
 // Страница для клиентов проката (наличие и цены, только чтение): без входа и кабинетов, встроенные стиль и скрипт разрешены только по хешу.
 // Детское приложение «Алифбо»: одна статичная страница, без входа и без запросов к серверу.
 const ALIFBO_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'alifbo.html'));
-const ALIFBO_CSP = "default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; connect-src https://cdnjs.cloudflare.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+const ALIFBO_CSP = "default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const KLIENT_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'klient.html'));
 const klientHashes = (tag) => [...KLIENT_HTML.toString('utf8').matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`).join(' ');
 const KLIENT_CSP = `default-src 'none'; script-src ${klientHashes('script')}; style-src ${klientHashes('style')}; connect-src https://n8n.nurullo-sharipov.tech/webhook/prokat-public; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
@@ -214,6 +214,46 @@ export const server = http.createServer(async (req, res) => {
     if (!csrf) { csrf = rand(); setCookies.push(cookie('csrf', csrf)); }
     const html = (status, body) => send(status, body, setCookies.length ? { 'Set-Cookie': setCookies } : {});
     const redirect = (to) => send(303, '', { Location: to, ...(setCookies.length ? { 'Set-Cookie': setCookies } : {}) });
+
+    // Страницы книги «Алифбо»: лежат только на сервере в DATA_DIR, не в репозитории. Видят владелец и семья по ссылке-коду.
+    const AL_DIR = path.join(DATA_DIR, 'alifbo-pages');
+    const AL_CODE_FILE = path.join(DATA_DIR, 'alifbo-family.txt');
+    const alCode = () => { try { return fs.readFileSync(AL_CODE_FILE, 'utf8').trim(); } catch { return ''; } };
+    const alFamily = () => { const c = alCode(); return !!c && !!cookies.afam && cookies.afam.length === c.length && crypto.timingSafeEqual(Buffer.from(cookies.afam), Buffer.from(c)); };
+    const alPage = p.match(/^\/alifbo\/p\/(\d{1,3})$/);
+    if (alPage) {
+      const n = Number(alPage[1]);
+      if (n < 1 || n > 160) return html(404, V.notFound(lang));
+      const file = path.join(AL_DIR, n + '.jpg');
+      if (req.method === 'GET') {
+        if (!(user && user.is_owner) && !alFamily()) return html(404, 'no');
+        if (!fs.existsSync(file)) return html(404, 'no');
+        res.writeHead(200, { ...SEC, 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400', 'X-Robots-Tag': 'noindex' });
+        return res.end(fs.readFileSync(file));
+      }
+      if (req.method === 'POST') {
+        if (!(user && user.is_owner)) return html(401, 'owner');
+        if (req.headers['x-alifbo'] !== '1') return html(403, 'hdr');
+        const buf = await readRaw(req, 1_500_000);
+        const kind = sniff(buf);
+        if (!kind || kind[1] !== 'jpg') return html(415, 'type');
+        fs.mkdirSync(AL_DIR, { recursive: true });
+        fs.writeFileSync(file, buf, { mode: 0o600 });
+        return html(200, 'ok');
+      }
+    }
+    if (req.method === 'GET' && p === '/alifbo/family') {
+      if (!(user && user.is_owner)) return html(404, V.notFound(lang));
+      let c = alCode();
+      if (!c) { c = crypto.randomBytes(18).toString('hex'); fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(AL_CODE_FILE, c, { mode: 0o600 }); }
+      const n = fs.existsSync(AL_DIR) ? fs.readdirSync(AL_DIR).length : 0;
+      return html(200, `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><body style="font:18px system-ui;padding:20px;max-width:560px"><h1>Алифбо для семьи</h1><p>Страниц на сервере: <b>${n}</b></p><p>Ссылка для семьи (только для своих):</p><p style="word-break:break-all"><a href="${PUBLIC_URL}/alifbo/in?c=${c}">${PUBLIC_URL}/alifbo/in?c=${c}</a></p>`);
+    }
+    if (req.method === 'GET' && p === '/alifbo/in') {
+      const c = alCode(); const given = String(new URL(req.url, 'http://x').searchParams.get('c') || '');
+      if (c && given.length === c.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(c))) { setCookies.push(cookie('afam', c, 365 * 24 * 3600)); return redirect('/alifbo'); }
+      return html(404, V.notFound(lang));
+    }
 
     if (req.method === 'GET') {
       // Главный адрес открывает рабочее окно. Старая страница «Лола · 300 сомони» убрана с главного адреса, но осталась в архиве: /start и /start/demo.

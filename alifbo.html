@@ -512,7 +512,7 @@ function idb(){
     }catch(e){res(null);}
   });
 }
-function getPhoto(id){
+function getPhoto0(id){
   return idb().then(function(db){
     if(!db)return null;
     return new Promise(function(res){
@@ -520,6 +520,23 @@ function getPhoto(id){
         q.onsuccess=function(){res(q.result||null);};q.onerror=function(){res(null);};
       }catch(e){res(null);}
     });
+  });
+}
+function getPhoto(id){
+  return getPhoto0(id).then(function(d){
+    if(d||!/^https?:/.test(location.protocol))return d;
+    return fetch('/alifbo/p/'+id,{credentials:'same-origin'}).then(function(r){
+      if(!r.ok)return null;
+      return r.blob().then(function(b){return new Promise(function(res){var f=new FileReader();f.onload=function(){res(f.result);};f.onerror=function(){res(null);};f.readAsDataURL(b);});});
+    }).catch(function(){return null;});
+  });
+}
+function uploadPage(id,canvas){
+  return new Promise(function(res){
+    canvas.toBlob(function(b){
+      if(!b)return res(false);
+      fetch('/alifbo/p/'+id,{method:'POST',credentials:'same-origin',headers:{'X-Alifbo':'1'},body:b}).then(function(r){res(r.ok);}).catch(function(){res(false);});
+    },'image/jpeg',0.72);
   });
 }
 function setPhoto(id,val){
@@ -595,7 +612,7 @@ async function importBook(file,status){
   status('Открываю книгу…');
   var lib=await loadPdfJs();
   var pdf=await lib.getDocument({data:await file.arrayBuffer()}).promise;
-  var n=0,last=Math.min(pdf.numPages,151);
+  var n=0,up=0,last=Math.min(pdf.numPages,151);
   for(var p=14;p<=last;p++){
     status('Страница '+p+' из '+last+'…');
     var pg=await pdf.getPage(p),vp=pg.getViewport({scale:1});
@@ -603,8 +620,9 @@ async function importBook(file,status){
     var c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
     await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
     if(await setPhoto(p,c.toDataURL('image/jpeg',0.75)))n++;
+    if(await uploadPage(p,c))up++;
   }
-  return n;
+  importBook.up=up;return n;
 }
 function bookBox(){
   var msg=h('p',{class:'muted',role:'status'},'');
@@ -612,7 +630,7 @@ function bookBox(){
   input.addEventListener('change',function(){
     var f=input.files&&input.files[0];if(!f)return;
     importBook(f,function(t){msg.textContent=t;})
-      .then(function(n){msg.textContent=n?('Готово: страниц добавлено '+n+'. Откройте любой урок.'):'Страницы не сохранились: телефон не дал место.';})
+      .then(function(n){msg.textContent=n?('Готово: страниц добавлено '+n+(importBook.up?'; на сервер для семьи: '+importBook.up:'')+'. Откройте любой урок.'):'Страницы не сохранились: телефон не дал место.';})
       .catch(function(){msg.textContent='Не получилось открыть этот файл. Добавьте страницы по одной через «+ Фото страницы» внутри урока.';});
   });
   return h('div',{class:'photo'},
