@@ -746,6 +746,11 @@ $('#rubtn').addEventListener('click',function(){
   var on=$('#app').classList.toggle('show-ru');this.setAttribute('aria-pressed',on?'true':'false');
 });
 refreshVoiceNote();render();
+if(/^https?:/.test(location.protocol)&&!window.ALIFBO_ITEMS){
+  fetch('/alifbo/items.json',{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+    if(j&&typeof j==='object'){PAGEITEMS=j;if(S.unit)render();}
+  }).catch(function(){});
+}
 })();
 </script>
 </body>
