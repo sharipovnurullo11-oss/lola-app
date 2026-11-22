@@ -242,6 +242,25 @@ export const server = http.createServer(async (req, res) => {
         return html(200, 'ok');
       }
     }
+    if (p === '/alifbo/items.json') {
+      const f = path.join(DATA_DIR, 'alifbo-items.json');
+      if (req.method === 'GET') {
+        if (!(user && user.is_owner) && !alFamily()) return html(404, 'no');
+        if (!fs.existsSync(f)) return html(404, 'no');
+        res.writeHead(200, { ...SEC, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-cache', 'X-Robots-Tag': 'noindex' });
+        return res.end(fs.readFileSync(f));
+      }
+      if (req.method === 'POST') {
+        if (!(user && user.is_owner)) return html(401, 'owner');
+        if (req.headers['x-alifbo'] !== '1') return html(403, 'hdr');
+        const buf = await readRaw(req, 600_000);
+        let j; try { j = JSON.parse(buf.toString('utf8')); } catch { return html(400, 'json'); }
+        if (!j || typeof j !== 'object' || Array.isArray(j)) return html(400, 'json');
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(f, JSON.stringify(j), { mode: 0o600 });
+        return html(200, 'ok');
+      }
+    }
     if (req.method === 'GET' && p === '/alifbo/family') {
       if (!(user && user.is_owner)) return html(404, V.notFound(lang));
       let c = alCode();
