@@ -58,6 +58,9 @@ const inlineHashes = (tag) => [...PUNKT_HTML.toString('utf8').matchAll(new RegEx
 const PUNKT_CSP = `default-src 'none'; script-src ${inlineHashes('script')}; style-src ${inlineHashes('style')}; img-src 'self' data: https://lh3.googleusercontent.com; connect-src https://n8n.nurullo-sharipov.tech/webhook/prokat-owner; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
 
 // Страница для клиентов проката (наличие и цены, только чтение): без входа и кабинетов, встроенные стиль и скрипт разрешены только по хешу.
+// Детское приложение «Алифбо»: одна статичная страница, без входа и без запросов к серверу.
+const ALIFBO_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'alifbo.html'));
+const ALIFBO_CSP = "default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; connect-src https://cdnjs.cloudflare.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const KLIENT_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'klient.html'));
 const klientHashes = (tag) => [...KLIENT_HTML.toString('utf8').matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`).join(' ');
 const KLIENT_CSP = `default-src 'none'; script-src ${klientHashes('script')}; style-src ${klientHashes('style')}; connect-src https://n8n.nurullo-sharipov.tech/webhook/prokat-public; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
@@ -190,6 +193,10 @@ export const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (p === '/punkt' || p === '/punkt/')) {
       res.writeHead(200, { ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': PUNKT_CSP });
       return res.end(PUNKT_HTML);
+    }
+
+    if (req.method === 'GET' && (p === '/alifbo' || p === '/alifbo/')) {
+      return zsend(req, res, { ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': ALIFBO_CSP }, ALIFBO_HTML);
     }
 
     if (req.method === 'GET' && (p === '/prokat' || p === '/prokat/')) {
