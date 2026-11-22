@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Алифбо — уроки 1–24</title>
+<title>Алифбо — вся книга</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@500;700;800&display=swap">
 <style>
 :root{
@@ -24,7 +24,6 @@
   --blue:#7cc0ff; --on-blue:#08142d; --red:#ff6a70; --on-red:#2a0508; --green:#41d68f; color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.35}
 .app{max-width:480px;margin:0 auto;min-height:100%;padding-block:14px 28px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -74,6 +73,14 @@ h1.q{font-size:1.6rem;line-height:1.15;font-weight:800;margin:0;text-wrap:balanc
 .bad{animation:shake .4s}
 @keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
 .plate{display:flex;justify-content:center;gap:18px;background:var(--yellow);color:var(--on-yellow);font-weight:800;font-size:6.5rem;line-height:1.1;padding:10px 0;border-radius:6px}
+.crumb{margin:0;font-weight:700;color:var(--muted);font-size:.9rem}
+.ctrl{position:sticky;bottom:8px;z-index:2;display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;padding:8px;background:var(--bg);border-radius:20px;box-shadow:0 2px 14px rgba(0,0,0,.18)}
+.cb{min-height:66px;border:0;border-radius:16px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;line-height:1.1}
+.cb b{font-size:.95rem}
+.cb.play{background:var(--red);color:var(--on-red)}
+.cb.stop{background:var(--paper);color:var(--ink);border:2px solid var(--line)}
+.cb.rep{background:var(--blue);color:var(--on-blue)}
+.cb .ru{color:inherit;opacity:.85;font-weight:500}
 .photo{display:grid;gap:10px}
 .pageimg{display:block;width:100%;height:auto;border-radius:10px;border:2px solid var(--line);background:var(--paper)}
 .addphoto{display:grid;gap:4px;padding:16px;border:3px dashed var(--line);border-radius:14px;background:var(--paper);cursor:pointer;text-align:center;color:var(--blue)}
@@ -116,6 +123,7 @@ h1.q{font-size:1.6rem;line-height:1.15;font-weight:800;margin:0;text-wrap:balanc
 </style>
 </head>
 <body>
+
 <div class="app" id="app">
   <header class="top">
     <div class="l"><button class="icon-btn" id="homebtn" aria-label="К списку уроков" hidden>&larr;</button><span class="chip" id="chip">Алифбо</span></div>
@@ -198,7 +206,50 @@ var UNITS=[
   letter:{U:'А',l:'а',pool:['Б','В','Н','О','Е','У','И'],say:['Ҳарфи а.','А.','А а а.'],words:[{e:'🍇',t:'ангур',ru:'виноград'},{e:'🐴',t:'асп',ru:'лошадь'},{e:'☁️',t:'абр',ru:'облако'},{e:'📞',t:'алло',ru:'алло'}]},
   quiz:[
    {ask:'Кадом калима бо «а» сар мешавад?',ru:'Какое слово начинается на «а»?',opts:[{e:'🐴',t:'Асп',ru:'лошадь',ok:1},{e:'🌹',t:'Гул',ru:'цветок'},{e:'📗',t:'Китоб',ru:'книга'}]},
-   {ask:'Кадом калима бо «а» сар мешавад?',ru:'Какое слово начинается на «а»?',opts:[{e:'🍇',t:'Ангур',ru:'виноград',ok:1},{e:'🍞',t:'Нон',ru:'хлеб'},{e:'🐍',t:'Мор',ru:'змея'}]}]}
+   {ask:'Кадом калима бо «а» сар мешавад?',ru:'Какое слово начинается на «а»?',opts:[{e:'🍇',t:'Ангур',ru:'виноград',ok:1},{e:'🍞',t:'Нон',ru:'хлеб'},{e:'🐍',t:'Мор',ru:'змея'}]}]},
+ {"id":13,"lessons":"25–28","page":27,"pages":[27,28],"title":"Ҳарфи Л л","ru":"Буква Л л","letter":{"U":"Л","l":"л","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи л.","л."],"words":[{"t":"лола","e":"🌷","ru":"тюльпан"},{"t":"лона","e":"🪺","ru":"гнездо"},{"t":"ало","e":"","ru":""},{"t":"мулло","e":"","ru":""}]}},
+ {"id":14,"lessons":"29–32","page":29,"pages":[29,30,31,32],"title":"Ҳарфи Н н","ru":"Буква Н н","letter":{"U":"Н","l":"н","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи н.","н."],"words":[{"t":"нома","e":"✉️","ru":"письмо"},{"t":"ном","e":"","ru":"имя"},{"t":"лона","e":"🪺","ru":"гнездо"},{"t":"он","e":"","ru":""}]}},
+ {"id":15,"lessons":"33–36","page":33,"pages":[33,34,35,36],"title":"Ҳарфи М м","ru":"Буква М м","letter":{"U":"М","l":"м","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи м.","м."],"words":[{"t":"мор","e":"🐍","ru":"змея"},{"t":"мош","e":"","ru":"маш"},{"t":"нома","e":"✉️","ru":"письмо"},{"t":"мана","e":"","ru":"вот"}]}},
+ {"id":16,"lessons":"37–40","page":37,"pages":[37,38,39,40],"title":"Ҳарфи Р р","ru":"Буква Р р","letter":{"U":"Р","l":"р","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи р.","р."],"words":[{"t":"анор","e":"🍎","ru":"гранат"},{"t":"мор","e":"🐍","ru":"змея"},{"t":"рама","e":"","ru":"стадо"},{"t":"ром","e":"","ru":""}]}},
+ {"id":17,"lessons":"41–44","page":41,"pages":[41,42,43,44],"title":"Ҳарфи Ш ш","ru":"Буква Ш ш","letter":{"U":"Ш","l":"ш","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ъ","Э","Ю","Я"],"say":["Ҳарфи ш.","ш."],"words":[{"t":"шона","e":"","ru":"расчёска"},{"t":"ош","e":"🍚","ru":"плов"},{"t":"шаш","e":"6️⃣","ru":"шесть"},{"t":"ошно","e":"","ru":"друг"}]}},
+ {"id":18,"lessons":"45–48","page":45,"pages":[45,46,47],"title":"Ҳарфи Х х","ru":"Буква Х х","letter":{"U":"Х","l":"х","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи х.","х."],"words":[{"t":"хона","e":"🏠","ru":"дом"},{"t":"хол","e":"","ru":"родинка"},{"t":"хом","e":"","ru":"сырой"},{"t":"хола","e":"","ru":"тётя"}]}},
+ {"id":19,"lessons":"49–52","page":48,"pages":[48,49,50,51],"title":"Ҳарфи У у","ru":"Буква У у","letter":{"U":"У","l":"у","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи у.","у."],"words":[{"t":"хурмо","e":"","ru":"хурма"},{"t":"олу","e":"","ru":"слива"},{"t":"Умар","e":"","ru":""},{"t":"мушхор","e":"","ru":""}]}},
+ {"id":20,"lessons":"53–56","page":52,"pages":[52,53],"title":"Ҳарфи Ӯ ӯ","ru":"Буква Ӯ ӯ","letter":{"U":"Ӯ","l":"ӯ","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ӯ.","ӯ."],"words":[{"t":"хӯша","e":"🍇","ru":"гроздь"},{"t":"шӯла","e":"","ru":"каша"},{"t":"шӯр","e":"","ru":"солёный"},{"t":"нӯл","e":"","ru":"клюв"}]}},
+ {"id":21,"lessons":"57–60","page":54,"pages":[54,55,56,57],"title":"Ҳарфи С с","ru":"Буква С с","letter":{"U":"С","l":"с","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи с.","с."],"words":[{"t":"ӯсма","e":"","ru":"усма"},{"t":"сурма","e":"","ru":"сурьма"},{"t":"хушрӯ","e":"","ru":"красивый"},{"t":"Асрор","e":"","ru":""}]}},
+ {"id":22,"lessons":"61–64","page":58,"pages":[58,59,60,61],"title":"Ҳарфи З з","ru":"Буква З з","letter":{"U":"З","l":"з","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи з.","з."],"words":[{"t":"сӯзан","e":"🪡","ru":"игла"},{"t":"асал","e":"🍯","ru":"мёд"},{"t":"замон","e":"","ru":"время"},{"t":"мӯза","e":"🧦","ru":"носок"}]}},
+ {"id":23,"lessons":"65–68","page":62,"pages":[62,63,64,65],"title":"Ҳарфи И и","ru":"Буква И и","letter":{"U":"И","l":"и","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи и.","и."],"words":[{"t":"зина","e":"🪜","ru":"лестница"},{"t":"оина","e":"🪞","ru":"зеркало"},{"t":"миз","e":"","ru":"стол"},{"t":"ширин","e":"","ru":"сладкий"}]}},
+ {"id":24,"lessons":"69–72","page":66,"pages":[66,67,68,69],"title":"Ҳарфи К к","ru":"Буква К к","letter":{"U":"К","l":"к","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи к.","к."],"words":[{"t":"коса","e":"","ru":"чаша"},{"t":"кӯза","e":"🏺","ru":"кувшин"},{"t":"калон","e":"","ru":"большой"},{"t":"карам","e":"🥬","ru":"капуста"}]}},
+ {"id":25,"lessons":"73–76","page":70,"pages":[70,71,72,73],"title":"Ҳарфи В в","ru":"Буква В в","letter":{"U":"В","l":"в","pool":["А","Б","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи в.","в."],"words":[{"t":"Наврӯз","e":"","ru":""},{"t":"Кова","e":"","ru":""},{"t":"ошно","e":"","ru":"друг"},{"t":"савол","e":"❓","ru":"вопрос"}]}},
+ {"id":26,"lessons":"77–80","page":74,"pages":[74,75,76,77],"title":"Ҳарфи Д д","ru":"Буква Д д","letter":{"U":"Д","l":"д","pool":["А","Б","В","Г","Ғ","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи д.","д."],"words":[{"t":"дандон","e":"🦷","ru":"зуб"},{"t":"доира","e":"","ru":"бубен"},{"t":"каду","e":"🎃","ru":"тыква"},{"t":"дору","e":"💊","ru":"лекарство"}]}},
+ {"id":27,"lessons":"81–84","page":78,"pages":[78,79,80,81],"title":"Ҳарфи Г г","ru":"Буква Г г","letter":{"U":"Г","l":"г","pool":["А","Б","В","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи г.","г."],"words":[{"t":"саг","e":"🐕","ru":"собака"},{"t":"гург","e":"🐺","ru":"волк"},{"t":"гул","e":"🌹","ru":"цветок"},{"t":"гулдон","e":"","ru":"ваза"}]}},
+ {"id":28,"lessons":"85–88","page":82,"pages":[82,83,84,85],"title":"Ҳарфи П п","ru":"Буква П п","letter":{"U":"П","l":"п","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи п.","п."],"words":[{"t":"парда","e":"","ru":"занавес"},{"t":"паланг","e":"🐆","ru":"леопард"},{"t":"падар","e":"","ru":"отец"},{"t":"помидор","e":"🍅","ru":"помидор"}]}},
+ {"id":29,"lessons":"89–92","page":86,"pages":[86,87,88,89],"title":"Ҳарфи Т т","ru":"Буква Т т","letter":{"U":"Т","l":"т","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи т.","т."],"words":[{"t":"тут","e":"","ru":"шелковица"},{"t":"тарозу","e":"⚖️","ru":"весы"},{"t":"танӯр","e":"","ru":"тандыр"},{"t":"духтар","e":"👧","ru":"девочка"}]}},
+ {"id":30,"lessons":"93–96","page":90,"pages":[90,91,92,93],"title":"Ҳарфи Б б","ru":"Буква Б б","letter":{"U":"Б","l":"б","pool":["А","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи б.","б."],"words":[{"t":"барг","e":"🍃","ru":"лист"},{"t":"буз","e":"🐐","ru":"козёл"},{"t":"булбул","e":"🐦","ru":"соловей"},{"t":"барра","e":"🐑","ru":"ягнёнок"}]}},
+ {"id":31,"lessons":"97–100","page":94,"pages":[94,95,96,97],"title":"Ҳарфи Е е","ru":"Буква Е е","letter":{"U":"Е","l":"е","pool":["А","Б","В","Г","Ғ","Д","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи е.","е."],"words":[{"t":"себ","e":"🍎","ru":"яблоко"},{"t":"сел","e":"","ru":"сель"},{"t":"сер","e":"","ru":"сытый"},{"t":"Зебо","e":"","ru":""}]}},
+ {"id":32,"lessons":"101–104","page":98,"pages":[98,99],"title":"Ҳарфи Ф ф","ru":"Буква Ф ф","letter":{"U":"Ф","l":"ф","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ф.","ф."],"words":[{"t":"фил","e":"🐘","ru":"слон"},{"t":"фонус","e":"🏮","ru":"фонарь"},{"t":"фаввора","e":"⛲","ru":"фонтан"},{"t":"офтоб","e":"☀️","ru":"солнце"}]}},
+ {"id":33,"lessons":"105–106","page":100,"pages":[100,101],"title":"Ҳарфи Ғ ғ","ru":"Буква Ғ ғ","letter":{"U":"Ғ","l":"ғ","pool":["А","Б","В","Г","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ғ.","ғ."],"words":[{"t":"ғӯза","e":"","ru":"хлопчатник"},{"t":"ғалла","e":"🌾","ru":"зерно"},{"t":"ғоз","e":"🪿","ru":"гусь"},{"t":"ғилоф","e":"","ru":"чехол"}]}},
+ {"id":34,"lessons":"107–110","page":102,"pages":[102,103,104,105],"title":"Ҳарфи Қ қ","ru":"Буква Қ қ","letter":{"U":"Қ","l":"қ","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи қ.","қ."],"words":[{"t":"қалам","e":"✏️","ru":"карандаш"},{"t":"қафас","e":"","ru":"клетка"},{"t":"қурбоққа","e":"🐸","ru":"лягушка"},{"t":"қандил","e":"","ru":"люстра"}]}},
+ {"id":35,"lessons":"111–114","page":106,"pages":[106,107],"title":"Ҳарфи Ч ч","ru":"Буква Ч ч","letter":{"U":"Ч","l":"ч","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ч.","ч."],"words":[{"t":"чор","e":"4️⃣","ru":"четыре"},{"t":"чархбол","e":"🚁","ru":"вертолёт"},{"t":"чашм","e":"👁️","ru":"глаз"},{"t":"чашма","e":"","ru":"родник"}]}},
+ {"id":36,"lessons":"115–118","page":108,"pages":[108,109,110,111],"title":"Ҳарфи Ҷ ҷ","ru":"Буква Ҷ ҷ","letter":{"U":"Ҷ","l":"ҷ","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ҷ.","ҷ."],"words":[{"t":"ҷорӯб","e":"🧹","ru":"метла"},{"t":"ҷӯҷа","e":"🐥","ru":"цыплёнок"},{"t":"ҷузвдон","e":"🎒","ru":"портфель"},{"t":"ҷома","e":"👘","ru":"одежда"}]}},
+ {"id":37,"lessons":"119–120","page":112,"pages":[112,113],"title":"Ҳарфи Э э","ru":"Буква Э э","letter":{"U":"Э","l":"э","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Ю","Я"],"say":["Ҳарфи э.","э."],"words":[{"t":"элак","e":"","ru":"сито"},{"t":"Эраҷ","e":"","ru":""},{"t":"орд","e":"","ru":"мука"},{"t":"чистон","e":"","ru":"загадка"}]}},
+ {"id":38,"lessons":"121–122","page":114,"pages":[114,115],"title":"Ҳарфи Ӣ ӣ","ru":"Буква Ӣ ӣ","letter":{"U":"Ӣ","l":"ӣ","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ӣ.","ӣ."],"words":[{"t":"курсӣ","e":"🪑","ru":"стул"},{"t":"тӯтӣ","e":"🦜","ru":"попугай"},{"t":"дӯстӣ","e":"","ru":"дружба"},{"t":"Зебӣ","e":"","ru":""}]}},
+ {"id":39,"lessons":"123–128","page":116,"pages":[116,117,118,119],"title":"Ҳарфи Ҳ ҳ","ru":"Буква Ҳ ҳ","letter":{"U":"Ҳ","l":"ҳ","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ҳ.","ҳ."],"words":[{"t":"ҳавз","e":"","ru":"бассейн"},{"t":"ҳавлӣ","e":"","ru":"двор"},{"t":"ҳуштак","e":"","ru":"свисток"},{"t":"рӯбоҳ","e":"🦊","ru":"лиса"}]}},
+ {"id":40,"lessons":"129–130","page":120,"pages":[120,121],"title":"Ҳарфи Й й","ru":"Буква Й й","letter":{"U":"Й","l":"й","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи й.","й."],"words":[{"t":"най","e":"","ru":"флейта"},{"t":"чой","e":"☕","ru":"чай"},{"t":"ҷӯй","e":"","ru":"ручей"},{"t":"бунафша","e":"🌸","ru":"фиалка"}]}},
+ {"id":41,"lessons":"131–136","page":122,"pages":[122,123,124,125],"title":"Ҳарфи Ё ё","ru":"Буква Ё ё","letter":{"U":"Ё","l":"ё","pool":["А","Б","В","Г","Ғ","Д","Е","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ё.","ё."],"words":[{"t":"пиёз","e":"🧅","ru":"лук"},{"t":"пиёла","e":"","ru":"пиала"},{"t":"гиёҳ","e":"🌿","ru":"трава"},{"t":"тайёр","e":"","ru":"готовый"}]}},
+ {"id":42,"lessons":"137–140","page":126,"pages":[126,127,128,129],"title":"Ҳарфи Я я","ru":"Буква Я я","letter":{"U":"Я","l":"я","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю"],"say":["Ҳарфи я.","я."],"words":[{"t":"яхдон","e":"","ru":"холодильник"},{"t":"яхмос","e":"🍦","ru":"мороженое"},{"t":"ях","e":"🧊","ru":"лёд"},{"t":"Ямин","e":"","ru":""}]}},
+ {"id":43,"lessons":"141–144","page":130,"pages":[130,131],"title":"Ҳарфи Ю ю","ru":"Буква Ю ю","letter":{"U":"Ю","l":"ю","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Я"],"say":["Ҳарфи ю.","ю."],"words":[{"t":"юғон","e":"","ru":"толстый"},{"t":"сеюм","e":"","ru":"третий"},{"t":"Юнус","e":"","ru":""},{"t":"Юсуф","e":"","ru":""}]}},
+ {"id":44,"lessons":"145–148","page":132,"pages":[132,133,134,135],"title":"Ҳарфи Ж ж","ru":"Буква Ж ж","letter":{"U":"Ж","l":"ж","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Ъ","Э","Ю","Я"],"say":["Ҳарфи ж.","ж."],"words":[{"t":"жола","e":"","ru":"град"},{"t":"каждум","e":"🦂","ru":"скорпион"},{"t":"мижа","e":"","ru":"ресница"},{"t":"ғижак","e":"","ru":"гиджак"}]}},
+ {"id":45,"lessons":"149–150","page":136,"pages":[136,137],"title":"Ҳарфи Ъ ъ","ru":"Буква Ъ ъ","letter":{"U":"Ъ","l":"ъ","pool":["А","Б","В","Г","Ғ","Д","Е","Ё","Ж","З","И","Ӣ","Й","К","Қ","Л","М","Н","О","П","Р","С","Т","У","Ӯ","Ф","Х","Ҳ","Ч","Ҷ","Ш","Э","Ю","Я"],"say":["Ҳарфи ъ.","ъ."],"words":[{"t":"қалъа","e":"🏰","ru":"крепость"},{"t":"наъл","e":"","ru":"подкова"},{"t":"шамъ","e":"🕯️","ru":"свеча"},{"t":"шеър","e":"","ru":"стихи"}]}},
+ {"id":46,"lessons":"151","page":138,"pages":[138],"title":"Фирӯз","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Фирӯз","ru":""}]},
+ {"id":47,"lessons":"152","page":139,"pages":[139,140],"title":"Ман «Алифбо» мехонам","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Ман «Алифбо» мехонам","ru":""}]},
+ {"id":48,"lessons":"153","page":141,"pages":[141],"title":"Афлесун ва себ","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Афлесун ва себ","ru":""}]},
+ {"id":49,"lessons":"154","page":142,"pages":[142],"title":"Муаллим","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Муаллим","ru":""}]},
+ {"id":50,"lessons":"155","page":143,"pages":[143],"title":"Мӯри боҳиммат","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Мӯри боҳиммат","ru":""}]},
+ {"id":51,"lessons":"156","page":144,"pages":[144],"title":"Модарам","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Модарам","ru":""}]},
+ {"id":52,"lessons":"157","page":145,"pages":[145,146,147],"title":"Зимистон","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Зимистон","ru":""}]},
+ {"id":53,"lessons":"158","page":148,"pages":[148],"title":"Мӯрча ва кабӯтар","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Мӯрча ва кабӯтар","ru":""}]},
+ {"id":54,"lessons":"159–160","page":149,"pages":[149],"title":"Парчами Тоҷикистон","ru":"Чтение: страница книги","read":true,"look":[{"e":"📖","t":"Парчами Тоҷикистон","ru":""}]},
+ {"id":55,"lessons":"Алифбо","page":150,"pages":[150,151],"title":"Ҳарфҳои алифбо","ru":"Все буквы","read":true,"look":[{"e":"Аа","t":"а","ru":""},{"e":"Бб","t":"б","ru":""},{"e":"Вв","t":"в","ru":""},{"e":"Гг","t":"г","ru":""},{"e":"Ғғ","t":"ғ","ru":""},{"e":"Дд","t":"д","ru":""},{"e":"Ее","t":"е","ru":""},{"e":"Ёё","t":"ё","ru":""},{"e":"Жж","t":"ж","ru":""},{"e":"Зз","t":"з","ru":""},{"e":"Ии","t":"и","ru":""},{"e":"Ӣӣ","t":"ӣ","ru":""},{"e":"Йй","t":"й","ru":""},{"e":"Кк","t":"к","ru":""},{"e":"Ққ","t":"қ","ru":""},{"e":"Лл","t":"л","ru":""},{"e":"Мм","t":"м","ru":""},{"e":"Нн","t":"н","ru":""},{"e":"Оо","t":"о","ru":""},{"e":"Пп","t":"п","ru":""},{"e":"Рр","t":"р","ru":""},{"e":"Сс","t":"с","ru":""},{"e":"Тт","t":"т","ru":""},{"e":"Уу","t":"у","ru":""},{"e":"Ӯӯ","t":"ӯ","ru":""},{"e":"Фф","t":"ф","ru":""},{"e":"Хх","t":"х","ru":""},{"e":"Ҳҳ","t":"ҳ","ru":""},{"e":"Чч","t":"ч","ru":""},{"e":"Ҷҷ","t":"ҷ","ru":""},{"e":"Шш","t":"ш","ru":""},{"e":"Ъъ","t":"ъ","ru":""},{"e":"Ээ","t":"э","ru":""},{"e":"Юю","t":"ю","ru":""},{"e":"Яя","t":"я","ru":""}]}
 ];
 
 var SPK='<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -280,16 +331,29 @@ function hl(str,ch){
 
 /* engine */
 var S={unit:null,steps:[],i:0,qi:0,found:0,heard:{},fr:0};
+var DIST=[{e:'🌹',t:'Гул',ru:'цветок'},{e:'📗',t:'Китоб',ru:'книга'},{e:'⚽',t:'Тӯб',ru:'мяч'},{e:'🐍',t:'Мор',ru:'змея'},{e:'🍞',t:'Нон',ru:'хлеб'},{e:'🏠',t:'Хона',ru:'дом'},{e:'💧',t:'Об',ru:'вода'},{e:'🚗',t:'Мошин',ru:'машина'}];
+function autoQuiz(u){
+  var L=u.letter,l=L.l.toLowerCase(),out=[];
+  var has=L.words.filter(function(w){return w.t.toLowerCase().indexOf(l)>=0;});
+  var bad=DIST.filter(function(w){return w.t.toLowerCase().indexOf(l)<0;});
+  for(var k=0;k<Math.min(2,has.length);k++){
+    var w=has[k];
+    var opts=[{e:w.e||'🔤',t:w.t,ru:w.ru,ok:1}].concat(shuffle(bad).slice(0,2));
+    out.push({ask:'Дар кадом калима ҳарфи «'+l+'» ҳаст?',ru:'В каком слове есть буква «'+l+'»?',opts:shuffle(opts)});
+  }
+  return out;
+}
+function pgLabel(u){var p=u.pages||[u.page];return p.length>1?p[0]+'–'+p[p.length-1]:String(p[0]);}
 function buildSteps(u){
-  var st=[{k:'book'}];
-  st.push({k:'page'});
+  var st=[{k:'page'}];
   if(u.letter)st.push({k:'find'});
-  (u.quiz||[]).forEach(function(q){st.push({k:'quiz',q:q});});
+  var qs=u.quiz||(u.letter?autoQuiz(u):[]);
+  qs.forEach(function(q){st.push({k:'quiz',q:q});});
   if(u.multi)st.push({k:'multi'});
   st.push({k:'done'});
   return st;
 }
-function openUnit(u){S.unit=u;S.steps=buildSteps(u);S.i=0;S.heard={};S.fr=0;S.found=0;started=false;render();window.scrollTo(0,0);}
+function openUnit(u){S.unit=u;S.steps=buildSteps(u);S.i=0;S.heard={};S.fr=0;S.found=0;started=true;render();window.scrollTo(0,0);}
 function next(){stopSpeech();S.i++;S.fr=0;render();window.scrollTo(0,0);}
 function home(){stopSpeech();S.unit=null;render();window.scrollTo(0,0);}
 
@@ -301,7 +365,7 @@ function vHome(){
     h('div',{class:'list'},UNITS.map(function(u){
       return h('button',{type:'button',class:'card'+(DONE[u.id]?' done':''),onclick:function(){openUnit(u);}},
         h('span',{class:'n'},u.lessons),
-        h('span',{class:'t'},tr(u.title,u.ru),h('div',{class:'s'},'Саҳифа '+u.page)),
+        h('span',{class:'t'},tr(u.title,u.ru),h('div',{class:'s'},'Саҳифа '+pgLabel(u))),
         h('span',{class:'st','aria-label':DONE[u.id]?'пройден':''},DONE[u.id]?'✓':''));
     })),
     bookBox());
@@ -482,31 +546,36 @@ function shrink(file){
     img.src=u;
   });
 }
-function photoBox(u){
+function pageBox(pg){
   var box=h('div',{class:'photo'});
   function draw(data,msg){
     box.replaceChildren();
-    var input=h('input',{type:'file',accept:'image/*',class:'vh','aria-label':'Фото страницы '+u.page});
+    var input=h('input',{type:'file',accept:'image/*',class:'vh','aria-label':'Фото страницы '+pg});
     input.addEventListener('change',function(){
       var f=input.files&&input.files[0];if(!f)return;
-      shrink(f).then(function(d){return setPhoto(u.id,d).then(function(ok){draw(d,ok?'':'Фото показано, но телефон не дал его сохранить.');});})
+      shrink(f).then(function(d){return setPhoto(pg,d).then(function(ok){draw(d,ok?'':'Фото показано, но телефон не дал его сохранить.');});})
         .catch(function(){draw(data,'Не получилось открыть это фото.');});
     });
     if(data){
-      box.append(h('img',{src:data,alt:'Саҳифаи '+u.page+' аз китоб',class:'pageimg'}));
+      box.append(h('img',{src:data,alt:'Саҳифаи '+pg+' аз китоб',class:'pageimg'}));
       box.append(h('div',{class:'row'},
         h('label',{class:'btn ghost small'},input,h('span',{},'Заменить фото')),
-        h('button',{type:'button',class:'btn ghost small',onclick:function(){setPhoto(u.id,null).then(function(){draw(null,'');});}},'Убрать')));
+        h('button',{type:'button',class:'btn ghost small',onclick:function(){setPhoto(pg,null).then(function(){draw(null,'');});}},'Убрать')));
     }else{
       box.append(h('label',{class:'addphoto'},input,
-        h('b',{},'+ Фото страницы '+u.page),
+        h('b',{},'+ Фото страницы '+pg),
         h('span',{class:'muted'},'Для родителей: сфотографируйте страницу своей книги, и она будет на экране. Фото хранится только в этом телефоне.')));
     }
     if(msg)box.append(h('p',{class:'muted',role:'status'},msg));
   }
   draw(null,'');
-  getPhoto(u.id).then(function(d){if(d)draw(d,'');});
+  getPhoto(pg).then(function(d){if(d)draw(d,'');});
   return box;
+}
+function photoBox(u){
+  var w=h('div',{});
+  (u.pages||[u.page]).forEach(function(pg){w.append(pageBox(pg));});
+  return w;
 }
 /* Whole book at once: the parent picks the family's own PDF of the book; pages are cut out on this device and stay here. */
 function loadPdfJs(){
@@ -526,15 +595,14 @@ async function importBook(file,status){
   status('Открываю книгу…');
   var lib=await loadPdfJs();
   var pdf=await lib.getDocument({data:await file.arrayBuffer()}).promise;
-  var n=0;
-  for(var i=0;i<UNITS.length;i++){
-    var u=UNITS[i];if(u.page>pdf.numPages)continue;
-    status('Страница '+u.page+' ('+(i+1)+' из '+UNITS.length+')…');
-    var pg=await pdf.getPage(u.page),vp=pg.getViewport({scale:1});
-    vp=pg.getViewport({scale:Math.min(2,1100/vp.width)});
+  var n=0,last=Math.min(pdf.numPages,151);
+  for(var p=14;p<=last;p++){
+    status('Страница '+p+' из '+last+'…');
+    var pg=await pdf.getPage(p),vp=pg.getViewport({scale:1});
+    vp=pg.getViewport({scale:Math.min(2,900/vp.width)});
     var c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
     await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
-    if(await setPhoto(u.id,c.toDataURL('image/jpeg',0.8)))n++;
+    if(await setPhoto(p,c.toDataURL('image/jpeg',0.75)))n++;
   }
   return n;
 }
@@ -560,13 +628,13 @@ function dotScheme(word,ch){
 }
 /* The page screen: our own page in the primer's style. Every element speaks on tap; Play reads the whole page. */
 function vPage(){
-  var u=S.unit,L=u.letter,seq=[];
+  var u=S.unit,L=u.letter,seq=[],last=-1;
   function mark(el){seq.forEach(function(x){x.el.classList.toggle('on',x.el===el);});}
   function reg(el,list,rate){
-    seq.push({el:el,list:list,rate:rate});
-    el.addEventListener('click',function(){mark(el);sayAll(list,rate);});
+    var idx=seq.push({el:el,list:list,rate:rate})-1;
+    el.addEventListener('click',function(){last=idx;mark(el);sayAll(list,rate);});
   }
-  var page=h('div',{class:'bookpage'},h('div',{class:'ribbon'},'Дарсҳои '+u.lessons.replace('–',' ва ')));
+  var page=h('div',{class:'bookpage'});
   if(L){
     var pl=h('button',{type:'button',class:'plate pbtn','aria-label':'Ҳарфи '+L.U},h('span',{},L.U),h('span',{},L.l));
     reg(pl,L.say,0.7);page.append(pl);
@@ -581,7 +649,8 @@ function vPage(){
     reg(b,[o.t],0.7);grid.append(b);
   });
   page.append(grid);
-  var play=btn('listen',tr('Ҳамаро гӯш кун','Слушать всю страницу'),async function(){
+  async function playAll(){
+    last=-1;
     var id=++speakId;
     for(var i=0;i<seq.length;i++){
       for(var j=0;j<seq[i].list.length;j++){
@@ -592,13 +661,28 @@ function vPage(){
       }
     }
     if(id===speakId)mark(null);
-  },SPK);
+  }
+  function repeat(){
+    if(last<0){playAll();return;}
+    var x=seq[last];mark(x.el);sayAll(x.list,x.rate);
+  }
+  function stop(){stopSpeech();mark(null);}
+  function cbtn(cls,tg,ru,fn,icon){
+    return h('button',{type:'button',class:'cb '+cls,onclick:fn,'aria-label':tg+' ('+ru+')'},h('span',{html:icon}),h('b',{},tr(tg,ru)));
+  }
+  var I_PLAY='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>';
+  var I_STOP='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>';
+  var I_REP='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return h('section',{class:'view'},
-    h('h1',{class:'q'},tr('Саҳифаро нигар ва гӯш кун','Смотри на страницу и слушай')),
+    h('p',{class:'crumb'},'Китоб · саҳифаи '+pgLabel(u)+' · Дарсҳои '+u.lessons),
     photoBox(u),
+    h('div',{class:'ctrl'},
+      cbtn('play','Гӯш кун','Слушать',playAll,I_PLAY),
+      cbtn('stop','Бас','Стоп',stop,I_STOP),
+      cbtn('rep','Боз','Повтор',repeat,I_REP)),
     page,
-    h('p',{class:'muted'},'Нажми на букву или картинку, и она заговорит. Красная кнопка читает всю страницу. Ребёнок повторяет вслух сам.'),
-    h('div',{class:'row'},play,btn('primary',tr('Давом','Дальше'),next)));
+    h('p',{class:'muted'},'Нажми на букву или картинку, и она заговорит. Ребёнок повторяет вслух сам.'),
+    h('div',{class:'row'},btn('primary',tr('Давом','Дальше'),next)));
 }
 var V={page:vPage,book:vBook,look:vLook,letter:vLetter,find:vFind,quiz:vQuiz,multi:vMulti,done:vDone};
 function render(){
