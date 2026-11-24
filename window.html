@@ -3102,7 +3102,10 @@ d.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKe
     var objTile = document.querySelector('#sp-home [data-home="obj"]'); if (objTile) objTile.hidden = !aOn();
     // Кабинет со стройкой (Асрор Холов): оставляем только продавца-ассистента и двух финансистов; SMM, маркетолог, менеджер, юрист и «Личный ассистент» скрыты.
     var onlyFin = aOn();
-    ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
+    /* 24.11.2026: в кабинете Ҷанат Абдуллоевой по просьбе Нурулло оставлены только «Продавец-ассистент» и «Финансист»: SMM, маркетолог, менеджер и юрист скрыты.
+       Кабинет узнаём по отпечатку кода (сам код в страницу не пишем). */
+    var janatCab = false; try { var jc = String(store('ew_cab') || ''), ja = 0x811c9dc5, jb = 5381; for (var ji = 0; ji < jc.length; ji++) { var jx = jc.charCodeAt(ji); ja ^= jx; ja = Math.imul(ja, 16777619) >>> 0; jb = (Math.imul(jb, 33) + jx) >>> 0; } janatCab = !!jc && (ja.toString(36) + '-' + jb.toString(36) + '-' + jc.length) === '1uxkhxj-16n6fx9-29'; } catch (e) {}
+    ['smm', 'mkt', 'manager', 'lawyer'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin || janatCab; });
     // По просьбе Нурулло (08.11.2026) в кабинете Асрора Холова убраны «Мой ассистент: сводка дня» и «Продавец-ассистент». Остальным кабинетам они видны как раньше.
     ['assistant', 'seller'].forEach(function (id) { var t = document.querySelector('#sp-home [data-home="' + id + '"]'); if (t) t.hidden = onlyFin; });
     var finB = document.querySelector('#sp-home [data-home="fin"] b'); if (finB) finB.textContent = aOn() ? ui('Аптека', 'Дорухона', 'Dorixona') : TX('Финансист');
