@@ -4131,7 +4131,7 @@ if (S.view === 'mkt') return renderMkt(el);
     return h;
   }
   // Полоса очереди обновляется на месте, без перерисовки всего экрана (чтобы не сбивать ввод).
-  function pkQPaint() { if (S.view !== 'prokat') return; var el = document.getElementById('pk-oq'), h = pkQBanner(); if (el && h !== PK_Q.html) { el.innerHTML = h; PK_Q.html = h; } }
+  function pkQPaint() { if (S.view !== 'prokat') return; if (PK.pt) pkPendLoad(PK.pt); var el = document.getElementById('pk-oq'), h = pkQBanner(); if (el && h !== PK_Q.html) { el.innerHTML = h; PK_Q.html = h; } }
   function pkQClick(k) {
     if (k === 'oq-open') { PK_Q.open = !PK_Q.open; PK_Q.ask = ''; pkQPaint(); return true; }
     if (k === 'oq-send') { pkQFlush(true); pkQPaint(); return true; }
@@ -5279,6 +5279,45 @@ if (S.view === 'mkt') return renderMkt(el);
       return a < b ? 1 : -1;
     }).map(function (o) { return o.p; });
   }
+  /* 24.11.2026: фото инструмента, снятые без интернета, сразу видны в его окне: они лежат в телефоне и ждут отправки.
+     Раньше такое фото появлялось в окне только после ответа сервера — без связи его не было видно, хотя оно стояло в очереди. */
+  function pkPtReload(pt) {
+    callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (x) {
+      if (PK.pt !== pt || !x || !x.ok) return;
+      pt.photos = pkNewestFirst(Array.isArray(x.photos) ? x.photos : []); pt.total = pkNum(x.total) || pt.photos.length; if (S.view === 'prokat') render();
+    });
+  }
+  function pkPendLoad(pt) {
+    if (!pt) return Promise.resolve();
+    var ck = pkCK();
+    return pkQIdx(ck).then(function (l) {
+      return Promise.all((l || []).map(function (m) {
+        return pkDb('readonly', function (st) { return st.get('oq:' + ck + ':' + m.k); }, 4000).then(function (it) {
+          var b = it && it.body;
+          if (!b || b.action !== 'tool_photo' || b.name !== pt.point || b.tool !== pt.tool || !/^data:image\//.test(String(b.photo || ''))) return null;
+          return { url: b.photo, date: String(b.at || ''), bad: m.bad ? String(m.bad) : '', k: m.k };
+        }).catch(function () { return null; });
+      }));
+    }).then(function (a) {
+      if (PK.pt !== pt) return;
+      var list = a.filter(Boolean).sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
+      var sig = list.map(function (x) { return x.k + (x.bad ? '!' : ''); }).join('|');
+      if (sig === (pt.pendSig || '')) return;
+      var had = (pt.pend || []).length;
+      pt.pend = list; pt.pendSig = sig;
+      if (had > list.length) pkPtReload(pt); /* что-то из очереди ушло на сервер — обновляем список настоящих фото */
+      if (S.view === 'prokat' && !pkTyping()) render();
+    }, function () {});
+  }
+  function pkPendBlock(pt) {
+    var l = pt.pend || []; if (!l.length) return '';
+    return '<div style="margin:0 0 12px"><p style="margin:0 0 8px;color:#b26a00"><b>⏳ ' + esc(TX('Фото в телефоне, ждут отправки')) + ': ' + l.length + '</b><br><small>' + esc(TX('Они не потеряются. Уйдут на сервер сами, когда появится интернет.')) + '</small></p><div style="display:grid;gap:12px">' + l.map(function (p) {
+      var d = p.date ? p.date.slice(0, 10) : '';
+      return '<figure style="margin:0;border:2px dashed #b26a00;border-radius:12px;overflow:hidden"><img src="' + esc(p.url) + '" alt="" style="display:block;width:100%;max-height:420px;object-fit:contain;background:rgba(127,127,127,.12)">' +
+        '<figcaption style="padding:8px 10px"><b>📅 ' + esc(d ? pkDay(d) : TX('сегодня')) + '</b><small style="display:block;opacity:.85">' + esc(p.bad ? TX('Сервер пока не принял. Нажмите «Отправить» вверху экрана или откройте приложение с интернетом') : TX('Ждёт отправки')) + '</small>' +
+        '<a href="' + esc(p.url) + '" download="' + esc((pt.tool || 'foto') + '-' + (d || 'today') + '.jpg') + '" style="display:inline-block;margin-top:6px;padding:6px 12px;border:1px solid rgba(127,127,127,.5);border-radius:8px;color:inherit;text-decoration:none">💾 ' + esc(TX('Сохранить копию в телефон')) + '</a></figcaption></figure>';
+    }).join('') + '</div></div>';
+  }
   function pkToolOpen(i) {
     var t = PK.ph && PK.ph.tools[i]; if (!t || !PK.cur) return;
     var pt = PK.pt = { sib: (function () { var g = pkGroups(PK.ph.tools).filter(function (x) { return x.items.indexOf(i) >= 0; })[0]; return g && g.items.length > 1 ? g.items : []; })(), idx: i, point: PK.cur.name, tool: t.name, vid: pkKindOf(t).label, icon: pkKindOf(t).icon, card: { loading: true, firma: '', cena: '', kredit: '', msg: '', err: '', busy: false, id: '' }, kind: t.kind || '', prices: t.prices || [], loading: true, photos: [], total: 0, error: '', st: { status: t.status, status_text: t.status_text, out: t.out, month_income: t.month_income } }; PK.big = null; render();
@@ -5289,7 +5328,7 @@ if (S.view === 'mkt') return renderMkt(el);
       else { pt.error = ''; pt.down = false; pt.photos = pkNewestFirst(Array.isArray(r.photos) ? r.photos : []); pt.total = pkNum(r.total) || pt.photos.length; if (Array.isArray(r.prices)) { pt.prices = r.prices; pt.kind = r.kind || ''; } if (r.status != null) pt.st = { status: r.status, status_text: r.status_text, out: r.out, month_income: r.month_income }; }
       if (S.view === 'prokat') render();
     });
-    pkMovesLoad(pt); pkCardLoad(pt);
+    pkMovesLoad(pt); pkCardLoad(pt); pkPendLoad(pt);
   }
   // Новое фото инструмента прямо из его окна: камера или галерея. Фото сжимается и уходит на диск проката (действие tool_photo).
   document.addEventListener('change', function (e) {
@@ -5300,7 +5339,7 @@ if (S.view === 'mkt') return renderMkt(el);
       if (PK.pt !== pt) return;
       np.busy = false;
       if (!r || !r.ok) { np.err = (r && r.error) || TX('Не получилось сохранить'); return render(); }
-      if (r.queued) { pt.msg = TX('Сохранено в телефоне. Уйдёт на сервер, когда появится интернет.'); return render(); }
+      if (r.queued) { pt.msg = TX('Фото сохранено в телефоне и уже видно ниже. Уйдёт на сервер, когда появится интернет.'); render(); pkPendLoad(pt); return; }
       pt.msg = TX('Фото сохранено'); render();
       callTo('/prokat-foto', { action: 'tool', name: pt.point, tool: pt.tool }).then(function (x) {
         if (PK.pt !== pt || !x || !x.ok) return;
@@ -5548,8 +5587,9 @@ if (S.view === 'mkt') return renderMkt(el);
     h += PK.mv && PK.mv.ctx === 'pt' ? pkMoveForm() : '<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:10px">' + pkBtn('mv-open', '🚚 ' + esc(TX('Перевезти')), true) + pkBtn('sell-open', '💰 ' + esc(TX('Продать')), true) + '</div>' + pkArcBlock(pt) + pkBrkBlock(pt);
     h += '<div style="margin:0 0 10px;padding:10px;border-radius:12px;border:1px solid rgba(127,127,127,.3)"><b>📷 ' + esc(TX('Новое фото инструмента')) + '</b>' + pkPhotoPick('data-ptphoto="1"', '', false, pt.np && pt.np.busy ? TX('Сохраняю фото…') : '') + (pt.np && pt.np.err ? '<p style="color:#c0392b;margin:0">' + esc(pt.np.err) + '</p>' : '') + '</div>';
     h += pkMovesBlock(pkOvMoves(pt).concat(pt.moves || []));
+    h += pkPendBlock(pt);
     if (pt.loading) return void (el.innerHTML = h + '<p style="opacity:.75">' + esc(TX('Загружаю фото этого инструмента…')) + '</p>'); /* кнопки выше работают, не дожидаясь старых фото (14.11.2026) */
-    if (!pt.photos.length) return void (el.innerHTML = h + (pt.error ? '' : '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет.')) + '</p>'));
+    if (!pt.photos.length) return void (el.innerHTML = h + (pt.error || (pt.pend || []).length ? '' : '<p style="opacity:.75">' + esc(TX('Фото этого инструмента пока нет.')) + '</p>'));
     h += '<p style="margin:0 0 8px">' + esc(TX('Фото по датам, сверху самые новые')) + ': <b>' + esc(pt.total) + '</b>' + (pt.total > pt.photos.length ? ' (' + esc(TX('показаны последние')) + ' ' + pt.photos.length + ')' : '') + '</p>';
     h += '<div style="display:grid;gap:12px">' + pt.photos.map(function (p, i) {
       if (p.unit === 'нет' || p.unit === 'сломан') return '';
