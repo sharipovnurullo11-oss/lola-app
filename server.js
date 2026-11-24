@@ -39,7 +39,13 @@ function zsend(req, res, headers, body) {
   res.writeHead(200, { ...headers, 'Content-Encoding': enc, 'Vary': 'Accept-Encoding' });
   return res.end(z);
 }
-let WINDOW_HTML = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'window.html'));
+// Красная цифра в окне: считаем только то, что новее отметки «диалог открыт». Раньше входящие без ответа считались всегда, и цифра у WhatsApp не гасла.
+function patchWindow(buf) {
+  const s = buf.toString('utf8');
+  const re = /(if\s*\(RESET_CH\[c\.kanal\]\s*&&\s*t\s*&&\s*t\s*<\s*RESET_AT\)\s*break;)(\s*trail\+\+;)/;
+  return re.test(s) ? Buffer.from(s.replace(re, '$1 if (t && t <= seen) break;$2'), 'utf8') : buf;
+}
+let WINDOW_HTML = patchWindow(fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'window.html')));
 // «Единое окно» обновляется само: раз в минуту забираем свежий window.html из GitHub (без пересборки сервера)
 const WINDOW_URL = process.env.WINDOW_URL || 'https://raw.githubusercontent.com/sharipovnurullo11-oss/lola-app/main/window.html';
 async function refreshWindow() {
@@ -47,7 +53,7 @@ async function refreshWindow() {
     const r = await fetch(WINDOW_URL, { signal: AbortSignal.timeout(10000) });
     if (!r.ok) return;
     const t = Buffer.from(await r.arrayBuffer());
-    if (t.length > 20000 && t.length < 4_000_000 && t.includes(Buffer.from('</html>'))) WINDOW_HTML = t;
+    if (t.length > 20000 && t.length < 4_000_000 && t.includes(Buffer.from('</html>'))) WINDOW_HTML = patchWindow(t);
   } catch { /* остаёмся на прежней версии */ }
 }
 if (process.env.NODE_ENV !== 'test') { refreshWindow(); setInterval(refreshWindow, 60_000).unref(); }
