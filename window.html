@@ -685,24 +685,27 @@ button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visib
     <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
   </div>
   <div id="wa-off" style="display:flex;flex-direction:column;gap:14px">
-    <div id="wa-qrbox" style="text-align:center">
-      <img id="wa-qr" alt="QR-код для WhatsApp" width="240" height="240" hidden style="max-width:100%;height:auto;border-radius:12px;background:#fff;padding:8px;box-sizing:border-box">
-      <p id="wa-wait" style="margin:8px 0;color:var(--navy2);font-size:14px">Готовим QR-код…</p>
-    </div>
-    <ul class="steps">
-      <li><i>1</i><span>Откройте WhatsApp на телефоне. На Android нажмите три точки, на iPhone откройте «Настройки».</span></li>
-      <li><i>2</i><span>Выберите «Связанные устройства», затем «Привязать устройство».</span></li>
-      <li><i>3</i><span>Наведите камеру на этот код. Если QR открыт на этом же телефоне, воспользуйтесь кнопкой ниже.</span></li>
-    </ul>
-    <button class="btn sec" id="wa-phone-btn" type="button">Подключаю с этого телефона</button>
-    <div id="wa-phone" style="display:none;flex-direction:column;gap:12px">
-      <div class="f"><label for="wa-num">Номер этого WhatsApp</label>
+    <div id="wa-phone" style="display:flex;flex-direction:column;gap:12px">
+      <p style="margin:0;font-size:15px;line-height:1.45">Введите номер WhatsApp этого телефона. Мы покажем код: вставьте его в WhatsApp, и телефон подключится.</p>
+      <div class="f"><label for="wa-in">Номер этого WhatsApp</label>
         <div class="ph"><select class="cc" id="wa-cc" aria-label="Страна"></select><input class="in2" id="wa-in" type="tel" inputmode="tel" autocomplete="off" placeholder="90 123 45 67"></div></div>
       <button class="btn" id="wa-code-btn" type="button">Получить код</button>
       <div id="wa-pair" hidden style="text-align:center">
-        <div id="wa-pair-code" style="font-size:30px;font-weight:800;letter-spacing:3px;color:var(--navy)"></div>
-        <p style="margin:8px 0 0;font-size:14px;line-height:1.4">В WhatsApp: «Связанные устройства», «Привязать устройство», внизу «Привязать по номеру телефона». Введите этот код.</p>
+        <div id="wa-pair-code" style="font-size:32px;font-weight:800;letter-spacing:3px;color:var(--navy)"></div>
+        <button class="btn" id="wa-copy" type="button" style="width:100%;margin-top:10px">Скопировать код</button>
+        <ul class="steps" style="text-align:left;margin-top:12px">
+          <li><i>1</i><span>Нажмите «Скопировать код».</span></li>
+          <li><i>2</i><span>Откройте WhatsApp. На Android нажмите три точки, на iPhone откройте «Настройки». Выберите «Связанные устройства», затем «Привязать устройство».</span></li>
+          <li><i>3</i><span>Внизу нажмите «Привязать по номеру телефона» и вставьте код.</span></li>
+        </ul>
+        <p id="wa-pair-t" style="margin:8px 0 0;font-size:13px;line-height:1.4;color:var(--navy2)">Код действует около минуты. Если WhatsApp пишет, что код не подошёл, нажмите «Новый код».</p>
       </div>
+    </div>
+    <button class="btn sec" id="wa-qr-btn" type="button">Подключаю с компьютера: показать QR-код</button>
+    <div id="wa-qrbox" hidden style="text-align:center">
+      <img id="wa-qr" alt="QR-код для WhatsApp" width="240" height="240" hidden style="max-width:100%;height:auto;border-radius:12px;background:#fff;padding:8px;box-sizing:border-box">
+      <p id="wa-wait" style="margin:8px 0;color:var(--navy2);font-size:14px">Готовим QR-код…</p>
+      <p style="margin:0;font-size:14px;line-height:1.4">В WhatsApp: «Связанные устройства», «Привязать устройство», наведите камеру на этот код.</p>
     </div>
     <p class="err" id="wa-err" hidden></p>
   </div>
@@ -1597,8 +1600,8 @@ function fb_go(fresh){
 $('fb-go').addEventListener('click', function(){ fb_go(false); });
 $('fb-re').addEventListener('click', function(){ fb_go(true); });
 
-/* WhatsApp: подключение по QR или по коду */
-var WAPOLL = null, WAQR = null, WASTOP = null, WANUM = '';
+/* WhatsApp: подключение по коду (основной способ) или по QR (запасной, с компьютера) */
+var WAPOLL = null, WAQR = null, WASTOP = null, WANUM = '', WACODE = '';
 function wa_stop(){ if (WAPOLL) { clearInterval(WAPOLL); WAPOLL = null; } if (WAQR) { clearInterval(WAQR); WAQR = null; } if (WASTOP) { clearTimeout(WASTOP); WASTOP = null; } }
 function wa_done(num){
   wa_stop();
@@ -1615,20 +1618,28 @@ function wa_connect(number, fresh){
     if (x.s !== 200 || !j.ok) { showErr('wa-err', T('Не получилось начать подключение. Попробуйте ещё раз.')); return; }
     showErr('wa-err', '');
     if (j.state === 'open') { wa_done(''); return; }
-    if (j.state === 'pair' && j.pair) { var c = String(j.pair); $('wa-pair-code').textContent = c.length === 8 ? c.slice(0,4) + '-' + c.slice(4) : c; $('wa-pair').hidden = false; }
-    if (j.state === 'pair') { $('wa-qr').hidden = true; $('wa-wait').textContent = T('Код обновляется сам, пока открыто это окно.'); }
-    else if (j.state === 'qr' && j.qr) { $('wa-qr').src = j.qr; $('wa-qr').hidden = false; $('wa-wait').textContent = T('Код обновляется сам, пока открыто это окно.'); }
-    else if (j.state === 'wait') { $('wa-wait').textContent = T('Готовим QR-код…'); }
+    if (j.state === 'pair' && j.pair) {
+      var c = String(j.pair); WACODE = c.replace(/[^A-Za-z0-9]/g, '');
+      $('wa-pair-code').textContent = c.length === 8 ? c.slice(0,4) + '-' + c.slice(4) : c;
+      $('wa-pair').hidden = false; $('wa-code-btn').textContent = T('Новый код');
+    }
+    else if (j.state === 'qr' && j.qr && !WANUM) { $('wa-qr').src = j.qr; $('wa-qr').hidden = false; $('wa-wait').textContent = T('Код обновляется сам, пока открыто это окно.'); }
+    else if (j.state === 'wait' && !WANUM) { $('wa-wait').textContent = T('Готовим QR-код…'); }
   }).catch(function(){ showErr('wa-err', T('Нет связи с сервером.')); });
 }
 function wa_check(){
   post('/cabinet-wa-status', { code: store('ew_cab') || '' }).then(function(x){ if (x.j && x.j.state === 'open') wa_done(x.j.number || ''); }).catch(function(){});
 }
+function wa_reset_form(){
+  $('wa-qr').hidden = true; $('wa-qr').removeAttribute('src'); $('wa-qrbox').hidden = true;
+  $('wa-pair').hidden = true; $('wa-pair-code').textContent = ''; WACODE = '';
+  $('wa-code-btn').textContent = T('Получить код'); $('wa-code-btn').disabled = false;
+  $('wa-phone').style.display = 'flex';
+}
 function open_wa(){
   if (isStaff()) return;
   wa_stop(); showErr('wa-err', ''); WANUM = '';
-  $('wa-qr').hidden = true; $('wa-qr').removeAttribute('src'); $('wa-wait').textContent = T('Готовим QR-код…');
-  $('wa-pair').hidden = true; $('wa-phone').style.display = 'none'; $('wa-phone-btn').hidden = false;
+  wa_reset_form();
   if (INFO.channels.whatsapp === 'on') {
     /* в таблице «подключён», но телефон мог отключиться: спрашиваем настоящее состояние */
     $('wa-off').style.display = 'none'; $('wa-on').hidden = false;
@@ -1652,21 +1663,38 @@ function open_wa(){
 }
 function wa_begin(lost){
   wa_stop(); $('wa-on').hidden = true; $('wa-off').style.display = 'flex';
-  $('wa-wait').textContent = lost ? T('Телефон отключился от WhatsApp. Отсканируйте QR-код заново.') : T('Готовим QR-код…');
-  wa_connect('', true);
-  WAQR = setInterval(function(){ wa_connect(WANUM); }, 15000);
-  WAPOLL = setInterval(wa_check, 3000);
-  WASTOP = setTimeout(function(){ wa_stop(); $('wa-wait').textContent = T('Время вышло. Закройте окно и нажмите значок WhatsApp ещё раз.'); }, 180000);
+  wa_reset_form(); WANUM = '';
+  setPhone('wa-cc', 'wa-in', (store('ew_login') || ''));
+  showErr('wa-err', lost ? T('Телефон отключился от WhatsApp. Получите новый код.') : '');
 }
 $('m-wa').addEventListener('close', wa_stop);
 fillCountries('wa-cc');
-$('wa-phone-btn').addEventListener('click', function(){ $('wa-phone-btn').hidden = true; var ph = (store('ew_login') || ''); setPhone('wa-cc', 'wa-in', ph); $('wa-phone').style.display = 'flex'; });
 $('wa-code-btn').addEventListener('click', function(){
   var n = fullPhone('wa-cc', 'wa-in');
   if (!n) return showErr('wa-err', T('Введите номер WhatsApp этого телефона.'));
-  showErr('wa-err', ''); WANUM = n; $('wa-pair').hidden = true;
-  var b = $('wa-code-btn'); b.disabled = true;
-  wa_connect(n, true).then(function(){ b.disabled = false; });
+  showErr('wa-err', ''); wa_stop(); WANUM = n; $('wa-qrbox').hidden = true; $('wa-pair').hidden = true;
+  var b = $('wa-code-btn'); b.disabled = true; b.textContent = T('Получаем код…');
+  wa_connect(n, true).then(function(){
+    b.disabled = false; if ($('wa-pair').hidden) b.textContent = T('Получить код');
+    /* код живёт около минуты: новый берём не чаще раза в минуту, чтобы не сбить тот, что вводит человек */
+    WAQR = setInterval(function(){ wa_connect(WANUM); }, 60000);
+    WAPOLL = setInterval(wa_check, 3000);
+    WASTOP = setTimeout(function(){ wa_stop(); showErr('wa-err', T('Время вышло. Нажмите «Новый код».')); }, 300000);
+  });
+});
+$('wa-copy').addEventListener('click', function(){
+  var b = $('wa-copy');
+  function done(){ b.textContent = T('Скопировано'); setTimeout(function(){ b.textContent = T('Скопировать код'); }, 1800); }
+  if (WACODE && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(WACODE).then(done, function(){ b.textContent = T('Выделите код и скопируйте'); });
+  else b.textContent = T('Выделите код и скопируйте');
+});
+$('wa-qr-btn').addEventListener('click', function(){
+  wa_stop(); WANUM = ''; $('wa-pair').hidden = true; $('wa-qrbox').hidden = false; $('wa-qr').hidden = true; showErr('wa-err', '');
+  $('wa-wait').textContent = T('Готовим QR-код…');
+  wa_connect('', true);
+  WAQR = setInterval(function(){ wa_connect(''); }, 15000);
+  WAPOLL = setInterval(wa_check, 3000);
+  WASTOP = setTimeout(function(){ wa_stop(); $('wa-wait').textContent = T('Время вышло. Закройте окно и нажмите значок WhatsApp ещё раз.'); }, 180000);
 });
 
 
