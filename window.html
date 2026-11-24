@@ -683,6 +683,7 @@ button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visib
   <div id="wa-on" hidden>
     <p id="wa-on-t" style="margin:0 0 14px;font-size:15px;line-height:1.45"></p>
     <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
+    <button class="btn" id="wa-re" type="button" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid currentColor">Переподключить WhatsApp</button>
   </div>
   <div id="wa-off" style="display:flex;flex-direction:column;gap:14px">
     <div id="wa-phone" style="display:flex;flex-direction:column;gap:12px">
@@ -1654,9 +1655,9 @@ function open_wa(){
       } else if (x.s === 200 && j.ok) {
         wa_begin(true);
       } else {
-        $('wa-on-t').textContent = T('WhatsApp подключён. Сообщения клиентов приходят в список переписок.');
+        $('wa-on-t').textContent = T('Не удалось проверить связь с WhatsApp. Если сообщения не приходят или ответы не доходят, нажмите «Переподключить WhatsApp».');
       }
-    }).catch(function(){ $('wa-on-t').textContent = T('WhatsApp подключён. Сообщения клиентов приходят в список переписок.'); });
+    }).catch(function(){ $('wa-on-t').textContent = T('Не удалось проверить связь с WhatsApp. Если сообщения не приходят или ответы не доходят, нажмите «Переподключить WhatsApp».'); });
     return;
   }
   $('wa-on').hidden = true; $('wa-off').style.display = 'flex';
@@ -1670,6 +1671,8 @@ function wa_begin(lost){
   showErr('wa-err', lost ? T('Телефон отключился от WhatsApp. Получите новый код.') : '');
 }
 $('m-wa').addEventListener('close', wa_stop);
+/* «Переподключить»: телефон мог выйти из WhatsApp, а сервер ещё считает номер подключённым. Показываем форму номера; «Получить код» сбросит старую сессию и даст новый код. */
+$('wa-re').addEventListener('click', function(){ wa_begin(false); });
 fillCountries('wa-cc');
 $('wa-code-btn').addEventListener('click', function(){
   var n = fullPhone('wa-cc', 'wa-in');
