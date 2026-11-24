@@ -64,7 +64,7 @@ try:
         pg.click('[data-pk="sklad"]'); pg.wait_for_timeout(500)
         t = body(pg); check('Склад' in t and 'На складе пока пусто' in t and 'Новый инструмент' in t, 'пустой склад с кнопкой «Новый инструмент»')
         pg.click('[data-pk="sk-new"]'); pg.fill('#pk-sk-name', 'Болгарка большая')
-        pg.set_input_files('input[data-skphoto]', os.path.join(ROOT, 'public/icon-512.png')); pg.wait_for_timeout(800)
+        pg.click('[data-pkpick="gal"]'); pg.set_input_files('input[data-skphoto]', os.path.join(ROOT, 'public/icon-512.png')); pg.wait_for_timeout(800)
         check('Фото готово' in body(pg), 'фото инструмента сделано и сжато')
         pg.click('[data-pk="sk-st:0"]'); pg.fill('#pk-sk-qty', '3'); pg.click('[data-pk="sk-save"]'); pg.wait_for_timeout(1500)
         ph = [c for c in calls if c.get('action') == 'stock_photo']

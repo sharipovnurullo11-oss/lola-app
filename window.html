@@ -4595,12 +4595,33 @@ if (S.view === 'mkt') return renderMkt(el);
   }
   // Фото двумя способами (14.11.2026): снять камерой или выбрать из галереи телефона. attr — data-атрибут, по нему фото ловит свой обработчик.
   function pkPhotoPick(attr, photo, wait, label) {
-    var lb = 'position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:6px 8px;border:2px ' + (photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;cursor:pointer;font-weight:600;text-align:center';
-    var inp = function (cap) { return '<input type="file" accept="image/*"' + (cap ? ' capture="environment"' : '') + ' ' + attr + ' style="position:absolute;width:1px;height:1px;opacity:0">'; };
+    var lb = 'display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:6px 8px;border:2px ' + (photo ? 'solid #1f8a4c' : 'dashed rgba(127,127,127,.5)') + ';border-radius:10px;background:transparent;color:inherit;font:inherit;cursor:pointer;font-weight:600;text-align:center;width:100%';
+    var btn = function (how, ico, name) { return '<button type="button" data-pkpick="' + how + '" data-pkattr="' + esc(attr) + '" style="' + lb + '">' + ico + ' ' + esc(name) + '</button>'; };
     var txt = wait ? TX('Обрабатываю фото…') : photo ? TX('Фото готово. Можно снять заново или выбрать другое') : (label || '');
     return '<div style="margin:6px 0 8px">' + (txt || photo ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-weight:600">' + (photo ? '<img src="' + esc(photo) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px">' : '') + '<span>' + esc(txt) + '</span></div>' : '') +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><label style="' + lb + '">📷 ' + esc(TX('Снять фото')) + inp(true) + '</label><label style="' + lb + '">🖼️ ' + esc(TX('Из галереи')) + inp(false) + '</label></div></div>';
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + btn('cam', '📷', TX('Снять фото')) + btn('gal', '🖼️', TX('Из галереи')) + '</div></div>';
   }
+  // Поле выбора фото живёт вне экрана и не пересоздаётся при обновлении окна (15.11.2026 — 24.11.2026 фото с первого раза терялось: пока открыта камера,
+  // приложение само перерисовывало окно, поле исчезало, и снимок некуда было вернуть). Кнопка только запоминает, какому окну нужен снимок, и открывает это поле.
+  var PK_FI = {};
+  function pkFileInput(cam) {
+    var k = cam ? 'cam' : 'gal';
+    if (PK_FI[k] && document.body.contains(PK_FI[k])) return PK_FI[k];
+    var i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; if (cam) i.setAttribute('capture', 'environment');
+    i.tabIndex = -1; i.setAttribute('aria-hidden', 'true'); i.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(i); PK_FI[k] = i; return i;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-pkpick]'); if (!b) return;
+    e.preventDefault();
+    var i = pkFileInput(b.getAttribute('data-pkpick') === 'cam');
+    ['data-skphoto', 'data-addphoto', 'data-ptphoto', 'data-tphoto'].forEach(function (n) { i.removeAttribute(n); });
+    var m = /^([a-z-]+)(?:="(.*)")?$/.exec(b.getAttribute('data-pkattr') || '');
+    if (!m) return;
+    i.value = ''; i.setAttribute(m[1], m[2] == null ? '' : m[2]);
+    i.click();
+    try { i.blur(); } catch (er) {} /* иначе экран решит, что человек печатает, и перестанет обновляться */
+  });
   function pkSkPhotoBtn(F, label) { return pkPhotoPick('data-skphoto="1"', F.photo, F.wait, label); }
   function pkSkFormEnd(F) {
     return (F.err ? '<p style="color:#c0392b;margin:0 0 8px">' + esc(F.err) + '</p>' : '') +
