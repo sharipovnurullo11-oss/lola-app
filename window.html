@@ -692,11 +692,11 @@ button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visib
       <button class="btn" id="wa-code-btn" type="button">Получить код</button>
       <div id="wa-pair" hidden style="text-align:center">
         <div id="wa-pair-code" style="font-size:32px;font-weight:800;letter-spacing:3px;color:var(--navy)"></div>
-        <button class="btn" id="wa-copy" type="button" style="width:100%;margin-top:10px">Скопировать код</button>
+        <button class="btn" id="wa-copy" type="button" style="width:100%;margin-top:10px">Скопировать код и открыть WhatsApp</button>
         <ul class="steps" style="text-align:left;margin-top:12px">
-          <li><i>1</i><span>Нажмите «Скопировать код».</span></li>
-          <li><i>2</i><span>Откройте WhatsApp. На Android нажмите три точки, на iPhone откройте «Настройки». Выберите «Связанные устройства», затем «Привязать устройство».</span></li>
-          <li><i>3</i><span>Внизу нажмите «Привязать по номеру телефона» и вставьте код.</span></li>
+          <li><i>1</i><span>Нажмите «Скопировать код и открыть WhatsApp». Если на телефон пришло уведомление от WhatsApp про код, можно нажать его, и ввод кода откроется сразу.</span></li>
+          <li><i>2</i><span>В WhatsApp: на Android три точки, на iPhone «Настройки». Выберите «Связанные устройства», затем «Привязать устройство».</span></li>
+          <li><i>3</i><span>Внизу нажмите «Привязать по номеру телефона» и вставьте код (он уже скопирован).</span></li>
         </ul>
         <p id="wa-pair-t" style="margin:8px 0 0;font-size:13px;line-height:1.4;color:var(--navy2)">Код действует около минуты. Если WhatsApp пишет, что код не подошёл, нажмите «Новый код».</p>
       </div>
@@ -1622,6 +1622,7 @@ function wa_connect(number, fresh){
       var c = String(j.pair); WACODE = c.replace(/[^A-Za-z0-9]/g, '');
       $('wa-pair-code').textContent = c.length === 8 ? c.slice(0,4) + '-' + c.slice(4) : c;
       $('wa-pair').hidden = false; $('wa-code-btn').textContent = T('Новый код');
+      try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(WACODE).catch(function(){}); } catch(e){}
     }
     else if (j.state === 'qr' && j.qr && !WANUM) { $('wa-qr').src = j.qr; $('wa-qr').hidden = false; $('wa-wait').textContent = T('Код обновляется сам, пока открыто это окно.'); }
     else if (j.state === 'wait' && !WANUM) { $('wa-wait').textContent = T('Готовим QR-код…'); }
@@ -1684,9 +1685,9 @@ $('wa-code-btn').addEventListener('click', function(){
 });
 $('wa-copy').addEventListener('click', function(){
   var b = $('wa-copy');
-  function done(){ b.textContent = T('Скопировано'); setTimeout(function(){ b.textContent = T('Скопировать код'); }, 1800); }
-  if (WACODE && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(WACODE).then(done, function(){ b.textContent = T('Выделите код и скопируйте'); });
-  else b.textContent = T('Выделите код и скопируйте');
+  function done(){ b.textContent = T('Скопировано, открываю WhatsApp…'); setTimeout(function(){ b.textContent = T('Скопировать код и открыть WhatsApp'); }, 2500); setTimeout(function(){ location.href = 'whatsapp://'; }, 400); }
+  if (WACODE && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(WACODE).then(done, function(){ b.textContent = T('Выделите код, скопируйте и откройте WhatsApp'); });
+  else b.textContent = T('Выделите код, скопируйте и откройте WhatsApp');
 });
 $('wa-qr-btn').addEventListener('click', function(){
   wa_stop(); WANUM = ''; $('wa-pair').hidden = true; $('wa-qrbox').hidden = false; $('wa-qr').hidden = true; showErr('wa-err', '');
