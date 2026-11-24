@@ -693,6 +693,7 @@ button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visib
       <div id="wa-pair" hidden style="text-align:center">
         <div id="wa-pair-code" style="font-size:32px;font-weight:800;letter-spacing:3px;color:var(--navy)"></div>
         <button class="btn" id="wa-copy" type="button" style="width:100%;margin-top:10px">Скопировать код и открыть WhatsApp</button>
+        <button class="btn sec" id="wa-copy-b" type="button" style="width:100%;margin-top:8px;display:none">Скопировать код и открыть WhatsApp Business</button>
         <ul class="steps" style="text-align:left;margin-top:12px">
           <li><i>1</i><span>Нажмите «Скопировать код и открыть WhatsApp». Если на телефон пришло уведомление от WhatsApp про код, можно нажать его, и ввод кода откроется сразу.</span></li>
           <li><i>2</i><span>В WhatsApp: на Android три точки, на iPhone «Настройки». Выберите «Связанные устройства», затем «Привязать устройство».</span></li>
@@ -1693,20 +1694,25 @@ function wa_copy_now(t){
   try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).catch(function(){}); ok = true; } } catch(e){}
   return ok;
 }
-function wa_open_app(){
-  var ua = navigator.userAgent || '';
-  if (/android/i.test(ua)) location.href = 'intent://send/#Intent;scheme=whatsapp;S.browser_fallback_url=' + encodeURIComponent('https://wa.me/') + ';end';
-  else if (/iphone|ipad|ipod/i.test(ua)) location.href = 'whatsapp://';
-  else location.href = 'https://wa.me/';
+function wa_open_app(biz){
+  /* ссылка «открыть чат с номером»: без номера WhatsApp пишет «не удалось открыть ссылку на чат» */
+  var ua = navigator.userAgent || '', num = String(WANUM || '').replace(/[^0-9]/g, '');
+  var web = 'https://wa.me/' + num;
+  if (/android/i.test(ua)) location.href = 'intent://send/?phone=' + num + '#Intent;scheme=whatsapp;package=' + (biz ? 'com.whatsapp.w4b' : 'com.whatsapp') + ';S.browser_fallback_url=' + encodeURIComponent(web) + ';end';
+  else if (/iphone|ipad|ipod/i.test(ua)) location.href = 'whatsapp://send?phone=' + num;
+  else location.href = web;
 }
-$('wa-copy').addEventListener('click', function(){
-  var b = $('wa-copy');
-  if (!WACODE) { b.textContent = T('Сначала получите код'); return; }
-  var ok = wa_copy_now(WACODE);
-  b.textContent = ok ? T('Код скопирован. Вставьте его в WhatsApp.') : T('Выделите код и скопируйте');
-  setTimeout(function(){ b.textContent = T('Скопировать код и открыть WhatsApp'); }, 4000);
-  wa_open_app();
-});
+function wa_copy_open(btn, biz){
+  if (!WACODE) { btn.textContent = T('Сначала получите код'); return; }
+  var ok = wa_copy_now(WACODE), was = btn.getAttribute('data-t') || btn.textContent;
+  btn.setAttribute('data-t', was);
+  btn.textContent = ok ? T('Код скопирован. Вставьте его в WhatsApp.') : T('Выделите код и скопируйте');
+  setTimeout(function(){ btn.textContent = was; }, 4000);
+  wa_open_app(biz);
+}
+$('wa-copy').addEventListener('click', function(){ wa_copy_open($('wa-copy'), false); });
+$('wa-copy-b').addEventListener('click', function(){ wa_copy_open($('wa-copy-b'), true); });
+try { if (/android/i.test(navigator.userAgent || '')) $('wa-copy-b').style.display = ''; } catch (e) {}
 $('wa-qr-btn').addEventListener('click', function(){
   wa_stop(); WANUM = ''; $('wa-pair').hidden = true; $('wa-qrbox').hidden = false; $('wa-qr').hidden = true; showErr('wa-err', '');
   $('wa-wait').textContent = T('Готовим QR-код…');
