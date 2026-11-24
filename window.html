@@ -1683,11 +1683,29 @@ $('wa-code-btn').addEventListener('click', function(){
     WASTOP = setTimeout(function(){ wa_stop(); showErr('wa-err', T('Время вышло. Нажмите «Новый код».')); }, 300000);
   });
 });
+function wa_copy_now(t){
+  /* копируем сразу, в то же нажатие: сначала старым способом (работает мгновенно), потом через буфер обмена */
+  var ok = false;
+  try {
+    var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); document.body.removeChild(ta);
+  } catch(e){}
+  try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).catch(function(){}); ok = true; } } catch(e){}
+  return ok;
+}
+function wa_open_app(){
+  var ua = navigator.userAgent || '';
+  if (/android/i.test(ua)) location.href = 'intent://send/#Intent;scheme=whatsapp;S.browser_fallback_url=' + encodeURIComponent('https://wa.me/') + ';end';
+  else if (/iphone|ipad|ipod/i.test(ua)) location.href = 'whatsapp://';
+  else location.href = 'https://wa.me/';
+}
 $('wa-copy').addEventListener('click', function(){
   var b = $('wa-copy');
-  function done(){ b.textContent = T('Скопировано, открываю WhatsApp…'); setTimeout(function(){ b.textContent = T('Скопировать код и открыть WhatsApp'); }, 2500); setTimeout(function(){ location.href = 'whatsapp://'; }, 400); }
-  if (WACODE && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(WACODE).then(done, function(){ b.textContent = T('Выделите код, скопируйте и откройте WhatsApp'); });
-  else b.textContent = T('Выделите код, скопируйте и откройте WhatsApp');
+  if (!WACODE) { b.textContent = T('Сначала получите код'); return; }
+  var ok = wa_copy_now(WACODE);
+  b.textContent = ok ? T('Код скопирован. Вставьте его в WhatsApp.') : T('Выделите код и скопируйте');
+  setTimeout(function(){ b.textContent = T('Скопировать код и открыть WhatsApp'); }, 4000);
+  wa_open_app();
 });
 $('wa-qr-btn').addEventListener('click', function(){
   wa_stop(); WANUM = ''; $('wa-pair').hidden = true; $('wa-qrbox').hidden = false; $('wa-qr').hidden = true; showErr('wa-err', '');
