@@ -684,6 +684,7 @@ button:focus,summary:focus{outline:none}button:focus-visible,summary:focus-visib
     <p id="wa-on-t" style="margin:0 0 14px;font-size:15px;line-height:1.45"></p>
     <button class="btn" data-close type="button" style="width:100%">Хорошо</button>
     <button class="btn" id="wa-re" type="button" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid currentColor">Переподключить WhatsApp</button>
+    <button class="btn" id="wa-off-btn" type="button" style="width:100%;margin-top:8px;background:transparent;color:#c0392b;border:1px solid #c0392b">Отключить WhatsApp</button>
   </div>
   <div id="wa-off" style="display:flex;flex-direction:column;gap:14px">
     <div id="wa-phone" style="display:flex;flex-direction:column;gap:12px">
@@ -836,7 +837,7 @@ fillCountries('r-cc'); fillCountries('l-cc'); fillCountries('s-cc');
 function showPhone(p){ p=String(p||''); return p.length<=9 ? '+992 '+p : '+'+p; }
 
 function showErr(id,m){ var e=$(id); e.textContent=m; e.hidden=!m; if (m) { try { var d=e.closest('.dbody'); if (d && e.parentNode!==d && /^(ig|fb|wa)-err$/.test(id)) d.appendChild(e); if (e.scrollIntoView) e.scrollIntoView({block:'nearest'}); } catch(_){} } }
-var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-chats-check','/cabinet-chats-status','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/prokat-arhiv','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/chek','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
+var AS_OK = ['/cabinet','/cabinet-chats','/cabinet-chats-check','/cabinet-chats-status','/cabinet-wa-connect','/cabinet-wa-status','/cabinet-wa-off','/cabinet-ig-connect','/cabinet-fb-connect','/cabinet-telegram','/buhgalter','/prokat','/prokat-foto','/prokat-karta','/prokat-arhiv','/magazin','/apteka-spisok','/materialy-foto','/spravochnik','/polki-imena','/preparat-foto','/preparat-spisok','/foto-big','/objekty','/vitrina','/shop','/smm','/smm-tg','/smm-tips','/marketolog','/yurist','/assistent','/chek','/znaniya','/kb','/slots','/staff','/archive','/cabinet-support','/cabinet-ig-pause','/cabinet-wa-send','/cabinet-ig-send','/cabinet-fb-send','/cabinet-send','/tgb-send']; /* админ в кабинете клиента работает как клиент: специалисты, настройки и отправка сообщений; смена кода и вход остаются закрытыми */
 function post(path,body,signal){ if (AS_KOD && AS_OK.indexOf(path) < 0) return Promise.resolve({s:403,j:{ok:false,error:'as'}}); return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:signal}).then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); }); }
 function hm(v){ var d=new Date(v); return isNaN(d) ? String(v||'') : ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function ago_txt(v){ var d=new Date(v); if (isNaN(d)) return ''; var min=Math.max(0, Math.floor((Date.now()-d.getTime())/60000)), h=Math.floor(min/60), days=Math.floor(h/24); if (min<1) return T('только что'); if (h<1) return min+T(' мин назад'); if (days<1) return h+T(' ч')+(min%60 ? ' '+(min%60)+T(' мин') : '')+T(' назад'); return days+T(' д')+(h%24 ? ' '+(h%24)+T(' ч') : '')+T(' назад'); }
@@ -1646,7 +1647,7 @@ function open_wa(){
   if (INFO.channels.whatsapp === 'on') {
     /* в таблице «подключён», но телефон мог отключиться: спрашиваем настоящее состояние */
     $('wa-off').style.display = 'none'; $('wa-on').hidden = false;
-    $('wa-on-t').textContent = T('Проверяем связь с WhatsApp…');
+    $('wa-on-t').textContent = T('Проверяем связь с WhatsApp…'); $('wa-off-btn').hidden = false;
     open_dlg('m-wa');
     post('/cabinet-wa-status', { code: store('ew_cab') || '' }).then(function(x){
       var j = x.j || {};
@@ -1673,6 +1674,19 @@ function wa_begin(lost){
 $('m-wa').addEventListener('close', wa_stop);
 /* «Переподключить»: телефон мог выйти из WhatsApp, а сервер ещё считает номер подключённым. Показываем форму номера; «Получить код» сбросит старую сессию и даст новый код. */
 $('wa-re').addEventListener('click', function(){ wa_begin(false); });
+/* «Отключить»: сервер выходит из WhatsApp и ставит статус «выключено». Сообщения перестают приходить, Саида не отвечает. */
+$('wa-off-btn').addEventListener('click', function(){
+  if (!confirm(T('Отключить WhatsApp? Сообщения перестанут приходить, ассистент не будет отвечать в WhatsApp.'))) return;
+  var bt = $('wa-off-btn'); bt.disabled = true; bt.textContent = T('Отключаем…');
+  post('/cabinet-wa-off', { code: store('ew_cab') || '' }).then(function(x){
+    bt.disabled = false; bt.textContent = T('Отключить WhatsApp');
+    if (x.s === 200 && x.j && x.j.ok) {
+      try { INFO.channels.whatsapp = 'off'; } catch(e){}
+      wa_stop(); $('wa-on-t').textContent = T('WhatsApp отключён. Чтобы подключить снова, нажмите «Переподключить WhatsApp».');
+      $('wa-off-btn').hidden = true;
+    } else { $('wa-on-t').textContent = T('Не удалось отключить. Попробуйте ещё раз.'); }
+  }).catch(function(){ bt.disabled = false; bt.textContent = T('Отключить WhatsApp'); $('wa-on-t').textContent = T('Нет связи с сервером.'); });
+});
 fillCountries('wa-cc');
 $('wa-code-btn').addEventListener('click', function(){
   var n = fullPhone('wa-cc', 'wa-in');
